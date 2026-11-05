@@ -1,0 +1,70 @@
+---
+title: "Visibility"
+description: "Hide tools until a session unlocks them (VisibilityTransform)"
+---
+
+import { Puzzle } from 'lucide-react';
+
+`VisibilityTransform` keeps some tools out of the catalog until something unlocks them for a session, such as an administrator signing in. Hidden tools can't be called either, even by a client that knows their names.
+
+The `VisibilityTransform` controls tool availability on a per-session and per-subject basis. Tools can be initialized in a hidden state and dynamically unlocked at runtime.
+
+## Hide a tool
+
+Set `visibility: 'hidden'` in `@Tool`. The tool is registered as usual but left out of `tools/list`.
+
+```typescript
+import { Controller, ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
+
+@Controller('admin')
+export class AdminController {
+  @Tool({
+    name: 'purge_cache',
+    description: 'Purges server caches (requires elevated privilege)',
+    visibility: 'hidden', // Hidden by default in tools/list
+    inputSchema: z.object({
+      tier: z.enum(['all', 'redis', 'memory']),
+    }),
+  })
+  async purgeCache(input: { tier: string }, ctx: ExecutionContext) {
+    return { purged: input.tier };
+  }
+}
+```
+
+## Unlock it for a session
+
+Handlers can dynamically enable or disable tools for the active session using helpers on `ExecutionContext`:
+
+```typescript
+@Tool({
+  name: 'authenticate_admin',
+  description: 'Authenticates administrator and unlocks administrative tools',
+  inputSchema: z.object({ passkey: z.string() }),
+})
+async authenticateAdmin(input: { passkey: string }, ctx: ExecutionContext) {
+  if (input.passkey !== process.env.ADMIN_KEY) {
+    throw new Error('Invalid administrative passkey');
+  }
+
+  // Dynamically reveal the hidden tool for this client session
+  if (ctx.enableTools) {
+    await ctx.enableTools(['admin_purge_cache']);
+  }
+
+  return { status: 'authenticated', unlockedTools: ['admin_purge_cache'] };
+}
+```
+
+## What hidden means
+
+Hiding is enforced, not cosmetic:
+
+* **Security Guarding**: If a client attempts to directly invoke a hidden tool via `tools/call` without authorization, `VisibilityTransform` throws a JSON-RPC error code `-32601` (`VisibilityResolutionError`).
+* **Subject Deny Lists**: Deny rules assigned to verified cryptographic identities survive across session reconnections.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Puzzle />} title="Write a transform" href="/docs/sdk/transforms/custom" description="The transform interface." />
+</Cards>

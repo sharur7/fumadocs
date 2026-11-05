@@ -1,0 +1,17 @@
+---
+title: "Caching"
+description: "@cache(ttl=...) decorator"
+---
+
+`@cache` remembers a handler's result for a number of seconds. When the same call arrives again in that time, the stored result is returned without running the handler.
+
+```python
+from nitrostack import cache, tool
+
+@tool(name="lookup", description="...", input_schema=LookupInput)
+@cache(ttl=60)
+async def lookup(self, input: LookupInput, context):
+    return await self.service.fetch(input.id)
+```
+
+`ttl` is in seconds. Pair with [rate limiting](/python/sdk/rate-limiting) on expensive tools.

@@ -1,0 +1,9 @@
+{
+  "title": "Apps",
+  "pages": [
+    "mcp",
+    "chat",
+    "billing"
+  ],
+  "icon": "AppWindow"
+}

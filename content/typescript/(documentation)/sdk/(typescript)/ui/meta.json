@@ -1,0 +1,8 @@
+{
+  "title": "UI Widgets",
+  "pages": [
+    "widgets",
+    "widget-sdk",
+    "widget-manifest"
+  ]
+}

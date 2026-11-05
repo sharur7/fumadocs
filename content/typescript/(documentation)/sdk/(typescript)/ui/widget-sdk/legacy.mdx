@@ -1,0 +1,43 @@
+---
+title: "Legacy API"
+description: "withToolData, and how to migrate to useWidgetSDK"
+---
+
+import { ArrowLeftRight } from 'lucide-react';
+
+Older widgets use the `withToolData` wrapper. It still works, but new widgets should use the hooks.
+
+## Legacy API
+
+Kept for older widgets.
+
+### withToolData()
+
+Higher-Order Component for automatic data fetching (legacy pattern).
+
+<Callout type="info" title="Note">
+
+This is maintained for backward compatibility. New widgets should use `useWidgetSDK()` instead.
+
+</Callout>
+
+**Example:**
+```typescript
+import { withToolData } from '@nitrostack/widgets';
+
+function MyWidget({ data }) {
+  return <div>{data.title}</div>;
+}
+
+export default withToolData(MyWidget);
+```
+
+## Migration from withToolData
+
+See [Widget SDK Migration Guide](/docs/guides/widget-sdk-migration) for detailed migration instructions.
+
+## Next steps
+
+<Cards>
+  <Card icon={<ArrowLeftRight />} title="Migration guide" href="/docs/guides/widget-sdk-migration" description="Step-by-step migration." />
+</Cards>

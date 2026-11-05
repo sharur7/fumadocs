@@ -1,0 +1,85 @@
+---
+title: "Rate Limiting"
+description: "Cap how often a caller can run a tool"
+---
+
+import { DatabaseZap, ShieldCheck } from 'lucide-react';
+
+Some tools are expensive or risky to run often: sending email, calling a paid API, uploading files. `@RateLimit` caps how many times a caller can invoke a tool within a time window. When the cap is reached, further calls fail with an error until the window resets.
+
+```typescript
+import { ToolDecorator as Tool, RateLimit, ExecutionContext } from '@nitrostack/core';
+
+export class EmailTools {
+  @Tool({ name: 'send_email', description: 'Send an email' })
+  @RateLimit({ requests: 10, window: '1m' }) // 10 calls per minute, per caller
+  async sendEmail(input: EmailInput, ctx: ExecutionContext) {
+    await this.emailService.send(input);
+    return { success: true };
+  }
+}
+```
+
+## How it works
+
+Each call increments a counter for the caller. While the counter is within the limit, the handler runs; once it passes the limit, NitroStack throws an error and the handler doesn't run. The counter resets when the window ends.
+
+<Fork
+  start={[{ title: 'Tool call', icon: 'Wrench' }, { title: 'Count this call', sub: 'One counter per tool and caller' }]}
+  branches={[
+    { label: 'Within the limit', accent: true, steps: [{ title: 'Handler runs', sub: 'The result is returned as usual' }] },
+    { label: 'Over the limit', steps: [{ title: 'Error returned', sub: 'Rate limit exceeded. Maximum 10 requests per 1m' }] },
+  ]}
+  caption="Counters are kept per tool and per caller, so one busy caller doesn't use up anyone else's quota."
+/>
+
+## Options
+
+`@RateLimit` takes two required options and three optional ones.
+
+| Option | Type | Description |
+| :-- | :-- | :-- |
+| `requests` | `number` | Maximum number of calls allowed in one window |
+| `window` | `string` | Length of the window, such as `'30s'`, `'1m'`, `'1h'`, or `'1d'` |
+| `key` | `(ctx: ExecutionContext) => string` | Decides which caller a call counts against. Defaults to the authenticated subject |
+| `message` | `string` | Error message returned when the limit is reached |
+| `storage` | `RateLimitStorage` | Where counters are kept. Defaults to memory in the server process |
+
+## Time windows
+
+A window is a whole number followed by a unit: `s` for seconds, `m` for minutes, `h` for hours, or `d` for days. Any other format, such as `'1 minute'` or `'1.5h'`, throws an error when the server starts.
+
+```typescript
+@RateLimit({ requests: 5, window: '30s' })     // 5 calls per 30 seconds
+@RateLimit({ requests: 1000, window: '1h' })   // 1,000 calls per hour
+@RateLimit({ requests: 50000, window: '7d' })  // 50,000 calls per week
+```
+
+## When the limit is reached
+
+The tool call fails with `Rate limit exceeded. Maximum <requests> requests per <window>`. The model sees that message, so it can tell the user to wait. Set `message` to say something more specific:
+
+```typescript
+@RateLimit({
+  requests: 10,
+  window: '1m',
+  message: 'You can send up to 10 emails a minute. Try again shortly.',
+})
+```
+
+The error passes through any [exception filters](/docs/api-reference/filters) on the tool, like any other error.
+
+## Rate limiting topics
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="shield" />} title="Rate limit keys" href="/docs/sdk/rate-limiting/keys" description="Count calls per user, per API key, or per anything else." />
+  <Card className="nx-card-illo" icon={<Illustration name="layers" />} title="Stacked limits" href="/docs/sdk/rate-limiting/patterns" description="Combine per-minute, per-hour, and per-day limits." />
+  <Card className="nx-card-illo" icon={<Illustration name="cloud" />} title="Storage" href="/docs/sdk/rate-limiting/storage" description="Share counters across servers with Redis." />
+</Cards>
+
+## Related
+
+<Cards>
+  <Card icon={<DatabaseZap />} title="Caching" href="/docs/sdk/caching" description="Reuse results instead of running the handler." />
+  <Card icon={<ShieldCheck />} title="Guards" href="/docs/sdk/guards" description="Reject callers before limits are counted." />
+</Cards>

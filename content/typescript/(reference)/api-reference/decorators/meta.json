@@ -1,0 +1,12 @@
+{
+  "title": "Decorators",
+  "pages": [
+    "mcp-primitives",
+    "controllers-and-modules",
+    "pipeline",
+    "caching-and-rate-limiting",
+    "dependency-injection",
+    "widgets-health-events"
+  ],
+  "icon": "AtSign"
+}

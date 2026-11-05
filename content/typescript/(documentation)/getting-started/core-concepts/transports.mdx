@@ -1,0 +1,49 @@
+---
+title: Transports
+description: How messages travel between a client and your server, and which transport to use.
+---
+
+import { Plug, Globe, Rocket } from 'lucide-react';
+
+A transport is the channel that carries MCP messages. Your tools don't change between transports; you choose one based on where the server runs and who connects to it.
+
+<TransportsDiagram />
+
+| Transport | How it works | Best for |
+| :-- | :-- | :-- |
+| **STDIO** | The client starts your server as a child process and talks over standard input and output | Local, single-user clients: Claude Desktop, Cursor, NitroStudio |
+| **HTTP** | Your server listens on a port; clients send requests to its `/mcp` endpoint | Remote servers, web clients, and several clients at once |
+| **Dual** | STDIO and HTTP at the same time | Serving local and remote clients from one process |
+
+## What the CLI uses
+
+`npm run dev` runs your server over **STDIO**, because local tools like [NitroStudio](/docs/studio/overview) and Cursor start it as a process. The [widget](/docs/getting-started/core-concepts/widgets) dev server runs separately on port 3001.
+
+`npm start` builds the project and serves it over **HTTP** at `http://localhost:3000/mcp`. Use this to test the way a deployed server behaves, or to call it with `curl` as shown in the [Quickstart](/docs/getting-started/quickstart).
+
+## Setting it in code
+
+You can fix the transport in `@McpApp`. If you leave it out, NitroStack picks one from the environment, as described above.
+
+```typescript title="src/app.module.ts"
+@McpApp({
+  module: AppModule,
+  server: { name: 'my-server', version: '1.0.0' },
+  transport: {
+    type: 'dual', // 'stdio' | 'http' | 'dual'
+    http: { port: 3000, host: '0.0.0.0', basePath: '/mcp' },
+  },
+})
+```
+
+<Callout type="warn" title="Protect HTTP servers">
+  A STDIO server is only reachable by the process that started it. An HTTP server is reachable by anything that can reach its port, so add [authentication](/docs/sdk/auth/overview) before exposing it beyond your machine.
+</Callout>
+
+## Go deeper
+
+<Cards>
+  <Card icon={<Plug />} title="Connect to Clients" href="/docs/guides/connect-to-clients" description="Configure each client for STDIO or HTTP." />
+  <Card icon={<Globe />} title="Streamable HTTP" href="/docs/guides/streamable-http" description="Sessions, endpoints, and HTTP details." />
+  <Card icon={<Rocket />} title="Deployment" href="/docs/deployment/docker" description="Run an HTTP server in production." />
+</Cards>

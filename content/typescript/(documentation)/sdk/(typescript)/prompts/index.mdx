@@ -1,0 +1,77 @@
+---
+title: "Prompts"
+description: "Offer reusable message templates that users can pick"
+---
+
+import { Braces, Monitor } from 'lucide-react';
+
+Prompts are reusable instructions your server offers, such as a code review checklist or a support triage script. A client usually lists them in a menu, the user picks one and fills in its arguments, and the prompt's messages go into the conversation.
+
+## Basic Prompt Definition
+
+Prompts are defined using the `@Prompt` decorator on class methods:
+
+```typescript
+import { PromptDecorator as Prompt, ExecutionContext } from '@nitrostack/core';
+
+export class ProductPrompts {
+  constructor(private productService: ProductService) {}
+
+  @Prompt({
+    name: 'product_review',
+    description: 'Generate a structured product review request',
+    arguments: [
+      {
+        name: 'product_id',
+        description: 'The product identifier to review',
+        required: true
+      }
+    ]
+  })
+  async getReviewPrompt(args: { product_id: string }, context: ExecutionContext) {
+    const product = await this.productService.findById(args.product_id);
+
+    if (!product) {
+      throw new Error(`Product not found: ${args.product_id}`);
+    }
+
+    return [
+      {
+        role: 'user' as const,
+        content: {
+          type: 'text' as const,
+          text: `Please provide a detailed review for: ${product.name}
+
+Product Details:
+- Category: ${product.category}
+- Price: $${product.price}
+- Description: ${product.description}
+
+Review Criteria:
+1. Quality and durability
+2. Value for money
+3. Key features and benefits
+4. Potential improvements
+5. Overall recommendation`
+        }
+      }
+    ];
+  }
+}
+```
+
+## Prompt topics
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="code" />} title="Options and Arguments" href="/docs/sdk/prompts/options" description="Every @Prompt option, and its arguments." />
+  <Card className="nx-card-illo" icon={<Illustration name="book" />} title="Prompt Responses" href="/docs/sdk/prompts/responses" description="Messages with text, images, and resources." />
+  <Card className="nx-card-illo" icon={<Illustration name="sparkle" />} title="Dynamic Prompts" href="/docs/sdk/prompts/dynamic" description="Build messages from live data, or register at runtime." />
+  <Card className="nx-card-illo" icon={<Illustration name="shield" />} title="Pipeline and Services" href="/docs/sdk/prompts/pipeline" description="Guards, middleware, and injected services." />
+</Cards>
+
+## Related
+
+<Cards>
+  <Card icon={<Braces />} title="Decorator reference" href="/docs/api-reference/decorators/mcp-primitives" description="Every @Prompt option." />
+  <Card icon={<Monitor />} title="Run prompts in Studio" href="/docs/studio/prompts" description="Fill in arguments and run a prompt." />
+</Cards>

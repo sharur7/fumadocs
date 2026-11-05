@@ -1,0 +1,11 @@
+{
+  "title": "NitroStack CLI",
+  "pages": [
+    "overview",
+    "installation",
+    "(commands)",
+    "manage-dependencies",
+    "configuration",
+    "cli-commands"
+  ]
+}

@@ -1,0 +1,216 @@
+---
+title: "Options and Arguments"
+description: "Every @Prompt option, and how to declare and validate arguments"
+---
+
+import { MessageSquare } from 'lucide-react';
+
+`@Prompt` takes a name and a description, plus the arguments the user fills in.
+
+## Options
+
+Every `@Prompt` needs a `name` and a `description`. Arguments are optional.
+
+### Options Reference
+
+This interface lists every option `@Prompt` accepts.
+
+```typescript
+interface PromptOptions {
+  /** Unique prompt identifier (required) */
+  name: string;
+
+  /** Human-readable display title (optional) */
+  title?: string;
+
+  /** Description of the prompt's purpose (required) */
+  description: string;
+
+  /** Input parameters for the prompt */
+  arguments?: Array<{
+    name: string;
+    description: string;
+    required?: boolean;
+  }>;
+}
+```
+
+### Complete Example
+
+A prompt with a title, a description, and required and optional arguments.
+
+```typescript
+@Prompt({
+  name: 'code_review',
+  title: 'Code Review Assistant',
+  description: 'Generate a comprehensive code review checklist with language-specific best practices',
+  arguments: [
+    {
+      name: 'language',
+      description: 'Programming language (typescript, python, go, java)',
+      required: true
+    },
+    {
+      name: 'code',
+      description: 'The code snippet to review',
+      required: true
+    },
+    {
+      name: 'focus_areas',
+      description: 'Specific areas to focus on (security, performance, readability)',
+      required: false
+    }
+  ]
+})
+async getCodeReviewPrompt(
+  args: { language: string; code: string; focus_areas?: string },
+  ctx: ExecutionContext
+) {
+  const focusAreas = args.focus_areas?.split(',').map(s => s.trim()) || [
+    'correctness',
+    'readability',
+    'performance',
+    'security'
+  ];
+
+  const checklistItems = this.getLanguageChecklist(args.language, focusAreas);
+
+  return [
+    {
+      role: 'user' as const,
+      content: `Review the following ${args.language} code:
+
+\`\`\`${args.language}
+${args.code}
+\`\`\`
+
+Focus Areas: ${focusAreas.join(', ')}
+
+Review Checklist:
+${checklistItems.map((item, i) => `${i + 1}. ${item}`).join('\n')}
+
+Provide specific, actionable feedback for each applicable item.`
+    }
+  ];
+}
+```
+
+### Title vs Name
+
+The `title` field provides a human-readable display name, while `name` serves as the unique identifier:
+
+```typescript
+@Prompt({
+  name: 'station_briefing',      // Internal identifier (snake_case)
+  title: 'Station Briefing',     // Display name for UI
+  description: 'Generate operational briefing for station personnel'
+})
+```
+
+## Arguments
+
+Arguments are the values a user fills in when they pick the prompt. Each has a name, a description, and whether it's required.
+
+### Required vs Optional Arguments
+
+Mark an argument `required: false` when the prompt has a sensible default for it, and apply that default in the handler.
+
+```typescript
+@Prompt({
+  name: 'data_analysis',
+  description: 'Generate a data analysis request with configurable parameters',
+  arguments: [
+    {
+      name: 'dataset',
+      description: 'Identifier of the dataset to analyze',
+      required: true  // Must be provided
+    },
+    {
+      name: 'analysis_type',
+      description: 'Type of analysis (descriptive, predictive, diagnostic)',
+      required: false  // Optional with default
+    },
+    {
+      name: 'output_format',
+      description: 'Desired output format (summary, detailed, tabular)',
+      required: false
+    }
+  ]
+})
+async getAnalysisPrompt(
+  args: { dataset: string; analysis_type?: string; output_format?: string },
+  ctx: ExecutionContext
+) {
+  const analysisType = args.analysis_type || 'descriptive';
+  const outputFormat = args.output_format || 'summary';
+
+  return [
+    {
+      role: 'user' as const,
+      content: {
+        type: 'text' as const,
+        text: `Perform ${analysisType} analysis on dataset: ${args.dataset}
+
+Output Format: ${outputFormat}
+
+Please include:
+- Key findings and insights
+- Statistical summaries where applicable
+- Visualizations recommendations
+- Actionable conclusions`
+      }
+    }
+  ];
+}
+```
+
+### Argument Validation
+
+Prompt arguments arrive as strings, so check them in the handler and throw a clear error when one is invalid.
+
+```typescript
+@Prompt({
+  name: 'report_generation',
+  description: 'Generate a business report prompt',
+  arguments: [
+    { name: 'report_type', description: 'Type of report', required: true },
+    { name: 'period', description: 'Reporting period', required: true }
+  ]
+})
+async getReportPrompt(
+  args: { report_type: string; period: string },
+  ctx: ExecutionContext
+) {
+  // Validate report type
+  const validTypes = ['sales', 'inventory', 'financial', 'operational'];
+  if (!validTypes.includes(args.report_type)) {
+    throw new Error(
+      `Invalid report type: ${args.report_type}. Valid types: ${validTypes.join(', ')}`
+    );
+  }
+
+  // Validate period format
+  const periodRegex = /^(Q[1-4]-\d{4}|\d{4}-\d{2}|\d{4})$/;
+  if (!periodRegex.test(args.period)) {
+    throw new Error(
+      `Invalid period format: ${args.period}. Expected: Q1-2024, 2024-01, or 2024`
+    );
+  }
+
+  return [
+    {
+      role: 'user' as const,
+      content: {
+        type: 'text' as const,
+        text: `Generate a ${args.report_type} report for period: ${args.period}`
+      }
+    }
+  ];
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<MessageSquare />} title="Responses" href="/docs/sdk/prompts/responses" description="What a prompt returns." />
+</Cards>

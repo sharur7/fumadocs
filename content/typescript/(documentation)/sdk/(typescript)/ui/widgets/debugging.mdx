@@ -1,0 +1,89 @@
+---
+title: "Hosts and Debugging"
+description: "Debug widgets, run them in different hosts, and move off legacy patterns"
+---
+
+import { ArrowLeftRight } from 'lucide-react';
+
+When a widget doesn't render, the cause is usually the build, the data shape, or the host. This page covers how to tell which.
+
+## Debugging Widgets
+
+Check the widget on its own first, then inside a host.
+
+### Test Locally
+
+The widget dev server runs your widgets as ordinary Next.js pages:
+
+```bash
+cd src/widgets
+npm run dev  # Runs on port 3001
+```
+
+Visit: `http://localhost:3001/product-card?data={"id":"1","name":"Test"}`
+
+### Check Studio
+
+Then check it inside a real host.
+
+Run `npm run dev`, open the project in [NitroStudio](/docs/studio/overview), and run the tool from **Tools**. Studio renders the widget next to the raw result, so you can see whether the data or the widget is wrong.
+
+- Navigate to Tools page
+- Click "Enlarge" on a tool with a widget
+- Check browser console for errors
+
+## Universal Host Compatibility (`APP_MODE`)
+
+NitroStack widgets support both Claude Desktop (using the **MCP Apps specification**) and OpenAI ChatGPT (using the **OpenAI Apps SDK**) through dynamic protocol convention negotiation.
+
+Set `APP_MODE=universal` (or `NITROSTACK_APP_MODE=universal`) in your `.env` to enable simultaneous dual-host rendering:
+
+| Mode | Tool Metadata | Widget Content-Type | Supported Clients |
+|:---|:---|:---|:---|
+| `universal` (default) | Dual keys (`openai/outputTemplate` + `_meta.ui`) | `text/html;profile=mcp-app` | Claude Desktop, ChatGPT, LibreChat, Custom hosts |
+| `openai` | `openai/outputTemplate`, `ui/template` | `text/html` | ChatGPT Canvas & OpenAI Apps |
+| `mcp-app` | `_meta.ui` (`resourceUri`, `visibility`, CSP) | `text/html;profile=mcp-app` | Claude Desktop and standard MCP hosts |
+
+```typescript
+import { getAppMode, isMcpAppMode, isOpenAiMode, getWidgetMimeType } from '@nitrostack/core';
+
+// Check runtime mode programmatically:
+if (isMcpAppMode()) {
+  // Configured for MCP Apps profile
+}
+```
+
+## Legacy Patterns
+
+Older widgets used a higher-order component. It still works, but new code should use the hooks.
+
+### withToolData HOC
+
+<Callout type="info" title="Note">
+
+This is the legacy pattern. New widgets should use `useWidgetSDK()` instead.
+
+</Callout>
+
+```typescript
+import { withToolData } from '@nitrostack/widgets';
+
+function ProductCard({ data }) {
+  return (
+    <div>
+      <h2>{data.name}</h2>
+      <p>${data.price}</p>
+    </div>
+  );
+}
+
+export default withToolData(ProductCard);
+```
+
+For migration from `withToolData` to `useWidgetSDK`, see the [Widget SDK Migration Guide](/docs/guides/widget-sdk-migration).
+
+## Next steps
+
+<Cards>
+  <Card icon={<ArrowLeftRight />} title="Migrate to useWidgetSDK" href="/docs/guides/widget-sdk-migration" description="Replace withToolData." />
+</Cards>

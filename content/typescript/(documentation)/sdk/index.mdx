@@ -1,0 +1,39 @@
+---
+title: SDK Overview
+description: Build MCP servers in TypeScript or Python, with the same architecture in both.
+icon: Boxes
+---
+
+import { Zap, FileCode2 } from 'lucide-react';
+
+NitroStack ships two SDKs: [`@nitrostack/core`](https://www.npmjs.com/package/@nitrostack/core) for TypeScript and [`nitrostack`](https://pypi.org/project/nitrostack/) for Python. Both build MCP servers the same way. You group features into [modules](/docs/getting-started/core-concepts/modules), declare tools, resources, and prompts with decorators, inject services with [dependency injection](/docs/getting-started/core-concepts/dependency-injection), and run every call through the same [request pipeline](/docs/getting-started/core-concepts/request-lifecycle).
+
+The APIs follow each language's conventions. TypeScript uses Zod schemas and class decorators such as `@Tool`; Python uses Pydantic models and decorators such as `@tool`. Pick the language your team works in; everything else in these docs applies to both.
+
+## Choose your language
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="code" />} title="TypeScript SDK" href="/docs/getting-started/core-concepts/server-concepts" description="Node.js 20 or later. Zod schemas, decorators, and the nitrostack-cli." />
+  <Card className="nx-card-illo" icon={<Illustration name="terminal" />} title="Python SDK" href="/python/sdk/quick-start" description="Python 3.10 or later. Pydantic models, decorators, and the nitrostack-py CLI." />
+</Cards>
+
+## Look up syntax fast
+
+One page has the snippets you reach for most, in TypeScript and in Python.
+
+<Cards>
+  <Card icon={<FileCode2 />} title="SDK Quick Reference" href="/docs/sdk/sdk-quick-reference" description="Server, primitives, pipeline, and runtime, with a tab for each language." />
+</Cards>
+
+## What's in the SDK
+
+<Cards className="nx-cards-3">
+  <Card className="nx-card-illo" icon={<Illustration name="layers" />} title="Server and modules" href="/docs/getting-started/core-concepts/server-concepts" description="Bootstrap the server and organize features into modules." />
+  <Card className="nx-card-illo" icon={<Illustration name="sparkle" />} title="Tools, resources, prompts" href="/docs/sdk/tools" description="The capabilities an AI client can discover and call." />
+  <Card className="nx-card-illo" icon={<Illustration name="shield" />} title="Guards and auth" href="/docs/sdk/guards" description="Decide who may call what, with JWT, API keys, or OAuth." />
+  <Card className="nx-card-illo" icon={<Illustration name="funnel" />} title="Pipes and validation" href="/docs/sdk/pipes" description="Transform and validate input before your handler runs." />
+  <Card className="nx-card-illo" icon={<Illustration name="widget" />} title="Widgets" href="/docs/sdk/ui/widgets" description="Return interactive React UI with a tool's result." />
+  <Card className="nx-card-illo" icon={<Illustration name="pulse" />} title="Health checks" href="/docs/sdk/health-checks" description="Report the health of your server and its dependencies." />
+</Cards>
+
+Both SDKs share these concepts, but not their syntax. The [Reference](/docs/api-reference) shows each API in TypeScript with the Python equivalent beside it.

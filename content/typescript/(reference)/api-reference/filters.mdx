@@ -1,0 +1,76 @@
+---
+title: "Exception Filters"
+description: "Catch and format errors raised during a request, in TypeScript and Python"
+icon: TriangleAlert
+---
+
+import { Layers, ShieldAlert } from 'lucide-react';
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+Exception filters run last in the request pipeline. They catch anything thrown by guards, middleware, interceptors, pipes, or your handler, and turn it into a consistent error response.
+
+## Write and apply a filter
+
+Mark the class, implement `catch()`, and attach it to a handler.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+Mark a class with `@ExceptionFilter()` and implement `catch`:
+
+```typescript
+import { ExceptionFilter, ExceptionFilterInterface } from '@nitrostack/core';
+
+@ExceptionFilter()
+export class HttpExceptionFilter implements ExceptionFilterInterface {
+  catch(exception: unknown, context: ExecutionContext): any {
+    // Implementation
+  }
+}
+```
+
+Apply it with `@UseFilters`:
+
+```typescript
+@Tool({ name: 'risky_operation' })
+@UseFilters(GlobalExceptionFilter)
+async riskyOperation(input: RiskyInput, ctx: ExecutionContext) {
+  // Errors caught and formatted by filter
+}
+```
+
+</Tab>
+<Tab value="Python">
+
+Protocol: `async def catch(self, error: Exception, context: ExecutionContext) -> Any`.
+
+```python
+from nitrostack import use_filters, injectable, ExecutionContext
+
+@injectable()
+class HttpExceptionFilter:
+    async def catch(self, error: Exception, context: ExecutionContext):
+        context.logger.error(f"{type(error).__name__}: {error}")
+        return {
+            "error": type(error).__name__,
+            "message": str(error),
+            "tool": context.tool_name,
+        }
+
+@use_filters(HttpExceptionFilter)
+async def handler(...):
+    ...
+```
+
+Scaffold: `nitrostack-py generate filter HttpException`.
+
+</Tab>
+</Tabs>
+
+## Related
+
+<Cards>
+  <Card icon={<ShieldAlert />} title="Error Handling" href="/docs/sdk/error-handling" description="Error patterns and filter examples." />
+  <Card icon={<Layers />} title="Request Lifecycle" href="/docs/getting-started/core-concepts/request-lifecycle" description="Where filters run in the pipeline." />
+</Cards>

@@ -1,0 +1,165 @@
+---
+title: "Responses and MIME Types"
+description: "Return text or binary content, and choose the right MIME type"
+---
+
+import { Route } from 'lucide-react';
+
+A resource handler returns a `contents` array. Each entry carries the URI, a MIME type, and either `text` or base64 `blob` data.
+
+## Response format
+
+Every resource handler returns the same structure, whatever the content.
+
+### Standard Response Structure
+
+Resources must return an object with a `contents` array:
+
+```typescript
+return {
+  contents: [
+    {
+      uri: string;           // The requested URI
+      mimeType?: string;     // Content type
+      text?: string;         // Text content
+      blob?: Uint8Array;     // Binary content
+    }
+  ]
+};
+```
+
+### Single Content Response
+
+Most resources return a single content item:
+
+```typescript
+return {
+  contents: [{
+    uri: 'product://prod-123',
+    mimeType: 'application/json',
+    text: JSON.stringify({
+      id: 'prod-123',
+      name: 'Widget',
+      price: 29.99
+    }, null, 2)
+  }]
+};
+```
+
+### Multiple Content Response
+
+Resources can return multiple content items:
+
+```typescript
+@Resource({
+  uri: 'report://{id}',
+  name: 'Report Bundle',
+  description: 'Complete report with summary, data, and visualizations'
+})
+async getReport(uri: string, ctx: ExecutionContext) {
+  const id = uri.replace('report://', '');
+  const report = await this.reportService.generate(id);
+
+  return {
+    contents: [
+      {
+        uri: `${uri}/summary`,
+        mimeType: 'text/plain',
+        text: report.executiveSummary
+      },
+      {
+        uri: `${uri}/data`,
+        mimeType: 'application/json',
+        text: JSON.stringify(report.data, null, 2)
+      },
+      {
+        uri: `${uri}/metadata`,
+        mimeType: 'application/json',
+        text: JSON.stringify({
+          generatedAt: report.timestamp,
+          author: report.author,
+          version: report.version
+        }, null, 2)
+      }
+    ]
+  };
+}
+```
+
+## MIME types
+
+The MIME type tells the client how to interpret the content.
+
+### Common MIME types
+
+These cover most resources:
+
+| MIME Type | Use Case |
+|-----------|----------|
+| `application/json` | Structured data, API responses |
+| `text/plain` | Plain text, logs |
+| `text/markdown` | Documentation, formatted content |
+| `text/html` | Rich formatted content |
+| `text/csv` | Tabular data |
+| `application/xml` | XML documents |
+| `image/png`, `image/jpeg` | Images (use `blob` field) |
+
+### Type-Specific Examples
+
+Text formats go in `text`; images and other binary data go in `blob`.
+
+```typescript
+// JSON data
+@Resource({
+  uri: 'api://users',
+  mimeType: 'application/json'
+})
+async getUsers(uri: string) {
+  const users = await this.userService.findAll();
+  return {
+    contents: [{
+      uri,
+      mimeType: 'application/json',
+      text: JSON.stringify(users, null, 2)
+    }]
+  };
+}
+
+// Markdown documentation
+@Resource({
+  uri: 'docs://api-reference',
+  mimeType: 'text/markdown'
+})
+async getApiDocs(uri: string) {
+  const docs = await this.docsService.getApiReference();
+  return {
+    contents: [{
+      uri,
+      mimeType: 'text/markdown',
+      text: docs
+    }]
+  };
+}
+
+// CSV export
+@Resource({
+  uri: 'export://transactions',
+  mimeType: 'text/csv'
+})
+async getTransactionsCsv(uri: string) {
+  const csv = await this.exportService.transactionsToCsv();
+  return {
+    contents: [{
+      uri,
+      mimeType: 'text/csv',
+      text: csv
+    }]
+  };
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Route />} title="Pipeline and services" href="/docs/sdk/resources/pipeline" description="Guards, caching, and injected services." />
+</Cards>

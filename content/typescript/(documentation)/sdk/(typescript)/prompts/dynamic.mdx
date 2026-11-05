@@ -1,0 +1,174 @@
+---
+title: "Dynamic Prompts"
+description: "Build prompt messages from live data, or register prompts at runtime"
+---
+
+import { Route } from 'lucide-react';
+
+A prompt handler is ordinary code, so its messages can include data fetched when the prompt runs. Prompts can also be registered at runtime.
+
+## Data-driven prompts
+
+Because a prompt handler runs every time the prompt is used, it can look up data and put it straight into the messages.
+
+### Example: order analysis
+
+This prompt loads an order and includes its details in the message, so the model starts with the facts.
+
+```typescript
+@Prompt({
+  name: 'order_analysis',
+  description: 'Analyze order and suggest optimizations',
+  arguments: [
+    { name: 'order_id', required: true, description: 'Order to analyze' }
+  ]
+})
+async getOrderAnalysisPrompt(args: { order_id: string }, ctx: ExecutionContext) {
+  const order = await this.orderService.findById(args.order_id);
+
+  if (!order) {
+    throw new Error(`Order not found: ${args.order_id}`);
+  }
+
+  const orderSummary = `
+Order ID: ${order.id}
+Customer: ${order.customerName}
+Date: ${order.createdAt}
+Status: ${order.status}
+
+Items:
+${order.items.map(item => `- ${item.name} x${item.quantity} @ $${item.price}`).join('\n')}
+
+Subtotal: $${order.subtotal}
+Tax: $${order.tax}
+Shipping: $${order.shipping}
+Total: $${order.total}`;
+
+  return [
+    {
+      role: 'user' as const,
+      content: {
+        type: 'text' as const,
+        text: `Analyze this order and provide recommendations:
+
+${orderSummary}
+
+Please provide:
+1. Order efficiency analysis
+2. Cross-sell opportunities
+3. Customer retention suggestions
+4. Fulfillment optimization tips`
+      }
+    }
+  ];
+}
+```
+
+### Template-Based Prompts
+
+A service can keep message templates in one place and fill them in on request, so many prompts share the same wording.
+
+```typescript
+import { Injectable } from '@nitrostack/core';
+
+@Injectable()
+export class PromptTemplateService {
+  private templates = new Map<string, (data: Record<string, unknown>) => string>();
+
+  constructor() {
+    this.registerDefaults();
+  }
+
+  private registerDefaults() {
+    this.templates.set('email_draft', (data) => `
+Draft a professional email:
+
+To: ${data.recipient}
+Subject: ${data.subject}
+Context: ${data.context}
+Tone: ${data.tone || 'professional'}
+
+Requirements:
+- Clear and concise
+- Appropriate greeting and closing
+- Action items if applicable`);
+
+    this.templates.set('document_summary', (data) => `
+Summarize the following document:
+
+${data.content}
+
+Summary Requirements:
+- Maximum ${data.maxWords || 200} words
+- Key points only
+- Maintain original intent`);
+  }
+
+  render(templateName: string, data: Record<string, unknown>): string {
+    const template = this.templates.get(templateName);
+    if (!template) {
+      throw new Error(`Template not found: ${templateName}`);
+    }
+    return template(data);
+  }
+}
+
+export class CommunicationPrompts {
+  constructor(private templateService: PromptTemplateService) {}
+
+  @Prompt({
+    name: 'compose_email',
+    description: 'Draft a professional email',
+    arguments: [
+      { name: 'recipient', required: true, description: 'Email recipient' },
+      { name: 'subject', required: true, description: 'Email subject' },
+      { name: 'context', required: true, description: 'Context for the email' },
+      { name: 'tone', required: false, description: 'Desired tone' }
+    ]
+  })
+  async getEmailPrompt(
+    args: { recipient: string; subject: string; context: string; tone?: string }
+  ) {
+    const text = this.templateService.render('email_draft', args);
+    return [
+      {
+        role: 'user' as const,
+        content: { type: 'text' as const, text }
+      }
+    ];
+  }
+}
+```
+
+## Registering prompts at runtime
+
+NitroStack supports dynamic prompt registration at runtime, with automatic client notifications.
+
+### Adding Prompts Dynamically
+
+After you add or remove prompts at runtime, notify clients so they refresh their list.
+
+```typescript
+import { McpApplicationFactory } from '@nitrostack/core';
+
+const app = await McpApplicationFactory.create(AppModule);
+const server = app.getServer();
+
+// After adding new prompts dynamically
+server.notifyPromptsListChanged();
+```
+
+### List Changed Notifications
+
+When prompts are added or removed at runtime, the server sends a `notifications/prompts/list_changed` notification to all connected clients. This enables:
+
+1. **Dynamic content**: Add prompts based on user context or preferences
+2. **A/B testing**: Expose different prompts to different users
+3. **Plugin systems**: Load prompts from external modules
+4. **Feature flags**: Enable/disable prompts dynamically
+
+## Next steps
+
+<Cards>
+  <Card icon={<Route />} title="Pipeline and services" href="/docs/sdk/prompts/pipeline" description="Guards and injected services." />
+</Cards>

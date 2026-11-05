@@ -1,0 +1,37 @@
+---
+title: "Overview"
+description: "API reference for the NitroStack TypeScript and Python SDKs"
+icon: BookMarked
+---
+
+import { AtSign, ShieldCheck, Route, Sparkles, Funnel, ShieldAlert, Box, Terminal } from 'lucide-react';
+
+This section documents the public API of both NitroStack SDKs: every decorator, the pipeline interfaces, the execution context, and [the CLI](/docs/cli/overview) commands. Each page shows TypeScript first, with the Python equivalent in a tab wherever one exists. Pick a language once and every tab on the site follows it.
+
+## TypeScript and Python at a glance
+
+Both SDKs share the same mental model (modules, controllers, providers, and a [request pipeline](/docs/getting-started/core-concepts/request-lifecycle)), but the APIs follow each language's conventions. Don't copy TypeScript examples into a Python project, or the other way around.
+
+| | TypeScript | Python |
+| :-- | :-- | :-- |
+| Package | `@nitrostack/core` | `nitrostack` (`pip install nitrostack`) |
+| CLI | `nitrostack-cli` (`@nitrostack/cli`) | `nitrostack-py` (also `python -m nitrostack.cli.main`) |
+| Decorators | PascalCase: `@Tool`, `@Module`, `@Injectable` | snake_case: `@tool`, `@module`, `@injectable` |
+| Input schemas | Zod (`z.object(...)`) | Pydantic v2 `BaseModel` as `input_schema` |
+| Dependency injection | Constructor parameter types | `@injectable(deps=[ServiceA, ServiceB])` + constructor args |
+| Pipeline | `@UseGuards` / `@UseMiddleware` / `@UseInterceptors` / `@UsePipes` / `@UseFilters` | `use_guards` / `use_middleware` / `use_interceptors` / `use_pipes` / `use_filters` |
+| Widgets | Next.js app in `src/widgets` | Static HTML under `widgets/out/{route}.html` + `@widget` |
+| Build step | `nitrostack-cli build` | None (`nitrostack-py` has no `build` command) |
+
+## Reference
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="code" />} title="Decorators" href="/docs/api-reference/decorators" description="Tools, resources, prompts, modules, pipeline, caching, and widgets." />
+  <Card className="nx-card-illo" icon={<Illustration name="shield" />} title="Guards" href="/docs/api-reference/guards" description="Allow or reject a call before your handler runs." />
+  <Card className="nx-card-illo" icon={<Illustration name="route" />} title="Middleware" href="/docs/api-reference/middleware" description="Wrap every call for logging, tracing, and timing." />
+  <Card className="nx-card-illo" icon={<Illustration name="sparkle" />} title="Interceptors" href="/docs/api-reference/interceptors" description="Run around the handler and reshape its result." />
+  <Card className="nx-card-illo" icon={<Illustration name="funnel" />} title="Pipes" href="/docs/api-reference/pipes" description="Transform and validate input." />
+  <Card className="nx-card-illo" icon={<Illustration name="alert" />} title="Exception Filters" href="/docs/api-reference/filters" description="Turn errors into consistent responses." />
+  <Card className="nx-card-illo" icon={<Illustration name="layers" />} title="Execution Context" href="/docs/api-reference/execution-context" description="The object every handler receives." />
+  <Card className="nx-card-illo" icon={<Illustration name="terminal" />} title="CLI Commands" href="/docs/cli/cli-commands" description="nitrostack-cli and nitrostack-py commands." />
+</Cards>

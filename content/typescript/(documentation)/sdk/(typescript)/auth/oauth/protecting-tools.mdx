@@ -1,0 +1,124 @@
+---
+title: "Protect Tools"
+description: "Require a signed-in user, specific scopes, or a tenant on a tool"
+---
+
+import { Workflow } from 'lucide-react';
+
+Once `OAuthModule` is set up, protecting a tool takes one decorator. `OAuthGuard` rejects calls without a valid token; scope guards go further and require specific permissions.
+
+## Require a signed-in user
+
+Add `OAuthGuard` to any tool that needs to know who is calling.
+
+### Basic protection
+
+`OAuthGuard` checks the bearer token on every call. When the token is valid, it fills in `context.auth` with the user's ID, scopes, client ID, and the full token payload.
+
+```typescript
+import { ToolDecorator as Tool, UseGuards, OAuthGuard, ExecutionContext } from "@nitrostack/core";
+
+export class DemoTools {
+  // Public tool - no authentication
+  @Tool({
+    name: "get_server_info",
+    description: "Get public server information",
+  })
+  async getServerInfo() {
+    return {
+      name: "My MCP Server",
+      version: "1.0.0",
+    };
+  }
+
+  // Protected tool - requires valid OAuth token
+  @Tool({
+    name: "get_user_profile",
+    description: "Get authenticated user profile",
+  })
+  @UseGuards(OAuthGuard)
+  async getUserProfile(input: any, context: ExecutionContext) {
+    return {
+      user: context.auth?.subject, // 'auth0|abc123'
+      scopes: context.auth?.scopes, // ['read', 'write']
+      tokenPayload: context.auth?.tokenPayload, // Decoded OAuthTokenPayload
+    };
+  }
+}
+```
+
+### Require scopes
+
+`createScopeGuard()` builds a guard that checks the token's scopes. Put it after `OAuthGuard`; when you list several scopes, the token needs all of them.
+
+```typescript
+import { ToolDecorator as Tool, UseGuards, OAuthGuard, createScopeGuard, ExecutionContext } from '@nitrostack/core';
+
+export class ResourceTools {
+  // Requires 'read' scope
+  @Tool({ name: 'list_resources' })
+  @UseGuards(OAuthGuard, createScopeGuard(['read']))
+  async listResources(input: any, context: ExecutionContext) {
+    return { resources: [] };
+  }
+
+  // Requires 'write' scope
+  @Tool({ name: 'create_resource' })
+  @UseGuards(OAuthGuard, createScopeGuard(['write']))
+  async createResource(input: any, context: ExecutionContext) {
+    // Only users with 'write' scope can call this
+  }
+
+  // Requires BOTH 'read' AND 'admin' scopes
+  @Tool({ name: 'admin_stats' })
+  @UseGuards(OAuthGuard, createScopeGuard(['read', 'admin']))
+  async adminStats(input: any, context: ExecutionContext) {
+    // Only admins with read access
+  }
+}
+```
+
+## Roles and tenants
+
+Tokens often carry more than scopes. Read custom claims from `context.auth.tokenPayload` to enforce your own rules.
+
+### Role-based access
+
+This tool requires the `admin` scope, then also checks a `roles` claim your provider adds to the token.
+
+```typescript
+// Map OAuth scopes and token claims to roles
+@Tool({ name: 'admin_panel' })
+@UseGuards(OAuthGuard, createScopeGuard(['admin']))
+async adminPanel(input: any, context: ExecutionContext) {
+  const userRoles = (context.auth?.tokenPayload as any)?.roles;  // ['admin', 'moderator']
+
+  if (!userRoles || !userRoles.includes('admin')) {
+    throw new Error('Admin role required');
+  }
+
+  // ... admin operations
+}
+```
+
+### Tenant isolation
+
+In a multi-tenant app, read the tenant from the token and filter every query by it, so one customer can never see another's data.
+
+```typescript
+// Multi-tenant applications
+@Tool({ name: 'get_data' })
+@UseGuards(OAuthGuard)
+async getData(input: any, context: ExecutionContext) {
+  const tenantId = (context.auth?.tokenPayload as any)?.tenant_id;
+
+  // Only return data for user's tenant
+  return await db.data.find({ tenantId });
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Workflow />} title="How it works" href="/docs/sdk/auth/oauth/how-it-works" description="Token validation and the sign-in flow." />
+</Cards>

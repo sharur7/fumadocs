@@ -1,0 +1,210 @@
+---
+title: "Manage Dependencies"
+description: "Install a project's dependencies, and upgrade NitroStack packages."
+icon: Package
+---
+
+import { ExternalLink, Package, Play } from 'lucide-react';
+
+Two commands look after a project's dependencies. `install` installs them for the server and its widgets in one step, and `upgrade` moves your NitroStack packages to their latest versions.
+
+## Install
+
+A TypeScript project is really two npm projects: the server in the project root, and the widgets in `src/widgets`. A plain `npm install` only covers the first, and `install` covers both. In a Python project, `install` installs the dependencies listed in `pyproject.toml` and `requirements.txt`.
+
+| Command | Root | Widgets |
+|---------|------|---------|
+| `npm install` | ✓ | ✗ |
+| `nitrostack-cli install` | ✓ | ✓ |
+| `nitrostack-cli install --skip-widgets` | ✓ | ✗ |
+
+### Usage
+
+Run it from your project folder:
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli install [options]
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py install [options]
+```
+
+TypeScript projects created with `init` also have an `install:all` script that runs the same command:
+
+```bash
+npm run install:all
+```
+
+### Options
+
+Every option is optional.
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--skip-widgets` | Skip installing widget dependencies (TypeScript only) | `false` |
+| `--production` | Install production dependencies only. In Python, this skips optional extras and `requirements-dev.txt`. | `false` |
+
+### How it works
+
+In a TypeScript project, the command runs `npm install` in the project root, which installs the SDK and your dev dependencies. If `src/widgets/package.json` exists, it then runs `npm install` there too, which installs `@nitrostack/widgets`, Next.js, and React. If there is no widgets folder, it says so and moves on.
+
+In a Python project, the command runs `uv sync` when the project was set up with uv. Otherwise it uses a `.venv` and `pip`. If `requirements.txt` pins `nitrostack` as a local path, it runs `pip install -r requirements.txt`, so you can test an unpublished SDK.
+
+### When to use it
+
+Run `install` after cloning a project, after pulling changes, after clearing `node_modules`, and as the install step in CI.
+
+### Use it in CI
+
+In a GitHub Actions workflow, install everything before you build:
+
+```yaml
+- name: Install dependencies
+  run: npx @nitrostack/cli install
+```
+
+In a Dockerfile, copy both `package.json` files first so the install layer is cached:
+
+```dockerfile
+COPY package*.json ./
+COPY src/widgets/package*.json ./src/widgets/
+RUN npx @nitrostack/cli install
+```
+
+### Troubleshooting install
+
+If you get permission errors on Linux or macOS, point npm's global folder at your home directory, or use a Node version manager such as `nvm`:
+
+```bash
+mkdir -p ~/.npm-global
+npm config set prefix '~/.npm-global'
+export PATH=~/.npm-global/bin:$PATH
+```
+
+## Upgrade
+
+`upgrade` brings your NitroStack packages up to date, so you get the latest SDK features and fixes.
+
+### Usage
+
+Run it from your project folder:
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli upgrade [options]
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py upgrade [options]
+```
+
+In a TypeScript project, you can also use the project's script, which runs the same command:
+
+```bash
+npm run upgrade
+```
+
+### Options
+
+Every option is optional.
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--dry-run` | Show what would be updated without making changes | `false` |
+| `--version <x.y.z>` | Pin `nitrostack` to this version (Python only) | Latest on PyPI |
+| `--allow-downgrade` | Allow a version older than the one declared (Python only) | `false` |
+
+### How it works
+
+In a TypeScript project, for the root project and for `src/widgets`, the command asks the npm registry for the latest version of every `@nitrostack/*` package listed in `package.json`. Any package that is behind is updated to the latest version, written with a caret (`^`) so that compatible updates stay allowed, and installed.
+
+It then checks the NitroStack agent skills in your project. If a newer set exists than the `skillsVersion` recorded in `package.json`, it installs the new skills and records the new version. If everything is current, it says so and changes nothing.
+
+In a Python project, the command updates `nitrostack` in `pyproject.toml`, and in `requirements.txt` when it already pins it. With no `--version`, it moves to the latest release on PyPI; with `--version`, it pins that exact version, and refuses an older one unless you pass `--allow-downgrade`. In a project with a vendored SDK, it replaces `vendor/nitrostack` from the target release. It then compares the `skillsVersion` in `.nitrostack.json` with the latest [skills-python-sdk](https://github.com/nitrocloudofficial/skills-python-sdk) release, and refreshes the agent skills if they are behind.
+
+### Preview an upgrade
+
+Use `--dry-run` to see what would change first. The command reports the packages and skills that have newer versions and writes nothing.
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli upgrade --dry-run
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py upgrade --dry-run
+nitrostack-py upgrade --version 0.3.2   # pin an exact version
+```
+
+### Upgrade the CLI itself
+
+In TypeScript, `upgrade` updates the packages in your project, not the CLI. To update a global install of the CLI:
+
+```bash
+npm install -g @nitrostack/cli@latest
+```
+
+### Upgrade across a major version
+
+Major versions can change APIs, so read the release notes before you upgrade across one. Check the [Changelog](/docs/changelog) and the [releases on GitHub](https://github.com/nitrocloudofficial/nitrostack/releases), follow any migration guide such as [Widget SDK Migration](/docs/guides/widget-sdk-migration), and then install the new major version yourself:
+
+```bash
+npm install @nitrostack/core@2
+```
+
+### Check for updates in CI
+
+A scheduled workflow can run a dry run to tell you when updates are waiting:
+
+```yaml
+name: Check Updates
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Weekly
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npx @nitrostack/cli upgrade --dry-run
+```
+
+### Troubleshooting upgrade
+
+**Network errors.** If fetching the latest version fails, check that you can reach the registry, and set it explicitly if you use a different one.
+
+```bash
+npm view @nitrostack/core version
+npm config set registry https://registry.npmjs.org/
+```
+
+**Permission errors.** Run the CLI with `npx` so no global permissions are needed:
+
+```bash
+npx @nitrostack/cli upgrade
+```
+
+**Lock file conflicts.** Remove the lock files and reinstall:
+
+```bash
+rm package-lock.json src/widgets/package-lock.json
+nitrostack-cli install
+```
+
+**Peer dependency conflicts.** See what is outdated, update it, and run the upgrade again:
+
+```bash
+npm outdated
+npm update
+nitrostack-cli upgrade
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Play />} title="Dev" href="/docs/cli/dev" description="Start the server after installing." />
+  <Card icon={<Package />} title="Build" href="/docs/cli/build-and-ship#build" description="Compile for production." />
+  <Card icon={<ExternalLink />} title="Changelog" href="/docs/changelog" description="What changed in each release." />
+</Cards>

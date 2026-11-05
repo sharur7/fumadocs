@@ -1,0 +1,266 @@
+---
+title: "MCP Primitives"
+description: "Expose tools, resources, and prompts to clients"
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+These decorators turn methods into what MCP clients see: tools the model can call, resources it can read, and prompts users can pick. `@InitialTool` marks a tool to run when a client connects.
+
+## @Tool
+
+Defines an MCP tool that AI models can invoke.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { ToolDecorator as Tool, z, ExecutionContext } from '@nitrostack/core';
+
+@Tool(options: ToolOptions)
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@tool(name, description, input_schema, title=..., output_schema=..., annotations=..., task_support=..., visibility=..., examples=..., invocation=..., metadata=...)
+```
+
+`input_schema` is a Pydantic `BaseModel`. Related: `@initial_tool`, `@widget`, `ToolAnnotations`, `ToolExamples`, `ToolInvocation`.
+
+</Tab>
+</Tabs>
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string` | Yes | Unique tool identifier (snake_case recommended) |
+| `title` | `string` | No | Human-readable display name |
+| `description` | `string` | Yes | Clear description of the tool's purpose |
+| `inputSchema` | `ZodObject` | No | Zod schema for input validation |
+| `outputSchema` | `ZodObject` | No | Zod schema for output validation |
+| `taskSupport` | `'forbidden' \| 'optional' \| 'required'` | No | MCP Task support mode (default: `'forbidden'`) |
+| `visibility` | `'visible' \| 'hidden'` | No | Catalog visibility state (default: `'visible'`) |
+| `defaultVisible` | `boolean` | No | Convenience alias (`defaultVisible: false` maps to `visibility: 'hidden'`) |
+| `annotations` | `ToolAnnotations` | No | Behavioral hints for AI models |
+| `invocation` | `ToolInvocationMessages` | No | UI status messages during execution |
+| `examples` | `object` | No | Example request/response for AI guidance and widget preview |
+
+**ToolInvocationMessages:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `invoking` | `string` | Message shown while tool is executing (e.g., "Loading...") |
+| `invoked` | `string` | Message shown when tool completes (e.g., "Done") |
+
+**ToolAnnotations:**
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `destructiveHint` | `boolean` | `true` | May perform destructive updates |
+| `idempotentHint` | `boolean` | `false` | Safe to retry with same arguments |
+| `readOnlyHint` | `boolean` | `false` | Does not modify state |
+| `openWorldHint` | `boolean` | `true` | May interact with external systems |
+| `alwaysVisible` | `boolean` | `false` | Tool remains directly visible even when progressive search transforms collapse catalog |
+
+**Example:**
+
+```typescript
+@Tool({
+  name: 'create_user',
+  title: 'Create User Account',
+  description: 'Create a new user account with email and profile information',
+  inputSchema: z.object({
+    email: z.string().email().describe('User email address'),
+    name: z.string().min(2).describe('Full name'),
+    role: z.enum(['user', 'admin']).optional().describe('User role')
+  }),
+  outputSchema: z.object({
+    id: z.string(),
+    email: z.string(),
+    name: z.string()
+  }),
+  annotations: {
+    destructiveHint: false,
+    idempotentHint: false,
+    readOnlyHint: false,
+    openWorldHint: false
+  },
+  examples: {
+    request: { email: 'user@example.com', name: 'Jane Doe' },
+    response: { id: 'usr_123', email: 'user@example.com', name: 'Jane Doe' }
+  }
+})
+async createUser(input: CreateUserInput, ctx: ExecutionContext) {
+  return this.userService.create(input);
+}
+```
+
+## @Resource
+
+Defines an MCP resource that provides data to AI models.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { ResourceDecorator as Resource, ExecutionContext } from '@nitrostack/core';
+
+@Resource(options: ResourceOptions)
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@resource(uri, name, description, mime_type=..., annotations=...)
+```
+
+</Tab>
+</Tabs>
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `uri` | `string` | Yes | URI template with optional parameters |
+| `name` | `string` | Yes | Human-readable resource name |
+| `title` | `string` | No | Human-readable display title |
+| `description` | `string` | Yes | Description of what data the resource provides |
+| `mimeType` | `string` | No | Content MIME type (default: 'text/plain') |
+| `size` | `number` | No | Size in bytes (for binary resources) |
+| `annotations` | `ResourceAnnotations` | No | Metadata hints for clients |
+| `examples` | `object` | No | Example response |
+
+**ResourceAnnotations:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `audience` | `('user' \| 'assistant')[]` | Who should see this resource |
+| `priority` | `number` | Importance (0.0-1.0, higher = more important) |
+| `lastModified` | `string` | ISO 8601 timestamp of last modification |
+
+**Example:**
+
+```typescript
+@Resource({
+  uri: 'user://{userId}/profile',
+  name: 'User Profile',
+  title: 'User Profile Details',
+  description: 'Complete user profile with preferences and settings',
+  mimeType: 'application/json',
+  annotations: {
+    audience: ['user', 'assistant'],
+    priority: 0.8,
+    lastModified: '2024-01-15T10:30:00Z'
+  }
+})
+async getUserProfile(uri: string, ctx: ExecutionContext) {
+  const userId = uri.match(/user:\/\/([^\/]+)/)?.[1];
+  const profile = await this.userService.getProfile(userId);
+  return {
+    contents: [{
+      uri,
+      mimeType: 'application/json',
+      text: JSON.stringify(profile, null, 2)
+    }]
+  };
+}
+```
+
+## @Prompt
+
+Defines an MCP prompt template for AI conversations.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { PromptDecorator as Prompt, ExecutionContext } from '@nitrostack/core';
+
+@Prompt(options: PromptOptions)
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@prompt(name, description, arguments=[PromptArgument(...)])
+```
+
+</Tab>
+</Tabs>
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string` | Yes | Unique prompt identifier |
+| `title` | `string` | No | Human-readable display title |
+| `description` | `string` | Yes | Description of the prompt's purpose |
+| `arguments` | `Array` | No | Input parameters for the prompt |
+
+**Example:**
+
+```typescript
+@Prompt({
+  name: 'code_review',
+  title: 'Code Review Assistant',
+  description: 'Generate a code review request with best practices checklist',
+  arguments: [
+    { name: 'language', description: 'Programming language', required: true },
+    { name: 'focus', description: 'Review focus areas', required: false }
+  ]
+})
+async getCodeReviewPrompt(args: { language: string; focus?: string }, ctx: ExecutionContext) {
+  return [{
+    role: 'user' as const,
+    content: `Review this ${args.language} code focusing on: ${args.focus || 'general best practices'}`
+  }];
+}
+```
+
+## @InitialTool
+
+Marks a tool method to be automatically invoked when an MCP client establishes a connection session.
+
+```typescript
+import { InitialTool, ToolDecorator as Tool, ExecutionContext } from '@nitrostack/core';
+
+@InitialTool()
+```
+
+**Parameters:**
+None. Applied as a method decorator to methods already decorated with `@Tool()`.
+
+**Behavior:**
+* When an MCP client connects and initializes its session, NitroStack automatically executes all registered `@InitialTool` handlers.
+* Commonly used for bootstrapping client environment configuration, exchanging dynamic capabilities, and asserting initial authorization state.
+
+**Example:**
+
+```typescript
+import { Controller, ToolDecorator as Tool, InitialTool, ExecutionContext, z } from '@nitrostack/core';
+
+@Controller('system')
+export class SystemController {
+  @Tool({
+    name: 'bootstrap_session',
+    description: 'Initializes the client session and returns server capabilities',
+    inputSchema: z.object({}),
+  })
+  @InitialTool()
+  async bootstrapSession(input: Record<string, never>, ctx: ExecutionContext) {
+    ctx.logger.info('Session established', { sessionId: ctx.sessionId });
+
+    return {
+      serverName: 'Enterprise Order Management',
+      version: '1.2.0',
+      authenticatedSubject: ctx.auth?.subject ?? 'anonymous',
+      capabilities: ['orders_create', 'orders_get_status'],
+    };
+  }
+}
+```

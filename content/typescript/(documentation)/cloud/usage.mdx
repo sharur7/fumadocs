@@ -1,0 +1,46 @@
+---
+title: "Studio and NitroChat usage"
+description: "Check your credit balances, and top them up by hand or automatically"
+icon: Wallet
+---
+
+import { CreditCard, SlidersHorizontal } from 'lucide-react';
+
+Your organization has two credit balances, one for each AI product. The **Studio Tokens** and **NitroChat Credits** cards on the [dashboard](/docs/cloud/dashboard#studio-tokens-and-nitrochat-credits) summarize them; each opens a usage screen where you see the details and add credit.
+
+| Balance | What spends it | Screen |
+|---------|----------------|--------|
+| **Studio tokens** | Model calls that your team makes in NitroStudio. | Studio usage |
+| **NitroChat credits** | Model calls that your hosted chats make. | NitroChat usage |
+
+Top-ups are charged to a card saved on the organization's [Billing](/docs/cloud/billing) page, so add one there first.
+
+## Studio usage
+
+**Studio usage** shows the Studio token balance and what has been spent.
+
+<Screenshot src="/images/cloud/studio-usage.png" alt="The Studio usage page: token and dollar balances, usage counters, an auto top-up setting, a performance history chart, and a call log" />
+
+- **Top up credits** adds credit now, charged to a saved card.
+- **Top up when balance falls below** sets an automatic top-up. When the balance drops under the amount you enter, NitroCloud charges a saved card before the pool runs out, so your team isn't cut off mid-task.
+
+Who can use Studio, and how much each person can spend, is set in [Studio management](/docs/cloud/studio-management).
+
+## NitroChat usage
+
+**NitroChat usage** works the same way for hosted chats: the credit balance, what has been spent, a manual top-up, and an automatic top-up threshold.
+
+<Screenshot src="/images/cloud/nitrochat-usage.png" alt="The NitroChat usage page: the credit balance and spend, a performance history chart, a breakdown by key, and an auto top-up setting" />
+
+Each chat's own spending is also shown on its [Gateway API key](/docs/cloud/apps/chat#gateway-api-key) card, as credits used against the key's limit.
+
+## Your first top-up
+
+A new organization starts on free token credits. The first paid top-up, on either screen, moves the organization to dollar billing. From then on, the member credit limits and the organization usage limit in [Studio management](/docs/cloud/studio-management#while-you-are-on-free-credits) are enforced in dollars.
+
+## Next steps
+
+<Cards>
+  <Card icon={<CreditCard />} title="Billing" href="/docs/cloud/billing" description="Add the card that pays for top-ups." />
+  <Card icon={<SlidersHorizontal />} title="Studio management" href="/docs/cloud/studio-management" description="Access, models, and spending limits." />
+</Cards>

@@ -1,0 +1,103 @@
+---
+title: "Code Mode"
+description: "Let the model run several tools from one script in a WebAssembly sandbox (CodeModeTransform)"
+---
+
+import { EyeOff, LayoutTemplate } from 'lucide-react';
+
+With `CodeModeTransform`, the model writes a short JavaScript program instead of calling tools one at a time. The program runs in a QuickJS WebAssembly sandbox on your server, calls your tools locally, and returns only the final result.
+
+A five-step workflow normally means five round trips between the model and your server, with every intermediate result passing through the model's context. In Code Mode it's one call.
+
+## The sandbox
+
+Scripts never run in your server's own JavaScript environment. Each one runs in a fresh QuickJS interpreter compiled to WebAssembly, inside a worker thread, with hard limits on memory, time, and tool calls.
+
+<Layers layers={[
+  { title: 'NitroStack server', sub: 'Node.js process' },
+  { title: 'Worker pool', sub: 'Isolated worker threads, 4 by default' },
+  { title: 'QuickJS sandbox', sub: 'WebAssembly, one per script run' },
+]} items={['Runs ES2020 JavaScript', 'No access to fs, net, process, or child_process', 'callTool(name, args) calls your tools', 'Defaults: 100 MB memory, 30 s timeout, 50 tool calls']} caption="Scripts run in a WebAssembly sandbox inside a worker thread, never in your server's own process." />
+
+## Configuration
+
+Add the transform to `@McpApp`. Every option has a default; the values below tighten the memory and time limits.
+
+```typescript
+import {
+  McpApp,
+  Module,
+  CodeModeTransform,
+  DEFAULT_CODE_MODE_SEARCH_DESCRIPTION,
+} from '@nitrostack/core';
+import { DataController } from './data.controller.js';
+
+@McpApp({
+  module: AppModule,
+  server: {
+    name: 'code-mode-analytics-service',
+    version: '1.0.0',
+  },
+  transforms: [
+    new CodeModeTransform({
+      workerPoolSize: 4,       // Dedicated worker thread pool
+      memoryLimitMb: 128,      // Memory cap per execution
+      timeoutMs: 15000,        // Max execution time (15s)
+      maxToolCalls: 50,        // Max tool invocations per script
+      allowDestructive: false, // Guard against destructive operations
+      searchToolDescription: DEFAULT_CODE_MODE_SEARCH_DESCRIPTION,
+      alwaysVisible: ['data_aggregate_sum'],
+    }),
+  ],
+})
+@Module({
+  controllers: [DataController],
+})
+export class AppModule {}
+```
+
+## The three meta-tools
+
+`CodeModeTransform` presents 3 synthetic meta-tools to the client:
+
+1. `search`: Discovers available tools using keywords or natural-language queries.
+2. `get_schema`: Returns full parameter schemas and types for specific tool names.
+3. `execute`: Executes a JavaScript (ES2020) script string within the QuickJS sandbox.
+
+## An example script
+
+When an agent needs to process data across multiple tools, it passes a script to `execute`:
+
+```javascript
+// Script executed inside QuickJS sandbox
+const orders = await callTool('orders_list', { status: 'pending' });
+
+let totalRevenue = 0;
+const highValueOrders = [];
+
+for (const order of orders.items) {
+  const details = await callTool('orders_get_details', { orderId: order.id });
+  totalRevenue += details.totalAmount;
+  
+  if (details.totalAmount > 1000) {
+    highValueOrders.push({ id: order.id, customer: details.customerEmail });
+  }
+}
+
+return {
+  pendingCount: orders.items.length,
+  totalRevenue,
+  highValueOrders,
+};
+```
+
+## Destructive tools
+
+When `allowDestructive: false` is configured, any tool decorated with `annotations: { destructiveHint: true }` is automatically blocked from execution inside the script. If the script attempts to invoke a destructive tool, execution halts immediately with a clear security rejection error.
+
+## Next steps
+
+<Cards>
+  <Card icon={<EyeOff />} title="Visibility" href="/docs/sdk/transforms/visibility" description="Hide tools until they are unlocked." />
+  <Card icon={<LayoutTemplate />} title="Code Mode template" href="/docs/templates/code-mode" description="A full example." />
+</Cards>

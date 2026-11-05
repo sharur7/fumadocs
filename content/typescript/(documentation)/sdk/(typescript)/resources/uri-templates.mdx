@@ -1,0 +1,174 @@
+---
+title: "URI Templates"
+description: "Serve a family of resources from one handler with URI parameters"
+---
+
+import { Bell } from 'lucide-react';
+
+A URI template such as `product://{id}` lets one handler serve every product. The client fills in the parameters, and your handler reads them from the URI.
+
+## Static and parameterized URIs
+
+A URI without parameters names exactly one resource. Put a parameter in braces, such as `{id}`, and the same handler serves every matching URI.
+
+### Static URIs
+
+For singleton resources without parameters:
+
+```typescript
+@Resource({
+  uri: 'config://application',
+  name: 'Application Configuration',
+  description: 'Current application configuration and feature flags'
+})
+async getAppConfig(uri: string, ctx: ExecutionContext) {
+  const config = await this.configService.getAll();
+  return {
+    contents: [{
+      uri,
+      mimeType: 'application/json',
+      text: JSON.stringify(config, null, 2)
+    }]
+  };
+}
+```
+
+### Parameterized URIs
+
+URIs can include dynamic parameters enclosed in curly braces:
+
+```typescript
+// Single parameter
+@Resource({ uri: 'product://{id}', name: 'Product' })
+
+// Multiple parameters
+@Resource({ uri: 'order://{orderId}/item/{itemId}', name: 'Order Item' })
+
+// Path-style parameter
+@Resource({ uri: 'file:///{path}', name: 'File Contents' })
+```
+
+### Parameter Extraction
+
+Extract parameters from URIs using regular expressions:
+
+```typescript
+@Resource({
+  uri: 'order://{orderId}/item/{itemId}',
+  name: 'Order Line Item',
+  description: 'Details for a specific item within an order'
+})
+async getOrderItem(uri: string, ctx: ExecutionContext) {
+  const match = uri.match(/order:\/\/([^\/]+)\/item\/([^\/]+)/);
+  if (!match) {
+    throw new Error(`Invalid URI format: ${uri}`);
+  }
+
+  const [, orderId, itemId] = match;
+  const item = await this.orderService.getItem(orderId, itemId);
+
+  if (!item) {
+    throw new Error(`Order item not found: ${orderId}/${itemId}`);
+  }
+
+  return {
+    contents: [{
+      uri,
+      mimeType: 'application/json',
+      text: JSON.stringify(item, null, 2)
+    }]
+  };
+}
+```
+
+### URI Utility Helper
+
+Consider creating a utility for parameter extraction:
+
+```typescript
+// utils/uri.ts
+export function parseUri(uri: string, template: string): Record<string, string> {
+  const paramNames: string[] = [];
+  const regexPattern = template.replace(/\{(\w+)\}/g, (_, name) => {
+    paramNames.push(name);
+    return '([^/]+)';
+  });
+
+  const match = uri.match(new RegExp(`^${regexPattern}$`));
+  if (!match) {
+    throw new Error(`URI does not match template: ${uri}`);
+  }
+
+  const params: Record<string, string> = {};
+  paramNames.forEach((name, index) => {
+    params[name] = match[index + 1];
+  });
+
+  return params;
+}
+
+// Usage
+@Resource({ uri: 'order://{orderId}/item/{itemId}' })
+async getOrderItem(uri: string, ctx: ExecutionContext) {
+  const params = parseUri(uri, 'order://{orderId}/item/{itemId}');
+  const item = await this.orderService.getItem(params.orderId, params.itemId);
+  // ...
+}
+```
+
+## Resource templates
+
+Resource templates define parameterized URI patterns that clients can use to discover and construct resource URIs. Unlike regular resources, templates describe a pattern rather than a concrete resource.
+
+### Defining Resource Templates
+
+`createResourceTemplate()` describes a parameterized URI so clients can discover it and fill in the parameters themselves.
+
+```typescript
+import { createResourceTemplate } from '@nitrostack/core';
+
+// In your module setup
+const productTemplate = createResourceTemplate({
+  uriTemplate: 'product://{productId}',
+  name: 'Product Resource',
+  title: 'Product Details Template',
+  description: 'Template for accessing individual product resources',
+  mimeType: 'application/json',
+  annotations: {
+    audience: ['assistant'],
+    priority: 0.7
+  }
+});
+
+// Register with server
+server.resourceTemplate(productTemplate);
+```
+
+### Template Parameters
+
+Templates use curly brace syntax for parameters:
+
+```typescript
+// Single parameter
+'product://{id}'
+
+// Multiple parameters  
+'user://{userId}/order/{orderId}'
+
+// Path parameters
+'file:///{path}'
+```
+
+### Use Cases
+
+Resource templates are useful when:
+
+1. **Dynamic resources**: Resources that don't exist until requested (e.g., user-specific data)
+2. **Large datasets**: Instead of listing all products, provide a template for accessing any product
+3. **API discovery**: Help AI models understand available resource patterns
+
+## Next steps
+
+<Cards>
+  <Card icon={<Bell />} title="Subscriptions" href="/docs/sdk/resources/subscriptions" description="Tell clients when a resource changes." />
+</Cards>

@@ -1,0 +1,72 @@
+---
+title: "Decorators"
+description: "@tool, @module, @injectable, @mcp_app"
+---
+
+Python decorators from `nitrostack`. Do not use TypeScript `@Tool` / `@Module` / `@Injectable`.
+
+## MCP primitives
+
+These decorators turn a method into something clients can call or read.
+
+### `@tool`
+
+Registers a method as a tool the model can call.
+
+```python
+@tool(name, description, input_schema, title=..., output_schema=..., annotations=..., task_support=..., visibility=..., examples=..., invocation=..., metadata=...)
+```
+
+`input_schema` is a Pydantic `BaseModel`. Related: `@initial_tool`, `@widget`, `ToolAnnotations`, `ToolExamples`, `ToolInvocation`.
+
+### `@resource`
+
+Registers a method that returns data at a URI.
+
+```python
+@resource(uri, name, description, mime_type=..., annotations=...)
+```
+
+### `@prompt`
+
+Registers a reusable prompt template with named arguments.
+
+```python
+@prompt(name, description, arguments=[PromptArgument(...)])
+```
+
+## Modules and DI
+
+These decorators organize your code and wire services together.
+
+```python
+@module(name=..., controllers=..., providers=..., imports=..., exports=...)
+@injectable(deps=[ServiceA, ServiceB])
+@mcp_app(module=AppModule, server=ServerConfig(...))
+@health_check(name="system")
+```
+
+## Pipeline
+
+These decorators attach guards, middleware, interceptors, pipes, and exception filters to a tool or a whole class.
+
+```python
+@use_guards(...)
+@use_middleware(...)
+@use_interceptors(...)
+@use_pipes(...)
+@use_filters(...)
+```
+
+## Extra
+
+Caching, rate limits, events, and widgets.
+
+```python
+@cache(ttl=60)
+@rate_limit(max=100, window=60)
+@on_event("name")
+@widget("route")  # or WidgetOptions(...)
+```
+
+See [Tools](/python/sdk/tools) and [Server Concepts](/docs/getting-started/core-concepts/server-concepts).

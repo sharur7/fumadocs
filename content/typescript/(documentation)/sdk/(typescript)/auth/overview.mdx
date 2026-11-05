@@ -1,0 +1,108 @@
+---
+title: "Authentication"
+description: "Choose how callers prove who they are: API keys, JWTs, or OAuth 2.1"
+---
+
+import { Key, KeyRound, Fingerprint, ShieldCheck, Lock } from 'lucide-react';
+
+A server that does anything sensitive needs to know who is calling. NitroStack offers three ways for callers to prove their identity. Each one is a module you configure once, plus a guard you put on the tools that need it. Tools without a guard stay open.
+
+<Compare columns={[
+  { title: 'API keys', sub: 'For services and integrations', icon: 'Key', items: ['A long-lived secret per integration', 'Simplest to set up', 'No user sign-in'] },
+  { title: 'JWT', sub: 'For users you sign in yourself', icon: 'Fingerprint', items: ['Your server issues signed tokens', 'Tokens carry the user and roles', 'You run the login'] },
+  { title: 'OAuth 2.1', sub: 'For users of an identity provider', icon: 'KeyRound', accent: true, items: ['Auth0, Okta, Entra ID, Google', 'Short-lived tokens with scopes', 'Required by ChatGPT apps'] },
+]} />
+
+## How it fits together
+
+Every method follows the same pattern. A module holds the configuration, a guard checks each call, and the guard puts the caller's identity on `context.auth` for your handler to read.
+
+<Flow steps={[
+  { title: 'Module', sub: 'ApiKeyModule, JWTModule, or OAuthModule', icon: 'Settings' },
+  { title: 'Guard on the tool', sub: '@UseGuards(...)', icon: 'ShieldCheck' },
+  { title: 'context.auth', sub: 'Who is calling, and their scopes', icon: 'User' },
+  { title: 'Your handler', icon: 'Wrench' },
+]} />
+
+## Guards
+
+Guards are the mechanism behind all three methods. A guard is a class with a `canActivate()` method that returns `true` to let a call through.
+
+### Writing a guard
+
+Guards determine whether a request should be processed. They're used primarily for authentication and authorization.
+
+```typescript
+import { Guard, ExecutionContext } from '@nitrostack/core';
+
+export class JWTGuard implements Guard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Check if user is authenticated
+    const token = this.extractToken(context);
+    
+    if (!token) {
+      return false;
+    }
+    
+    try {
+      const payload = await this.verifyToken(token);
+      context.auth = {
+        subject: payload.sub,
+        token: token,
+        ...payload
+      };
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  private extractToken(context: ExecutionContext): string | null {
+    // Extract from metadata or arguments
+    return context.metadata?.token || null;
+  }
+  
+  private async verifyToken(token: string): Promise<any> {
+    // Verify JWT token
+    // Implementation depends on your JWT library
+  }
+}
+```
+
+### Applying a guard
+
+Add the guard to any tool with `@UseGuards`. Tools without it stay public.
+
+```typescript
+import { UseGuards } from '@nitrostack/core';
+
+export class UserTools {
+  @Tool({ name: 'get_profile' })
+  @UseGuards(JWTGuard)  // ← Requires JWT authentication
+  async getProfile(input: any, ctx: ExecutionContext) {
+    const userId = ctx.auth?.subject;  // ← Available from guard
+    return await this.userService.findById(userId);
+  }
+  
+  @Tool({ name: 'delete_user' })
+  @UseGuards(JWTGuard, AdminGuard)  // ← Multiple guards
+  async deleteUser(input: any, ctx: ExecutionContext) {
+    // Requires both JWT auth AND admin role
+  }
+}
+```
+
+## Methods
+
+<Cards>
+  <Card icon={<Key />} title="API keys" href="/docs/sdk/auth/api-key" description="Keys for services and integrations." />
+  <Card icon={<Fingerprint />} title="JWT" href="/docs/sdk/auth/jwt" description="Tokens you issue yourself." />
+  <Card icon={<KeyRound />} title="OAuth 2.1" href="/docs/sdk/auth/oauth" description="Sign-in with an identity provider." />
+  <Card icon={<ShieldCheck />} title="Access control" href="/docs/sdk/auth/access-control" description="Roles, scopes, and combined checks." />
+</Cards>
+
+## Related
+
+<Cards>
+  <Card icon={<Lock />} title="Studio authentication" href="/docs/studio/authentication" description="Send credentials from Studio." />
+</Cards>

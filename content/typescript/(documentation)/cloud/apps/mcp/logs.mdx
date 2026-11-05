@@ -1,0 +1,25 @@
+---
+title: "Logs"
+description: "Read everything your deployed server writes"
+---
+
+import { Gauge, Rocket } from 'lucide-react';
+
+**Logs**, in the app's MCP menu, shows everything your server writes, with a time, a level, and a source for each line.
+
+<Screenshot src="/images/cloud/mcp-logs.png" alt="The Logs page with search, level, and time range filters above a list of log lines" />
+
+- **Search logs** finds lines that contain some text.
+- **Level** shows only Info, Warning, Error, or Debug lines.
+- **Time range** picks how far back to look.
+- **Start live** follows new lines as they arrive.
+- **Export** downloads the lines, and **Open endpoint** opens your server.
+
+The log includes everything the server prints when it starts, such as the NitroStack banner and the **Production mode** notice, and messages from the platform, such as a **WARN** line when a readiness probe times out while the server is still starting. The count next to the filters says how many lines are shown. If you scroll up while live, **Resume tailing** takes you back to the newest line.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Gauge />} title="Monitoring" href="/docs/cloud/apps/mcp/monitoring" description="Watch traffic and latency." />
+  <Card icon={<Rocket />} title="Deployments" href="/docs/cloud/apps/mcp/deployments" description="Roll out a fix." />
+</Cards>

@@ -1,0 +1,14 @@
+---
+title: "OAuth 2.1 Template"
+description: "python-oauth flight booking"
+---
+
+```bash
+nitrostack-py init flights --template python-oauth
+```
+
+Flight-booking server (Duffel-style) with OAuth 2.1, prompts, resources, widgets, and `OAUTH_SETUP.md` plus `guards/oauth_guard.py`.
+
+Follow `OAUTH_SETUP.md` for JWKS vs introspection, `OAUTH_REQUIRED`, and scopes. Use `@use_guards(OAuthGuard, create_scope_guard([...]))`.
+
+See [OAuth 2.1](/python/sdk/auth/oauth).

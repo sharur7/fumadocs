@@ -1,0 +1,10 @@
+{
+  "title": "Prompts",
+  "pages": [
+    "index",
+    "options",
+    "responses",
+    "dynamic",
+    "pipeline"
+  ]
+}

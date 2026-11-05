@@ -1,0 +1,11 @@
+{
+  "title": "Templates",
+  "pages": [
+    "index",
+    "starter",
+    "oauth",
+    "pizzaz",
+    "enterprise-search",
+    "code-mode"
+  ]
+}

@@ -1,0 +1,222 @@
+---
+title: "Data Spillover"
+description: "Handling large tool outputs with automatic preview and resource spilling"
+---
+
+The Enterprise Data Spillover System in NitroStack protects LLM context windows, client memory buffers, and network transports from payload exhaustion. When database queries, CSV exports, or log aggregations produce payloads exceeding configured limits (default: 10KB), the spillover interceptor automatically offloads full datasets to high-performance local storage, generates structured preview samples, and provides MCP resource pointers for on-demand inspection.
+
+## The problem
+
+A tool that queries a database or exports a report can return hundreds of kilobytes. Sent straight to the model, one result can use up most of its context window.
+
+<Compare columns={[
+  { title: 'Without spillover', sub: 'The whole result goes to the model', icon: 'TriangleAlert', items: ['execute_sql("SELECT * FROM users") returns 500 KB', 'About 125,000 tokens in one call', 'The context window fills up at once', 'The model reasons over raw rows'] },
+  { title: 'With spillover', sub: 'The model gets a preview and a link', icon: 'Layers', accent: true, items: ['A few sample rows and a total count', 'A resource URI for the full data', 'The model reads more only if it needs to', 'The full result is kept on the server'] },
+]} />
+
+## How it works
+
+The `DataSpilloverInterceptor` sits directly on the tool execution pipeline, inspecting response byte lengths:
+
+<Fork
+  start={[{ title: 'Tool result', sub: 'For example 250 KB of JSON', icon: 'Wrench' }, { title: 'DataSpilloverInterceptor', sub: 'Measures the serialized size' }]}
+  branches={[
+    { label: 'At or under maxPayloadBytes', steps: [{ title: 'Return it unchanged', sub: 'The model gets the full result' }] },
+    { label: 'Over maxPayloadBytes', accent: true, steps: [{ title: 'Store the full result', sub: 'In memory or on disk, with a TTL' }, { title: 'Build a preview', sub: 'First items and a total count' }, { title: 'Return an envelope', sub: '_spillover, resourceUri, preview, totalItems, sizeBytes' }] },
+  ]}
+  caption="The model can read the stored result later through resource://data-spillover/{id}."
+/>
+
+## Step by step
+
+1. **Size Detection**: When a tool handler completes, the interceptor calculates the serialized UTF-8 byte length. If within the threshold (`maxPayloadBytes`, default: 10KB), the result passes through untouched.
+2. **Persistence**: If the payload exceeds the threshold, the full dataset is written to the active `SpilloverStore` with a unique UUID key and a TTL expiration timestamp.
+3. **Smart Preview Generation**: `generatePreview()` inspects the data structure:
+   - **Arrays**: Returns the first `N` elements (default: 3) with truncated fields and total item count.
+   - **Strings**: Returns the first `N` characters (default: 500) with a `[truncated]` marker.
+   - **Objects**: Extracts top-level keys with truncated values.
+4. **Envelope Packaging**: Returns a standardized `SpilloverEnvelope` containing the preview, total record count, byte size, human summary, and an MCP `resourceUri`.
+5. **Resource Retrieval**: The NitroStack server exposes a built-in MCP resource handler at `resource://data-spillover/{id}`, enabling the client or model to read the complete dataset on demand.
+
+## Applying the Interceptor
+
+The `DataSpilloverInterceptor` is applied via the `@UseInterceptors()` decorator. You can instantiate it directly with custom configuration:
+
+```typescript
+import {
+  Controller,
+  ToolDecorator as Tool,
+  UseInterceptors,
+  ExecutionContext,
+  DataSpilloverInterceptor,
+  z,
+} from '@nitrostack/core';
+import { DatabaseService } from './database.service.js';
+
+@Controller('database')
+export class DatabaseController {
+  constructor(private readonly db: DatabaseService) {}
+
+  @Tool({
+    name: 'query_records',
+    description: 'Execute analytical queries with automatic context protection',
+    inputSchema: z.object({
+      sql: z.string().describe('SQL query string'),
+    }),
+  })
+  @UseInterceptors(
+    new DataSpilloverInterceptor({
+      maxPayloadBytes: 15 * 1024,      // Spill over if payload > 15KB
+      previewItems: 3,                 // Include 3 sample rows in preview
+      previewStringChars: 300,         // Truncate preview strings to 300 chars
+      spilloverTtlSeconds: 3600,       // Keep resource cached for 1 hour
+      resourceUriPrefix: 'resource://data-spillover/',
+    })
+  )
+  async queryRecords(input: { sql: string }, ctx: ExecutionContext) {
+    ctx.logger.info('Executing analytical query', { sql: input.sql });
+    return await this.db.query(input.sql);
+  }
+}
+```
+
+### Static Configuration Helper
+
+Alternatively, use the static factory helper:
+
+```typescript
+@Tool({ name: 'export_csv' })
+@UseInterceptors(
+  DataSpilloverInterceptor.configure({
+    maxPayloadBytes: 20 * 1024,
+    previewItems: 5,
+  })
+)
+async exportCsv(input: ExportInput, ctx: ExecutionContext) {
+  return await this.reports.generateCsv(input);
+}
+```
+
+### Interceptor Options Reference
+
+Options you can pass to `DataSpilloverInterceptor`:
+
+| Option | Type | Default | Description |
+|:---|:---|:---|:---|
+| `maxPayloadBytes` | `number` | `10240` (10KB) | Byte threshold before spillover triggers. |
+| `spilloverTtlSeconds` | `number` | `3600` (1 hour) | Time-to-live before spilled resources are pruned from storage. |
+| `previewItems` | `number` | `3` | Number of items included in array/object preview slices. |
+| `previewStringChars` | `number` | `500` | Maximum character length for preview strings before truncation. |
+| `resourceUriPrefix` | `string` | `'resource://data-spillover/'` | URI scheme and prefix for the generated MCP resource. |
+| `storage` | `'memory' \| 'filesystem' \| SpilloverStore` | `'memory'` | Storage driver backend or custom implementation. |
+| `storagePath` | `string` | `'./.spillover_cache'` | Directory path when using filesystem storage. |
+
+## The Spillover Envelope
+
+When spillover triggers, the AI model receives a structured JSON object matching the `SpilloverEnvelope` schema:
+
+```json
+{
+  "_spillover": true,
+  "resourceUri": "resource://data-spillover/b74dfa6e-4f1e-45fa-8025-a7b3e18c6109",
+  "mimeType": "application/json",
+  "sizeBytes": 284500,
+  "totalItems": 1250,
+  "summary": "Query returned 1,250 items (277.8 KB)",
+  "preview": [
+    {
+      "id": "usr_001",
+      "name": "Alice Johnson",
+      "email": "alice@example.com",
+      "status": "active"
+    },
+    {
+      "id": "usr_002",
+      "name": "Bob Smith",
+      "email": "bob@example.com",
+      "status": "pending"
+    },
+    {
+      "id": "usr_003",
+      "name": "Charlie Brown",
+      "email": "charlie@example.com",
+      "status": "active"
+    }
+  ],
+  "hint": "The response exceeded the size limit and was saved as an MCP resource. Use resources/read with the resourceUri above to fetch the full data, or inspect the preview above."
+}
+```
+
+## Server Storage Drivers
+
+NitroStack provides two built-in storage implementations:
+
+### Filesystem storage (`FsSpilloverStore`)
+
+Recommended for production workloads. Spools large datasets to disk, freeing Node.js heap memory:
+
+```typescript
+import { createServer } from '@nitrostack/core';
+
+const server = createServer({
+  name: 'enterprise-data-service',
+  version: '1.0.0',
+  spillover: {
+    driver: 'filesystem',
+    storageDir: './.spillover_cache',
+    maxSizeBytes: 200 * 1024 * 1024, // 200MB directory quota
+  },
+});
+```
+
+* **Atomic Disk Writes**: Writes payloads to temporary files and renames them atomically to prevent partial reads.
+* **Auto-Pruning**: Evicts expired records on background cleanup cycles or when approaching the storage byte cap.
+* **Heap Isolation**: Large JSON strings are streamed directly to disk, avoiding V8 heap fragmentation.
+
+### In-memory storage (`MemorySpilloverStore`)
+
+Ideal for development, lightweight microservices, and automated testing:
+
+```typescript
+const devServer = createServer({
+  name: 'dev-service',
+  version: '1.0.0',
+  spillover: {
+    driver: 'memory',
+    maxSizeBytes: 25 * 1024 * 1024, // 25MB maximum in-memory storage
+  },
+});
+```
+
+* Zero filesystem dependencies.
+* High-speed in-memory Map lookup.
+* Prunes expired records automatically on access and periodic sweeps.
+
+## Client and AI Model Interaction
+
+When an AI model receives a `_spillover: true` envelope, it can handle the data intelligently:
+
+1. **Immediate Analysis via Preview**: The model uses the `preview`, `summary`, and `totalItems` fields to answer high-level questions (e.g., verifying schema columns, validating status counts, or summarizing initial records).
+2. **Selective Full Retrieval**: If the model requires complete data for downstream calculations, it calls the MCP standard `resources/read` tool using the returned `resourceUri`:
+
+```text
+AI Model Request:
+{
+  "method": "resources/read",
+  "params": {
+    "uri": "resource://data-spillover/b74dfa6e-4f1e-45fa-8025-a7b3e18c6109"
+  }
+}
+
+Server Response:
+{
+  "contents": [
+    {
+      "uri": "resource://data-spillover/b74dfa6e-4f1e-45fa-8025-a7b3e18c6109",
+      "mimeType": "application/json",
+      "text": "[ { \"id\": \"usr_001\", ... complete dataset ... } ]"
+    }
+  ]
+}
+```
+

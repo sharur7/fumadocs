@@ -1,0 +1,21 @@
+---
+title: "Execution Context"
+description: "ExecutionContext, AuthContext, TaskContext"
+---
+
+`ExecutionContext` is passed as the last argument to tools, resources, and prompts.
+
+| Field | Purpose |
+|-------|---------|
+| `request_id` | Correlate logs |
+| `logger` | Structured logger |
+| `metadata` | Headers / MCP extras (`authorization`, `headers`, `_oauth`) |
+| `auth` | `AuthContext` after a successful guard |
+| `task` | `TaskContext` (`update_progress`, `cancel`, `throw_if_cancelled`) |
+| `mcp_headers` | Incoming MCP HTTP headers |
+| `trace` | Tracing bag |
+| `input_responses` | MRTR follow-ups |
+
+`AuthContext`: `subject`, `scopes`, `client_id`, `aud`, `claims`.
+
+Do not treat this as an Express/Starlette request object.

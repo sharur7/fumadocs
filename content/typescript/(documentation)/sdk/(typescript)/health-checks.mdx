@@ -1,0 +1,228 @@
+---
+title: "Health Checks"
+description: "Server monitoring, @HealthCheck decorator, and health://checks resource"
+---
+
+import { Container, FileText, Server } from 'lucide-react';
+
+In production environments, uptime and operational visibility are critical. NitroStack provides a built-in health checking system that enables container orchestrators (such as Kubernetes, Docker Swarm, and Google Cloud Run) and monitoring agents to assess server vitality.
+
+Each health check reports one of three statuses (`HealthCheckResult`):
+- **`up`**: The component is operating normally.
+- **`degraded`**: The component is functioning with reduced performance or fallback capacity.
+- **`down`**: The component is unavailable or failing critical requirements.
+
+All registered health checks are automatically aggregated and exposed through a standard MCP resource: **`health://checks`**.
+
+## Defining a Health Check
+
+Health checks are defined as injectable classes implementing `HealthCheckInterface` and decorated with `@HealthCheck`:
+
+```typescript
+// src/modules/health/system-health.check.ts
+import { HealthCheck, HealthCheckInterface, HealthCheckResult, Injectable } from '@nitrostack/core';
+
+@HealthCheck({ name: 'system' })
+@Injectable()
+export class SystemHealthCheck implements HealthCheckInterface {
+  async check(): Promise<HealthCheckResult> {
+    const memory = process.memoryUsage();
+    const heapUsedMb = Math.round(memory.heapUsed / 1024 / 1024);
+    const uptimeSeconds = Math.round(process.uptime());
+
+    // Flag degraded if heap exceeds 500MB
+    const status = heapUsedMb > 500 ? 'degraded' : 'up';
+
+    return {
+      status,
+      message: status === 'up' ? 'System healthy' : 'High memory consumption',
+      details: {
+        uptimeSeconds,
+        heapUsedMb,
+        rssMb: Math.round(memory.rss / 1024 / 1024),
+        nodeVersion: process.version,
+      },
+    };
+  }
+}
+```
+
+## Service & Database Health Check Example
+
+Here is an example verifying database connectivity and library inventory health:
+
+```typescript
+// src/modules/library/library-health.check.ts
+import { HealthCheck, HealthCheckInterface, HealthCheckResult, Injectable } from '@nitrostack/core';
+import { LibraryService } from './library.service.js';
+
+@HealthCheck({ name: 'library_repository' })
+@Injectable()
+export class LibraryRepositoryHealthCheck implements HealthCheckInterface {
+  constructor(private libraryService: LibraryService) {}
+
+  async check(): Promise<HealthCheckResult> {
+    try {
+      const stats = await this.libraryService.getStats();
+
+      return {
+        status: 'up',
+        message: 'Database connection active',
+        details: {
+          totalBooks: stats.totalBooks,
+          availableCopies: stats.availableCopies,
+          latencyMs: stats.queryLatencyMs,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 'down',
+        message: 'Database query failed',
+        details: {
+          error: err instanceof Error ? err.message : 'Unknown database error',
+        },
+      };
+    }
+  }
+}
+```
+
+## Registering Health Checks
+
+Register health check classes in the `providers` array of your module:
+
+```typescript
+// src/modules/health/health.module.ts
+import { Module } from '@nitrostack/core';
+import { SystemHealthCheck } from './system-health.check.js';
+import { LibraryRepositoryHealthCheck } from './library-health.check.js';
+
+@Module({
+  name: 'health',
+  description: 'Server health and liveness monitoring',
+  providers: [SystemHealthCheck, LibraryRepositoryHealthCheck],
+  exports: [SystemHealthCheck, LibraryRepositoryHealthCheck],
+})
+export class HealthModule {}
+```
+
+Import this module into your root `AppModule`:
+
+```typescript
+// src/app.module.ts
+import { McpApp, Module } from '@nitrostack/core';
+import { HealthModule } from './modules/health/health.module.js';
+
+@McpApp({ module: AppModule })
+@Module({
+  imports: [HealthModule],
+})
+export class AppModule {}
+```
+
+## The `health://checks` Resource
+
+When health checks are registered in your application modules, NitroStack automatically registers and exposes an aggregated MCP resource at `health://checks`. Clients, monitoring scripts, and infrastructure orchestrators reading this resource receive a comprehensive `ServerHealthPayload`:
+
+```json
+{
+  "status": "healthy",
+  "uptimeSeconds": 3600,
+  "count": 2,
+  "checks": [
+    {
+      "name": "system",
+      "status": "up",
+      "message": "System healthy",
+      "details": {
+        "uptimeSeconds": 3600,
+        "heapUsedMb": 64,
+        "rssMb": 112,
+        "nodeVersion": "v20.18.1"
+      }
+    },
+    {
+      "name": "database",
+      "status": "up",
+      "message": "Database connection active"
+    }
+  ],
+  "transforms": [
+    {
+      "name": "BM25SearchTransform",
+      "type": "search",
+      "order": 1,
+      "details": {
+        "indexedTools": 48,
+        "searchTool": "search_tools",
+        "callTool": "call_tool"
+      }
+    }
+  ],
+  "sandboxWorkerPool": {
+    "poolSize": 4,
+    "activeWorkers": 0,
+    "queuedTasks": 0,
+    "memoryLimitMb": 128,
+    "totalExecutions": 142
+  },
+  "spillover": {
+    "driver": "filesystem",
+    "activeCount": 3,
+    "currentSizeBytes": 45056,
+    "maxSizeBytes": 104857600
+  },
+  "timestamp": "2026-10-08T12:00:00.000Z"
+}
+```
+
+### Operational Telemetry & Autoscaling
+
+The `health://checks` resource surfaces runtime subsystems beyond basic heartbeat pings:
+
+1. **`transforms`**: Telemetry for active catalog-reshaping transforms, including total indexed tools and synthetic meta-tool names.
+2. **`sandboxWorkerPool`**: Metrics from `CodeModeTransform`'s WebAssembly sandbox. Orchestrators (such as Kubernetes Horizontal Pod Autoscaler or Cloud Run) can trigger scaling events when `queuedTasks > 0` or `activeWorkers` approaches `poolSize`.
+3. **`spillover`**: Real-time metrics from the Data Spillover subsystem, displaying the active storage driver, count of stored datasets, and current byte usage against configured quotas (`maxSizeBytes`).
+
+The `@nitrostack/core` package also exports programmatic health check utilities:
+- `getAllHealthChecks()`: Returns a `Record<string, HealthCheckResult>`.
+- `getHealthCheck(name: string)`: Returns the result of a specific health check.
+- `getOverallHealth()`: Returns `{ status: 'healthy' | 'unhealthy' | 'degraded', checks }`.
+
+## Container & Cloud Orchestration
+
+Platforms that run containers use health checks to decide when to send traffic and when to restart a server.
+
+### Kubernetes Probes
+Configure liveness and readiness probes in your deployment manifest:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 15
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 2
+  periodSeconds: 10
+```
+
+### Docker HEALTHCHECK
+In your `Dockerfile`:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"
+```
+
+## Related
+
+<Cards>
+  <Card icon={<Server />} title="Server Concepts" href="/docs/getting-started/core-concepts/server-concepts" description="Server lifecycle and bootstrapping." />
+  <Card icon={<FileText />} title="Resources Guide" href="/docs/sdk/resources" description="Exposing contextual resources to AI models." />
+  <Card icon={<Container />} title="Docker Deployment" href="/docs/deployment/docker" description="Preparing your MCP server for production." />
+</Cards>

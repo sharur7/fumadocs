@@ -1,0 +1,9 @@
+{
+  "title": "Studio",
+  "pages": [
+    "overview",
+    "testing",
+    "chat",
+    "standalone"
+  ]
+}

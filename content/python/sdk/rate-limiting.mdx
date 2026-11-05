@@ -1,0 +1,17 @@
+---
+title: "Rate Limiting"
+description: "@rate_limit decorator"
+---
+
+`@rate_limit` caps how many times a tool can be called within a time window, which protects expensive or risky tools from being called too often.
+
+```python
+from nitrostack import rate_limit, tool
+
+@tool(name="search", description="...", input_schema=SearchInput)
+@rate_limit(max=100, window=60)
+async def search(self, input: SearchInput, context):
+    ...
+```
+
+`max` is the request cap; `window` is seconds.

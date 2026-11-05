@@ -1,0 +1,62 @@
+---
+title: "Rate Limit Storage"
+description: "Keep rate limit counters in memory or in a shared store such as Redis"
+---
+
+import { Container, DatabaseZap } from 'lucide-react';
+
+By default, counters live in the memory of the server process. That's fast and needs no setup, but each server has its own counters and they reset when the process restarts. If you run several copies of your server behind a load balancer, a caller could get the full limit from each copy. Store the counters somewhere shared instead.
+
+<Compare columns={[
+  { title: 'In memory', sub: 'The default', icon: 'MemoryStick', items: ['No setup', 'Counters reset on restart', 'Each server counts separately'] },
+  { title: 'Shared store', sub: 'For example Redis', icon: 'Database', accent: true, items: ['All servers share one count', 'Survives restarts', 'Needs a store you run'] },
+]} />
+
+## The storage interface
+
+Any object with these two methods can store counters. `increment` adds one to a key's count and returns the new total, starting a new window when the old one has ended. `reset` clears a key.
+
+```typescript
+interface RateLimitStorage {
+  increment(key: string, windowMs: number): Promise<number> | number;
+  reset(key: string): Promise<void> | void;
+}
+```
+
+## Redis
+
+This implementation uses the `redis` package. The first call in a window sets the key to expire when the window ends, so Redis clears old counters for you.
+
+```typescript title="src/common/redis-rate-limit.storage.ts"
+import { createClient } from 'redis';
+import type { RateLimitStorage } from '@nitrostack/core';
+
+const client = createClient({ url: process.env.REDIS_URL });
+await client.connect();
+
+export const redisRateLimitStorage: RateLimitStorage = {
+  async increment(key, windowMs) {
+    const count = await client.incr(`ratelimit:${key}`);
+    if (count === 1) {
+      await client.pExpire(`ratelimit:${key}`, windowMs);
+    }
+    return count;
+  },
+  async reset(key) {
+    await client.del(`ratelimit:${key}`);
+  },
+};
+```
+
+Pass it to each limit that should be shared:
+
+```typescript
+@RateLimit({ requests: 100, window: '1h', storage: redisRateLimitStorage })
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<DatabaseZap />} title="Caching" href="/docs/sdk/caching" description="Cache storage works the same way." />
+  <Card icon={<Container />} title="Deploy with Docker" href="/docs/deployment/docker" description="Run Redis next to your server with Compose." />
+</Cards>

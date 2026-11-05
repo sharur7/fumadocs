@@ -1,0 +1,71 @@
+---
+title: "Configuration"
+description: "Read settings from the environment and .env files with ConfigModule and ConfigService"
+---
+
+import { Syringe, Heart } from 'lucide-react';
+
+`ConfigModule` loads your settings once at startup and makes them available anywhere through `ConfigService`. Settings come from the process environment and an optional `.env` file, with defaults you provide.
+
+## Set up ConfigModule
+
+Import the module in your root module with `for_root`.
+
+```python title="app_module.py"
+from nitrostack import module, ConfigModule
+
+@module(
+    name="app",
+    imports=[
+        ConfigModule.for_root(
+            env_file_path=".env",
+            defaults={"PORT": "3000"},
+        ),
+    ],
+)
+class AppModule:
+    pass
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `env_file_path` | `".env"` | The file to read |
+| `ignore_env_file` | `False` | Skip the file and use only the environment and defaults |
+| `defaults` | none | Values used when a key isn't set anywhere else |
+| `validate` | none | A function that receives all settings and returns `True` when they're valid |
+
+Values are merged in this order, with the later ones winning: your `defaults`, the process environment, then the `.env` file. A key that is already in the process environment is never overridden by the file, so starting the server with `PORT=3001` wins over the `PORT=3000` that `nitrostack-py init` writes into `.env`.
+
+If you pass `validate` and it returns `False`, startup fails with a `ConfigurationError`.
+
+## Read settings with ConfigService
+
+Inject `ConfigService` like any other provider.
+
+```python
+from nitrostack import injectable, ConfigService
+
+@injectable(deps=[ConfigService])
+class OrdersService:
+    def __init__(self, config: ConfigService):
+        self.region = config.get("REGION", "eu-west-1")
+        self.api_token = config.get_or_throw("ORDERS_API_TOKEN")
+```
+
+| Method | Behavior |
+|---|---|
+| `get(key, default=None)` | Returns the value, or `default` when the key isn't set |
+| `get_or_throw(key)` | Returns the value, or raises `KeyError` when the key isn't set |
+
+Values read from the environment or a `.env` file are strings, so convert numbers and booleans yourself.
+
+## Keep secrets out of the code
+
+Put secrets in the environment or in a `.env` file that isn't committed, and read them through `ConfigService`. `nitrostack-py pack` leaves `.env` out of the wheel by default.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Syringe />} title="Dependency Injection" href="/python/sdk/dependency-injection" description="How ConfigService reaches your classes." />
+  <Card icon={<Heart />} title="Health Checks" href="/python/sdk/health-checks" description="Report whether a dependency is working." />
+</Cards>

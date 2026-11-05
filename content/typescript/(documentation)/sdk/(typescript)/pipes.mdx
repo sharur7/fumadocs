@@ -1,0 +1,474 @@
+---
+title: "Pipes"
+description: "Transform and validate tool input"
+---
+
+import { CheckCheck, Route, Sparkles } from 'lucide-react';
+
+Pipes validate and transform input data before it reaches the handler. They ensure that handlers receive correctly typed, sanitized, and validated data, reducing the need for defensive coding within business logic.
+
+## Creating Pipes
+
+A pipe is a class with a `transform()` method. It receives the tool's input and returns the input the handler should see, or throws to reject it.
+
+### Basic Pipe
+
+Pipes implement the `PipeInterface`:
+
+```typescript
+import { Pipe, PipeInterface, ArgumentMetadata } from '@nitrostack/core';
+
+@Pipe()
+export class TrimPipe implements PipeInterface {
+  transform(value: any, metadata?: ArgumentMetadata): any {
+    return this.trimDeep(value);
+  }
+
+  private trimDeep(value: unknown): unknown {
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+
+    if (Array.isArray(value)) {
+      return value.map(item => this.trimDeep(item));
+    }
+
+    if (value && typeof value === 'object') {
+      const trimmed: Record<string, unknown> = {};
+      for (const [key, val] of Object.entries(value)) {
+        trimmed[key] = this.trimDeep(val);
+      }
+      return trimmed;
+    }
+
+    return value;
+  }
+}
+```
+
+### Pipe Interface
+
+`transform()` gets the value and metadata about it, and returns the transformed value. It can be async.
+
+```typescript
+export interface PipeInterface<T = unknown, R = unknown> {
+  transform(value: T, metadata: ArgumentMetadata): R | Promise<R>;
+}
+
+export interface ArgumentMetadata {
+  type: 'body' | 'param' | 'query' | 'custom';
+  metatype?: new (...args: unknown[]) => unknown;
+  data?: string;
+}
+```
+
+**Parameters:**
+- `value`: The input data to transform or validate
+- `metadata`: Metadata describing the argument type, metatype, and parameter identifier
+
+**Return:** Transformed or validated value (synchronous or returned as a Promise)
+
+**Throws:** Error if validation fails
+
+## Using Pipes
+
+Attach pipes with `@UsePipes`. They run in order, each receiving the previous one's output.
+
+### On Individual Methods
+
+Put `@UsePipes` on the handler whose input it should transform.
+
+```typescript
+import { ToolDecorator as Tool, UsePipes, ExecutionContext } from '@nitrostack/core';
+import { TrimPipe } from './pipes/trim.pipe.js';
+import { ValidationPipe } from './pipes/validation.pipe.js';
+
+export class UserTools {
+  @Tool({ name: 'create_user' })
+  @UsePipes(TrimPipe, ValidationPipe)
+  async createUser(input: CreateUserInput, ctx: ExecutionContext) {
+    // Input is trimmed and validated
+    return this.userService.create(input);
+  }
+}
+```
+
+### Multiple Pipes
+
+Pipes execute in order, each receiving the output of the previous:
+
+```typescript
+@Tool({ name: 'search' })
+@UsePipes(
+  TrimPipe,           // 1. Trim whitespace
+  LowercasePipe,      // 2. Convert to lowercase
+  SanitizePipe,       // 3. Sanitize special characters
+  ValidationPipe      // 4. Validate final result
+)
+async search(input: SearchInput, ctx: ExecutionContext) {
+  return this.searchService.query(input.query);
+}
+```
+
+## Common Patterns
+
+Most pipes either clean input up or reject it.
+
+### Input Validation
+
+Reject input that's missing entirely, before anything else runs.
+
+```typescript
+@Pipe()
+export class ValidationPipe implements PipeInterface {
+  transform(value: any, metadata?: ArgumentMetadata): any {
+    if (value === null || value === undefined) {
+      throw new Error('Input cannot be null or undefined');
+    }
+
+    if (typeof value !== 'object') {
+      throw new Error('Input must be an object');
+    }
+
+    return value;
+  }
+}
+```
+
+### Type Coercion
+
+Convert a value to the type the handler expects, and fail clearly when that's not possible.
+
+```typescript
+@Pipe()
+export class ParseIntPipe implements PipeInterface {
+  transform(value: any, metadata?: ArgumentMetadata): number {
+    const parsed = parseInt(String(value), 10);
+
+    if (isNaN(parsed)) {
+      throw new Error(`Cannot parse "${value}" as integer`);
+    }
+
+    return parsed;
+  }
+}
+
+@Pipe()
+export class ParseBoolPipe implements PipeInterface {
+  transform(value: any, metadata?: ArgumentMetadata): boolean {
+    if (typeof value === 'boolean') return value;
+    if (value === 'true' || value === '1') return true;
+    if (value === 'false' || value === '0') return false;
+    throw new Error(`Cannot parse "${value}" as boolean`);
+  }
+}
+
+@Pipe()
+export class ParseDatePipe implements PipeInterface {
+  transform(value: any, metadata?: ArgumentMetadata): Date {
+    const date = new Date(value);
+
+    if (isNaN(date.getTime())) {
+      throw new Error(`Cannot parse "${value}" as date`);
+    }
+
+    return date;
+  }
+}
+```
+
+### ID Format Validation
+
+Check that an ID has the expected format before you look it up.
+
+```typescript
+@Pipe()
+export class UuidValidationPipe implements PipeInterface {
+  private static readonly UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  transform(value: any, metadata?: ArgumentMetadata): any {
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+
+    const result = { ...value };
+
+    for (const [key, val] of Object.entries(result)) {
+      if (key.endsWith('Id') && typeof val === 'string') {
+        if (!UuidValidationPipe.UUID_REGEX.test(val)) {
+          throw new Error(`Invalid UUID format for ${key}: "${val}"`);
+        }
+      }
+    }
+
+    return result;
+  }
+}
+
+@Pipe()
+export class CustomIdValidationPipe implements PipeInterface {
+  constructor(private readonly pattern: RegExp, private readonly fieldName: string) {}
+
+  transform(value: any, metadata?: ArgumentMetadata): any {
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+
+    const fieldValue = value[this.fieldName];
+    if (fieldValue && !this.pattern.test(fieldValue)) {
+      throw new Error(
+        `Invalid format for ${this.fieldName}: "${fieldValue}"`
+      );
+    }
+
+    return value;
+  }
+}
+```
+
+### String Transformation
+
+Normalize chosen fields, for example to lowercase, so comparisons work.
+
+```typescript
+@Pipe()
+export class LowercasePipe implements PipeInterface {
+  private readonly fields: string[];
+
+  constructor(fields?: string[]) {
+    this.fields = fields || [];
+  }
+
+  transform(value: any, metadata?: ArgumentMetadata): any {
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+
+    const result = { ...value };
+
+    for (const [key, val] of Object.entries(result)) {
+      if (typeof val === 'string') {
+        if (this.fields.length === 0 || this.fields.includes(key)) {
+          result[key] = val.toLowerCase();
+        }
+      }
+    }
+
+    return result;
+  }
+}
+
+@Pipe()
+export class SlugifyPipe implements PipeInterface {
+  private readonly field: string;
+
+  constructor(field: string = 'slug') {
+    this.field = field;
+  }
+
+  transform(value: any, metadata?: ArgumentMetadata): any {
+    if (!value || typeof value !== 'object' || !value[this.field]) {
+      return value;
+    }
+
+    return {
+      ...value,
+      [this.field]: String(value[this.field])
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+    };
+  }
+}
+```
+
+### Default Values
+
+Fill in fields the caller left out.
+
+```typescript
+@Pipe()
+export class DefaultValuesPipe implements PipeInterface {
+  constructor(private readonly defaults: Record<string, unknown>) {}
+
+  transform(value: any, metadata?: ArgumentMetadata): any {
+    if (!value || typeof value !== 'object') {
+      return { ...this.defaults };
+    }
+
+    const result = { ...value };
+
+    for (const [key, defaultValue] of Object.entries(this.defaults)) {
+      if (result[key] === undefined || result[key] === null) {
+        result[key] = defaultValue;
+      }
+    }
+
+    return result;
+  }
+}
+
+// Usage
+@Tool({ name: 'list_items' })
+@UsePipes(new DefaultValuesPipe({ page: 1, limit: 20, sortBy: 'createdAt' }))
+async listItems(input: ListItemsInput, ctx: ExecutionContext) {
+  // input.page, input.limit, input.sortBy have defaults
+}
+```
+
+### Sanitization
+
+Strip unsafe content from every string in the input, however deeply nested.
+
+```typescript
+@Pipe()
+export class SanitizePipe implements PipeInterface {
+  transform(value: any, metadata?: ArgumentMetadata): any {
+    return this.sanitizeDeep(value);
+  }
+
+  private sanitizeDeep(value: unknown): unknown {
+    if (typeof value === 'string') {
+      return this.sanitizeString(value);
+    }
+
+    if (Array.isArray(value)) {
+      return value.map(item => this.sanitizeDeep(item));
+    }
+
+    if (value && typeof value === 'object') {
+      const sanitized: Record<string, unknown> = {};
+      for (const [key, val] of Object.entries(value)) {
+        sanitized[key] = this.sanitizeDeep(val);
+      }
+      return sanitized;
+    }
+
+    return value;
+  }
+
+  private sanitizeString(str: string): string {
+    return str
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+=/gi, '')
+      .trim();
+  }
+}
+```
+
+## Validation Strategies
+
+Your tool's `inputSchema` already validates input. Use a pipe when you need extra rules.
+
+### Schema-Based Validation
+
+Validate against a second Zod schema, for example a stricter one shared by several tools.
+
+```typescript
+import { z, ZodSchema } from 'zod';
+
+@Pipe()
+export class ZodValidationPipe implements PipeInterface {
+  constructor(private readonly schema: ZodSchema) {}
+
+  transform(value: any, metadata?: ArgumentMetadata): any {
+    const result = this.schema.safeParse(value);
+
+    if (!result.success) {
+      const errors = result.error.issues.map(issue => ({
+        path: issue.path.join('.'),
+        message: issue.message
+      }));
+
+      throw new Error(
+        `Validation failed: ${errors.map(e => `${e.path}: ${e.message}`).join(', ')}`
+      );
+    }
+
+    return result.data;
+  }
+}
+
+// Usage
+const CreateUserSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(2).max(100),
+  age: z.number().int().positive().optional()
+});
+
+@Tool({ name: 'create_user' })
+@UsePipes(new ZodValidationPipe(CreateUserSchema))
+async createUser(input: z.infer<typeof CreateUserSchema>, ctx: ExecutionContext) {
+  return this.userService.create(input);
+}
+```
+
+### Field-Level Validation
+
+Check individual fields with your own rules and messages.
+
+```typescript
+@Pipe()
+export class FieldValidationPipe implements PipeInterface {
+  private readonly validations: Map<string, (value: unknown) => boolean>;
+  private readonly messages: Map<string, string>;
+
+  constructor(config: Record<string, { validate: (value: unknown) => boolean; message: string }>) {
+    this.validations = new Map();
+    this.messages = new Map();
+
+    for (const [field, { validate, message }] of Object.entries(config)) {
+      this.validations.set(field, validate);
+      this.messages.set(field, message);
+    }
+  }
+
+  transform(value: any, metadata?: ArgumentMetadata): any {
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+
+    const errors: string[] = [];
+
+    for (const [field, validate] of this.validations) {
+      if (value[field] !== undefined && !validate(value[field])) {
+        errors.push(this.messages.get(field) || `Invalid value for ${field}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new Error(`Validation failed: ${errors.join('; ')}`);
+    }
+
+    return value;
+  }
+}
+
+// Usage
+@Tool({ name: 'create_product' })
+@UsePipes(new FieldValidationPipe({
+  price: {
+    validate: (v) => typeof v === 'number' && v > 0,
+    message: 'Price must be a positive number'
+  },
+  quantity: {
+    validate: (v) => Number.isInteger(v) && v >= 0,
+    message: 'Quantity must be a non-negative integer'
+  }
+}))
+async createProduct(input: CreateProductInput, ctx: ExecutionContext) {
+  return this.productService.create(input);
+}
+```
+
+## Related
+
+<Cards>
+  <Card icon={<Route />} title="Middleware Guide" href="/docs/sdk/middleware" description="Request/response pipeline." />
+  <Card icon={<Sparkles />} title="Interceptors Guide" href="/docs/sdk/interceptors" description="Response transformation." />
+  <Card icon={<CheckCheck />} title="Validation Guide" href="/docs/sdk/validation" description="Input validation strategies." />
+</Cards>

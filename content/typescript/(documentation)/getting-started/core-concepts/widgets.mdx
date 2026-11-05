@@ -1,0 +1,69 @@
+---
+title: Widgets
+description: Return interactive React UI from a tool instead of plain JSON.
+---
+
+import { BookOpen, LayoutDashboard, ShieldCheck } from 'lucide-react';
+
+A tool normally returns data, and the client shows it as text. A widget lets the same tool return a visual interface: a product card, a chart, a booking form. Clients that support MCP UI (such as ChatGPT and [NitroStudio](/docs/studio/overview)) render the widget; other clients still receive the data.
+
+## How it fits together
+
+A widget has two halves. On the server, the `@Widget` decorator links a tool to a widget by name. In `src/widgets/`, a small Next.js app holds a page with that same name, which reads the tool's output and renders it.
+
+```typescript title="src/modules/products/products.tools.ts"
+import { ToolDecorator as Tool, Widget, ExecutionContext, z } from '@nitrostack/core';
+
+export class ProductsTools {
+  @Tool({
+    name: 'get_product',
+    description: 'Show a product',
+    inputSchema: z.object({ id: z.string() }),
+    examples: {
+      request: { id: 'p-1' },
+      response: { id: 'p-1', name: 'Desk lamp', price: 39 },
+    },
+  })
+  @Widget('product-card')
+  async getProduct(input: { id: string }, ctx: ExecutionContext) {
+    return { id: input.id, name: 'Desk lamp', price: 39 };
+  }
+}
+```
+
+```tsx title="src/widgets/app/product-card/page.tsx"
+'use client';
+
+import { useWidgetSDK } from '@nitrostack/widgets';
+
+export default function ProductCard() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  if (!isReady) return <p>Loading…</p>;
+
+  const product = getToolOutput<{ name: string; price: number }>();
+  return (
+    <div style={{ padding: 16, borderRadius: 12, border: '1px solid #ddd' }}>
+      <h2>{product.name}</h2>
+      <p>${product.price.toFixed(2)}</p>
+    </div>
+  );
+}
+```
+
+The `examples.response` value lets clients preview the widget before the tool has run, so keep it realistic.
+
+## While you develop
+
+`npm run dev` starts the widget dev server at `http://localhost:3001`, and changes reload as you save. NitroStudio shows each tool's widget next to its raw output, which is the quickest way to check both.
+
+<Callout title="Style with inline styles">
+  Widgets run inside the client's sandbox, so inline styles are the most reliable choice. The [Widgets guide](/docs/sdk/ui/widgets/styling) explains why, and how to follow the client's light or dark theme.
+</Callout>
+
+## Go deeper
+
+<Cards>
+  <Card icon={<BookOpen />} title="Widgets guide" href="/docs/sdk/ui/widgets" description="Theme-aware widgets, calling tools, and state." />
+  <Card icon={<LayoutDashboard />} title="Widget examples" href="/docs/guides/widget-examples" description="Complete widgets you can copy." />
+  <Card icon={<ShieldCheck />} title="Widget CSP" href="/docs/guides/widget-csp" description="Allow external images, fonts, and APIs safely." />
+</Cards>

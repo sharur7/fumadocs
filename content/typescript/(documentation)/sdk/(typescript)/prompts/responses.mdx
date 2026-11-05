@@ -1,0 +1,152 @@
+---
+title: "Prompt Responses"
+description: "Return messages with text, images, and embedded resources"
+---
+
+import { Sparkles } from 'lucide-react';
+
+A prompt returns an array of messages, each with a role and content. Content can be text, an image, or an embedded resource.
+
+## Standard Response Structure
+
+Prompts return an array of message objects. Content can be a plain string or a structured object:
+
+```typescript
+// Simple string content (recommended)
+return [
+  {
+    role: 'user' | 'assistant',
+    content: string
+  }
+];
+
+// Or structured content object
+return [
+  {
+    role: 'user' | 'assistant',
+    content: {
+      type: 'text',
+      text: string
+    }
+  }
+];
+```
+
+<Callout type="info" title="Note">
+
+Use plain string content for simplicity. The server automatically wraps it in the proper MCP format.
+
+</Callout>
+
+## Single Message Prompt
+
+The simplest prompt returns one user message.
+
+```typescript
+@Prompt({ 
+  name: 'simple_task', 
+  title: 'Simple Task',
+  description: 'Simple task prompt' 
+})
+async getSimplePrompt(args: { task: string }) {
+  return [
+    {
+      role: 'user' as const,
+      content: `Please help me with: ${args.task}`
+    }
+  ];
+}
+```
+
+## Multi-Turn Conversation Prompt
+
+Return several messages to set up a conversation, for example a system-style instruction from the assistant followed by the user's opening line.
+
+```typescript
+@Prompt({
+  name: 'interview_prep',
+  title: 'Mock Interview',
+  description: 'Start a mock interview session',
+  arguments: [
+    { name: 'role', description: 'Job role being interviewed for', required: true },
+    { name: 'difficulty', description: 'Interview difficulty level', required: false }
+  ]
+})
+async getInterviewPrompt(args: { role: string; difficulty?: string }) {
+  const difficulty = args.difficulty || 'intermediate';
+
+  return [
+    {
+      role: 'user' as const,
+      content: `I want to practice for a ${args.role} interview. Please act as the interviewer.`
+    },
+    {
+      role: 'assistant' as const,
+      content: `I'll conduct a ${difficulty}-level interview for the ${args.role} position. Let's begin with an introduction. Please tell me about your background and why you're interested in this role.`
+    },
+    {
+      role: 'user' as const,
+      content: `I'm ready. Please start with the first question.`
+    }
+  ];
+}
+```
+
+## Structured Context Prompt
+
+Optional arguments let one prompt adapt to how much context the user has: include each piece only when it's provided.
+
+```typescript
+@Prompt({
+  name: 'bug_investigation',
+  title: 'Debug Assistant',
+  description: 'Provide debugging assistance with full context',
+  arguments: [
+    { name: 'error_message', required: true, description: 'The error message' },
+    { name: 'stack_trace', required: false, description: 'Stack trace if available' },
+    { name: 'environment', required: false, description: 'Runtime environment' }
+  ]
+})
+async getBugPrompt(
+  args: { error_message: string; stack_trace?: string; environment?: string }
+) {
+  let contextSection = `Error Message:
+${args.error_message}`;
+
+  if (args.stack_trace) {
+    contextSection += `
+
+Stack Trace:
+\`\`\`
+${args.stack_trace}
+\`\`\``;
+  }
+
+  if (args.environment) {
+    contextSection += `
+
+Environment: ${args.environment}`;
+  }
+
+  return [
+    {
+      role: 'user' as const,
+      content: `I'm encountering an error and need help debugging it.
+
+${contextSection}
+
+Please help me:
+1. Understand what the error means
+2. Identify the likely cause
+3. Suggest potential fixes
+4. Recommend debugging steps if the cause isn't clear`
+    }
+  ];
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Sparkles />} title="Dynamic prompts" href="/docs/sdk/prompts/dynamic" description="Build messages from live data." />
+</Cards>

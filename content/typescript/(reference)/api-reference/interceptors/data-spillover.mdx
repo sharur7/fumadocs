@@ -1,0 +1,165 @@
+---
+title: "Data Spillover"
+description: "DataSpilloverInterceptor options, envelope, storage drivers, and previews"
+---
+
+## DataSpilloverInterceptor
+
+The `DataSpilloverInterceptor` protects client memory buffers and LLM context windows by intercepting tool outputs exceeding a configured byte size threshold, storing the full payload, and returning a concise preview envelope.
+
+```typescript
+import { DataSpilloverInterceptor } from '@nitrostack/core';
+
+new DataSpilloverInterceptor(options?: DataSpilloverOptions)
+```
+
+### Configuration Options (`DataSpilloverOptions`)
+
+Options that control when results spill over and what the preview contains:
+
+| Option | Type | Default | Description |
+|:---|:---|:---|:---|
+| `maxPayloadBytes` | `number` | `10240` (10KB) | Byte size limit before output is offloaded to storage. |
+| `spilloverTtlSeconds` | `number` | `3600` (1 hour) | Time-to-live before stored payloads are pruned. |
+| `previewItems` | `number` | `3` | Maximum items included in preview arrays or object dictionaries. |
+| `previewStringChars` | `number` | `500` | Maximum character length for string previews before truncation. |
+| `resourceUriPrefix` | `string` | `'resource://data-spillover/'` | URI scheme and prefix for generated resource links. |
+| `storage` | `'memory' \| 'filesystem' \| SpilloverStore` | `'memory'` | Storage driver mode or custom store instance. |
+| `storagePath` | `string` | `'./.spillover_cache'` | Directory path for filesystem driver. |
+
+### Static Factory Method
+
+Use `configure()` to get a class with your options baked in, for decorators that expect a class:
+
+```typescript
+DataSpilloverInterceptor.configure(options: DataSpilloverOptions): InterceptorConstructor
+```
+
+Returns a constructor suitable for decorators requiring class types:
+
+```typescript
+@Tool({ name: 'large_query' })
+@UseInterceptors(DataSpilloverInterceptor.configure({ maxPayloadBytes: 15360 }))
+async largeQuery(input: QueryInput, ctx: ExecutionContext) {
+  return await this.service.fetchData(input);
+}
+```
+
+## Spillover Envelope & Schema
+
+When payload size exceeds `maxPayloadBytes`, the tool handler returns a standardized `SpilloverEnvelope`:
+
+```typescript
+export interface SpilloverEnvelope {
+  /** Marker flag identifying a spilled payload */
+  _spillover: true;
+
+  /** URI where the complete payload can be retrieved via resources/read */
+  resourceUri: string;
+
+  /** Content MIME type (e.g., 'application/json' or 'text/plain') */
+  mimeType: string;
+
+  /** Total byte size of full dataset */
+  sizeBytes: number;
+
+  /** Total item count if payload was an array or map */
+  totalItems?: number;
+
+  /** Human-readable summary (e.g., "Query returned 1,250 items (277.8 KB)") */
+  summary: string;
+
+  /** Truncated preview sample of the dataset */
+  preview: unknown;
+
+  /** Guidance instruction for AI models explaining how to fetch full data */
+  hint: string;
+}
+```
+
+### Zod Validation Schema
+
+NitroStack exports `SpilloverEnvelopeSchema` for runtime validation:
+
+```typescript
+import { SpilloverEnvelopeSchema } from '@nitrostack/core';
+
+const parsed = SpilloverEnvelopeSchema.safeParse(result);
+if (parsed.success && parsed.data._spillover) {
+  console.log('Payload spilled to:', parsed.data.resourceUri);
+}
+```
+
+## Spillover Storage Drivers
+
+Spillover drivers implement the `SpilloverStore` interface:
+
+```typescript
+export interface SpilloverRecord {
+  id: string;
+  data: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: number;
+  expiresAt: number;
+  sessionId?: string;
+}
+
+export interface SpilloverStore {
+  save(id: string, data: string, mimeType: string, ttlSeconds: number, sessionId?: string): Promise<SpilloverRecord>;
+  get(id: string): Promise<SpilloverRecord | undefined>;
+  delete(id: string): Promise<boolean>;
+  cleanup(): Promise<number>;
+  dispose(): Promise<void>;
+  getMaxSizeBytes?(): number;
+}
+```
+
+### Available Drivers
+
+1. **`FsSpilloverStore`**: Persists payloads to disk in atomic temporary files. Recommended for production to prevent Node.js heap exhaustion.
+   ```typescript
+   new FsSpilloverStore({
+     storageDir: './.spillover_cache',
+     maxSizeBytes: 100 * 1024 * 1024, // 100MB directory quota
+   })
+   ```
+2. **`MemorySpilloverStore`**: Stores payloads in an in-memory Map. Recommended for development, testing, and memory-contained environments.
+   ```typescript
+   new MemorySpilloverStore({
+     maxSizeBytes: 20 * 1024 * 1024,  // 20MB in-memory buffer
+   })
+   ```
+
+## Preview Generator Utility
+
+NitroStack exports `generatePreview` for inspecting and formatting arbitrary data payloads:
+
+```typescript
+import { generatePreview, PreviewResult } from '@nitrostack/core';
+
+export function generatePreview(
+  data: unknown,
+  sizeBytes: number,
+  previewItems = 3,
+  previewChars = 500
+): PreviewResult;
+```
+
+### Return Shape
+
+What the preview generator returns:
+
+```typescript
+export interface PreviewResult {
+  preview: unknown;
+  summary: string;
+  totalItems?: number;
+}
+```
+
+### Preview Behavior by Data Type
+
+* **Arrays**: Slices the first `previewItems` elements, truncating string values longer than `previewChars`. Calculates `totalItems = data.length`.
+* **Strings**: Slices first `previewChars` characters and appends `... [truncated]`.
+* **Objects**: Extracts up to `previewItems` top-level keys, formatting values safely.

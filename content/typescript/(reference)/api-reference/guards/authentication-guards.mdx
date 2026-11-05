@@ -1,0 +1,77 @@
+---
+title: "Authentication Guards"
+description: "Validate JWTs and API keys before a tool runs"
+---
+
+import { ShieldCheck, KeyRound, Clock, BookOpen } from 'lucide-react';
+
+Authentication guards identify the caller and put their identity on `context.auth`. For the built-in modules, see [Authentication](/docs/sdk/auth/overview).
+
+## JWT Token Validation
+
+Verifies a bearer token with your JWT secret and records the user it belongs to.
+
+```typescript
+import jwt from 'jsonwebtoken';
+
+@Injectable({ deps: [] })
+export class JWTGuard implements Guard {
+  private readonly secret = process.env.JWT_SECRET!;
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const token = context.auth?.token;
+    
+    if (!token) {
+      throw new Error('No authentication token provided');
+    }
+
+    try {
+      const decoded = jwt.verify(token, this.secret) as jwt.JwtPayload;
+      
+      // Enrich context with decoded data
+      if (context.auth) {
+        context.auth.subject = decoded.sub;
+        context.auth.roles = decoded.roles;
+        context.auth.permissions = decoded.permissions;
+      }
+      
+      return true;
+    } catch (error) {
+      throw new Error('Invalid or expired token');
+    }
+  }
+}
+```
+
+## API Key Validation
+
+Accepts calls that carry one of the keys listed in the `API_KEYS` environment variable.
+
+```typescript
+@Injectable({ deps: [] })
+export class ApiKeyGuard implements Guard {
+  private readonly validKeys = new Set(
+    (process.env.API_KEYS || '').split(',').filter(Boolean)
+  );
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const apiKey = context.auth?.token || context.metadata?.apiKey;
+    
+    if (!apiKey || !this.validKeys.has(apiKey as string)) {
+      context.logger.warn('Invalid API key', {
+        keyProvided: !!apiKey
+      });
+      return false;
+    }
+    
+    return true;
+  }
+}
+```
+
+## More guard patterns
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Custom Guards" href="/docs/api-reference/guards/custom-guards" description="Role, permission, and clearance checks." />
+  <Card icon={<Clock />} title="Access Rules" href="/docs/api-reference/guards/access-rules" description="Rate limits, time windows, and conditions." />
+</Cards>

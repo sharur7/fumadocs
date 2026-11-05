@@ -1,0 +1,198 @@
+---
+title: "AWS"
+description: "Run the server on ECS Fargate or Lambda, with Secrets Manager and CloudWatch"
+---
+
+import { Cloud, Container } from 'lucide-react';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+On AWS, the usual home for an MCP server is ECS on Fargate: AWS runs your container image behind a load balancer and restarts it when the health check fails. Clients connect to `https://<your-load-balancer>/mcp`.
+
+Every platform needs the same settings from your server: listen on all interfaces (`HOST=0.0.0.0`), use the port the platform expects (`PORT`), run over HTTP (`MCP_TRANSPORT_TYPE=http`), and point the health check at `/mcp/health`. [Docker](/python/deployment/docker) explains each one.
+
+## Deploy to ECS
+
+<Steps>
+<Step>
+
+### Create an ECR repository
+
+ECR stores the container image that ECS pulls.
+
+```bash
+aws ecr create-repository --repository-name my-mcp-server
+```
+
+</Step>
+<Step>
+
+### Build and push the image
+
+Sign Docker in to ECR, then build and push. The image comes from the Dockerfile in [Docker](/python/deployment/docker).
+
+```bash
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
+
+docker build -t my-mcp-server .
+docker tag my-mcp-server:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/my-mcp-server:latest
+docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/my-mcp-server:latest
+```
+
+</Step>
+<Step>
+
+### Register a task definition
+
+The task definition sets the image, the port, the environment, and which secrets to inject from Secrets Manager.
+
+```json
+{
+  "family": "mcp-server",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "mcp-server",
+      "image": "<account-id>.dkr.ecr.us-east-1.amazonaws.com/my-mcp-server:latest",
+      "portMappings": [{ "containerPort": 3000 }],
+      "environment": [
+        { "name": "HOST", "value": "0.0.0.0" },
+        { "name": "MCP_TRANSPORT_TYPE", "value": "http" },
+        { "name": "PORT", "value": "3000" }
+      ],
+      "secrets": [
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:<account-id>:secret:mcp/jwt-secret"
+        }
+      ]
+    }
+  ]
+}
+```
+
+</Step>
+<Step>
+
+### Create the service
+
+The service keeps two copies of the task running.
+
+```bash
+aws ecs create-service \
+  --cluster mcp-cluster \
+  --service-name mcp-server \
+  --task-definition mcp-server \
+  --desired-count 2 \
+  --launch-type FARGATE
+```
+
+Point the load balancer health check at `/mcp/health`.
+
+</Step>
+</Steps>
+
+## Lambda
+
+Lambda works for stateless HTTP use, but MCP sessions are stateful, so prefer ECS for long-lived sessions. If you still want Lambda, deploy a container image with the Lambda Web Adapter so the same `nitrostack-py start` process serves requests:
+
+```dockerfile
+FROM public.ecr.aws/docker/library/python:3.12-slim
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 /lambda-adapter /opt/extensions/lambda-adapter
+WORKDIR /app
+COPY . .
+RUN pip install --no-cache-dir nitrostack -r requirements.txt
+ENV HOST=0.0.0.0 PORT=8080 MCP_TRANSPORT_TYPE=http
+CMD ["nitrostack-py", "start", "--port", "8080"]
+```
+
+## Secrets
+
+The task definition above injects `JWT_SECRET` from Secrets Manager as an environment variable, so your code only reads `os.environ`. To read a secret from code instead:
+
+```python
+import json
+import boto3
+
+def get_secret(secret_name: str) -> dict:
+    client = boto3.client("secretsmanager")
+    response = client.get_secret_value(SecretId=secret_name)
+    return json.loads(response["SecretString"])
+```
+
+## Logs
+
+With the `awslogs` log driver in the container definition, everything the server prints goes to CloudWatch with no code changes:
+
+```json
+"logConfiguration": {
+  "logDriver": "awslogs",
+  "options": {
+    "awslogs-group": "/aws/ecs/mcp-server",
+    "awslogs-region": "us-east-1",
+    "awslogs-stream-prefix": "production"
+  }
+}
+```
+
+## Deploy from GitHub Actions
+
+This workflow runs your tests and `nitrostack-py validate`, pushes a new image to ECR, and restarts the ECS service on every push to `main`.
+
+```yaml
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test and validate
+        run: |
+          pip install nitrostack -r requirements.txt pytest
+          pytest
+          nitrostack-py validate
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push
+        run: |
+          docker build -t mcp-server .
+          docker tag mcp-server:latest ${{ steps.ecr.outputs.registry }}/mcp-server:latest
+          docker push ${{ steps.ecr.outputs.registry }}/mcp-server:latest
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster mcp-cluster \
+            --service mcp-server \
+            --force-new-deployment
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Container />} title="Docker" href="/python/deployment/docker" description="The Dockerfile and runtime settings." />
+  <Card icon={<Cloud />} title="Cloud Platforms" href="/python/deployment/cloud" description="Compare the other platforms." />
+</Cards>

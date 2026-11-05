@@ -1,0 +1,479 @@
+---
+title: "Generate Command"
+description: "Generate modules, tools, guards, and other boilerplate."
+---
+
+import { FlaskConical, Server, Wrench } from 'lucide-react';
+
+The `generate` command writes boilerplate for NitroStack components, so every new file starts with the same structure. You name what to generate and, for most types, a name for it.
+
+## Usage
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli generate <type> [name] [options]
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py generate <type> <name>
+```
+
+## Types
+
+### TypeScript types
+
+| Type | Creates | Needs a name |
+|------|---------|--------------|
+| `types` | TypeScript types from your tools | No |
+| `module` | A module with its tools, resources, and prompts | Yes |
+| `tools` | A tool class | Yes |
+| `resources` | A resource class | Yes |
+| `prompts` | A prompt class | Yes |
+| `guard` | An authentication guard | Yes |
+| `middleware` | A middleware class | Yes |
+| `interceptor` | An interceptor | Yes |
+| `pipe` | A pipe that validates or transforms arguments | Yes |
+| `filter` | An exception filter | Yes |
+| `service` | An injectable service | Yes |
+| `health` | A health check class | Yes |
+
+### Python types
+
+The Python CLI generates seven types, and each needs a name. Files are written relative to the folder you run the command in.
+
+| Type | Creates |
+|------|---------|
+| `tool` | `{name}_tool.py`, plus a widget at `widgets/out/{name}.html` |
+| `module` | `{name}_module.py` |
+| `guard` | `guards/<name>.py` |
+| `pipe` | `pipes/<name>.py` |
+| `interceptor` | `interceptors/<name>.py` |
+| `filter` | `filters/<name>.py` |
+| `service` | `services/<name>.py` |
+
+Attach the generated pipeline classes with `@use_guards`, `@use_pipes`, `@use_interceptors`, or `@use_filters`, and register services in a module's `providers` list.
+
+## Options
+
+The TypeScript CLI takes these options, and every one is optional. The Python CLI has no options for `generate`.
+
+| Option | Description |
+|--------|-------------|
+| `--module <name>` | The module that `tools`, `resources`, and `prompts` belong to |
+| `--output <path>` | Output path, for `types` |
+| `--force` | Overwrite existing files |
+| `--skip-related` | When generating a module, skip its tools, resources, and prompts files |
+
+## Generate a feature
+
+A feature is a module plus the classes inside it. Generate the module first, then add to it.
+
+### Module
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli generate module payments
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py generate module payments
+```
+
+The examples below show the TypeScript output.
+
+This creates the module file and a tools, resources, and prompts file next to it:
+
+```text
+src/modules/payments/payments.module.ts
+src/modules/payments/payments.tools.ts
+src/modules/payments/payments.resources.ts
+src/modules/payments/payments.prompts.ts
+```
+
+```typescript title="payments.module.ts"
+import { Module } from '@nitrostack/core';
+import { PaymentsTools } from './payments.tools.js';
+import { PaymentsResources } from './payments.resources.js';
+import { PaymentsPrompts } from './payments.prompts.js';
+
+@Module({
+  name: 'payments',
+  description: 'Payments module',
+  controllers: [PaymentsTools, PaymentsResources, PaymentsPrompts]
+})
+export class PaymentsModule {}
+```
+
+### Tools
+
+Add a tool class to an existing module. The TypeScript file is written to `src/modules/payments/payments.tools.ts`. In Python, `generate tool` creates a single tool and its widget.
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli generate tools payments --module payments
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py generate tool add_numbers
+```
+
+```typescript
+import { ToolDecorator as Tool, z, ExecutionContext, Injectable } from '@nitrostack/core';
+
+/**
+ * payments Tools
+ *
+ * TODO: Add description
+ */
+@Injectable()
+export class paymentsTools {
+  @Tool({
+    name: 'payments_example',
+    description: 'TODO: Add description',
+    inputSchema: z.object({
+      id: z.string().describe('ID parameter'),
+    }),
+  })
+  async exampleTool(input: { id: string }, context: ExecutionContext) {
+    // TODO: Implement tool logic
+    return { id: input.id, result: 'success' };
+  }
+}
+```
+
+### Resources
+
+TypeScript only. The file is written to `src/modules/payments/payments.resources.ts`.
+
+```bash
+nitrostack-cli generate resources payments --module payments
+```
+
+```typescript
+import { ResourceDecorator as Resource, ExecutionContext } from '@nitrostack/core';
+
+/**
+ * payments Resources
+ *
+ * TODO: Add description
+ */
+export class paymentsResources {
+  @Resource({
+    uri: 'payments://example',
+    name: 'Example Resource',
+    description: 'TODO: Add description',
+    mimeType: 'application/json',
+  })
+  async exampleResource(context: ExecutionContext) {
+    // TODO: Implement resource logic
+    return {
+      type: 'text' as const,
+      text: JSON.stringify({ example: 'data' }, null, 2),
+    };
+  }
+}
+```
+
+### Prompts
+
+TypeScript only. The file is written to `src/modules/payments/payments.prompts.ts`.
+
+```bash
+nitrostack-cli generate prompts payments --module payments
+```
+
+```typescript
+import { PromptDecorator as Prompt, ExecutionContext } from '@nitrostack/core';
+
+/**
+ * payments Prompts
+ *
+ * TODO: Add description
+ */
+export class paymentsPrompts {
+  @Prompt({
+    name: 'payments-help',
+    description: 'TODO: Add description',
+  })
+  async helpPrompt(args: Record<string, unknown>, context: ExecutionContext) {
+    return [
+      {
+        role: 'user' as const,
+        content: {
+          type: 'text' as const,
+          text: 'TODO: Add prompt content',
+        },
+      },
+    ];
+  }
+}
+```
+
+## Generate supporting components
+
+These types are not tied to a module. Each is written to its own folder, named after what you pass: under `src/` in TypeScript, and under the current folder in Python. The code shown is the TypeScript output.
+
+### Guard
+
+Written to `src/guards/admin.guard.ts`, or `guards/myguard.py` in Python.
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli generate guard admin
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py generate guard MyGuard
+```
+
+```typescript
+import { Guard, ExecutionContext } from '@nitrostack/core';
+
+export class AdminGuard implements Guard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    // TODO: Implement admin check
+    const user = context.auth?.user;
+    return user?.role === 'admin';
+  }
+}
+```
+
+### Middleware
+
+Written to `src/middleware/logging.middleware.ts`. TypeScript only.
+
+```bash
+nitrostack-cli generate middleware logging
+```
+
+```typescript
+import { Middleware, MiddlewareInterface, ExecutionContext } from '@nitrostack/core';
+
+@Middleware()
+export class LoggingMiddleware implements MiddlewareInterface {
+  async use(context: ExecutionContext, next: () => Promise<any>) {
+    const start = Date.now();
+    console.log(`[${context.toolName}] Started`);
+
+    const result = await next();
+
+    const duration = Date.now() - start;
+    console.log(`[${context.toolName}] Completed in ${duration}ms`);
+
+    return result;
+  }
+}
+```
+
+### Interceptor
+
+Written to `src/interceptors/transform.interceptor.ts`.
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli generate interceptor transform
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py generate interceptor Transform
+```
+
+```typescript
+import { Interceptor, InterceptorInterface, ExecutionContext } from '@nitrostack/core';
+
+@Interceptor()
+export class TransformInterceptor implements InterceptorInterface {
+  async intercept(context: ExecutionContext, next: () => Promise<any>) {
+    const result = await next();
+
+    return {
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+```
+
+### Pipe
+
+Written to `src/pipes/validation.pipe.ts`.
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli generate pipe validation
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py generate pipe Validation
+```
+
+```typescript
+import { Pipe, PipeInterface, ArgumentMetadata } from '@nitrostack/core';
+
+@Pipe()
+export class ValidationPipe implements PipeInterface {
+  transform(value: any, metadata: ArgumentMetadata) {
+    // TODO: Implement validation
+    return value;
+  }
+}
+```
+
+### Filter
+
+Written to `src/filters/http-exception.filter.ts`.
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli generate filter http-exception
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py generate filter HttpException
+```
+
+```typescript
+import { ExceptionFilter, ExceptionFilterInterface, ExecutionContext } from '@nitrostack/core';
+
+@ExceptionFilter()
+export class HttpExceptionFilter implements ExceptionFilterInterface {
+  catch(exception: any, context: ExecutionContext) {
+    return {
+      statusCode: exception.status || 500,
+      message: exception.message || 'Internal server error',
+      timestamp: new Date().toISOString(),
+      tool: context.toolName
+    };
+  }
+}
+```
+
+### Service
+
+Written to `src/services/email.service.ts`.
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli generate service email
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py generate service Email
+```
+
+```typescript
+import { Injectable } from '@nitrostack/core';
+
+@Injectable()
+export class EmailService {
+  async send(to: string, subject: string, body: string) {
+    // TODO: Implement email sending
+    console.log(`Sending email to ${to}: ${subject}`);
+  }
+}
+```
+
+### Health check
+
+TypeScript only. Written to `src/health/database.ts`. The name you pass becomes the class name, and the check is registered under that name without a trailing `health`.
+
+```bash
+nitrostack-cli generate health database
+```
+
+## Generate types
+
+TypeScript only. `types` reads your tool definitions and writes matching TypeScript types, which is useful for typing widgets. It needs no name.
+
+```bash
+nitrostack-cli generate types
+```
+
+The types are written to `src/types/generated-tools.ts`. Pass `--output` to write them somewhere else.
+
+```typescript
+export type GetProductInput = {
+  product_id: string;
+};
+
+export type GetProductOutput = {
+  id: string;
+  name: string;
+  price: number;
+};
+
+export interface ToolInputs {
+  'get_product': GetProductInput;
+}
+
+export interface ToolOutputs {
+  'get_product': GetProductOutput;
+}
+```
+
+```bash
+nitrostack-cli generate types --output src/types/custom.ts
+```
+
+## Common sequences
+
+### Add a feature
+
+Generate a module with its tools and a service, then types for your widgets.
+
+1. `nitrostack-cli generate module notifications`
+2. `nitrostack-cli generate tools notifications --module notifications`
+3. `nitrostack-cli generate service notification`
+4. `nitrostack-cli generate types`
+5. Import the new module in `app.module.ts` and add it to the `imports` array.
+6. Run `nitrostack-cli dev`.
+
+### Protect tools with a guard
+
+1. Run `nitrostack-cli generate guard jwt`.
+2. Implement the check in `src/guards/jwt.guard.ts`.
+3. Apply the guard to your tools with `@UseGuards(JWTGuard)`.
+4. Run `nitrostack-cli dev` and test in Studio.
+
+### Move logic into a service
+
+1. Run `nitrostack-cli generate service user`.
+2. Move the business logic out of your tools and into the service.
+3. Inject the service into the tools through their constructor.
+4. Register the service in the module's `providers`.
+
+## Troubleshooting
+
+### File already exists
+
+`generate` stops rather than overwrite a file. Pass `--force` to overwrite it, or remove the file first.
+
+```bash
+nitrostack-cli generate tools users --module users --force
+```
+
+### Module not found
+
+If you see `Module 'payments' not found`, create the module first, then add to it.
+
+```bash
+nitrostack-cli generate module payments
+nitrostack-cli generate tools payments --module payments
+```
+
+### No tool files found
+
+`generate types` reads files named `*.tools.ts`. Check that your tools exist and follow that naming.
+
+```bash
+ls src/modules/*/*.tools.ts
+```
+
+### Permission denied
+
+If you see `EACCES: permission denied`, give yourself write access to the project folder.
+
+```bash
+chmod +w src/
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<FlaskConical />} title="Testing" href="/docs/sdk/testing" description="Test the code you generate." />
+  <Card icon={<Server />} title="Server Concepts" href="/docs/getting-started/core-concepts/server-concepts" description="How modules and controllers fit together." />
+  <Card icon={<Wrench />} title="Tools" href="/docs/sdk/tools" description="Write a tool in full." />
+</Cards>

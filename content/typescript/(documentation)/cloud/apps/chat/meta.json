@@ -1,0 +1,17 @@
+{
+  "title": "NitroStack Chat",
+  "pages": [
+    "index",
+    "threads",
+    "monitoring",
+    "analytics",
+    "domains",
+    "oauth",
+    "database",
+    "ai-model",
+    "files",
+    "settings",
+    "danger-zone",
+    "access"
+  ]
+}

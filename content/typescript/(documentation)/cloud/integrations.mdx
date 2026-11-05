@@ -1,0 +1,34 @@
+---
+title: "Integrations"
+description: "Connect GitHub to deploy on every push"
+icon: Plug
+---
+
+
+import { Rocket, Globe } from 'lucide-react';
+
+**Integrations** connects outside services to your organization. GitHub is available now; Slack and Discord are coming soon.
+
+<Screenshot src="/images/cloud/integrations.png" alt="The Integrations page with the GitHub tab open, showing the GitHub App installed and active" />
+
+## GitHub
+
+Install the NitroStack GitHub App to deploy automatically when you push. Once it's installed, the page shows **GitHub App installed** with an **Active** badge, and auto-deploy webhooks are active for the organization.
+
+- **Manage** opens the GitHub App's settings.
+- **Disconnect** removes the app from the organization.
+
+When the app is installed, the page also shows **Auto-deploy ready**: projects linked to a GitHub repository can turn on auto-deploy from their own integration settings.
+
+Installing the app makes auto-deploy available. Turn it on for each app by linking a repository in that app's [Deployments](/docs/cloud/apps/mcp/deployments) page.
+
+## Slack and Discord
+
+Both are marked **Soon** and aren't available yet.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Rocket />} title="Deployments" href="/docs/cloud/apps/mcp/deployments" description="Link a repository to an app." />
+  <Card icon={<Globe />} title="Domains and integrations" href="/docs/cloud/apps/mcp/domains" description="Check an app's auto-deploy status." />
+</Cards>

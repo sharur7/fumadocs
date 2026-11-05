@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 200" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #0b0f19; }
+      .box { fill: #111827; stroke: #374151; stroke-width: 1.5; rx: 8; }
+      .box-active { fill: #1e1b4b; stroke: #6366f1; stroke-width: 2; rx: 8; }
+      .title { fill: #f9fafb; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 600; text-anchor: middle; }
+      .subtitle { fill: #9ca3af; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 11px; text-anchor: middle; }
+      .arrow { stroke: #6366f1; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6366f1" />
+    </marker>
+  </defs>
+
+  <!-- Step 1: Guards -->
+  <g transform="translate(20, 60)">
+    <rect width="120" height="70" class="box" />
+    <text x="60" y="32" class="title">Guards</text>
+    <text x="60" y="50" class="subtitle">Auth &amp; ACL Check</text>
+  </g>
+  <line x1="140" y1="95" x2="165" y2="95" class="arrow" />
+
+  <!-- Step 2: Middleware -->
+  <g transform="translate(170, 60)">
+    <rect width="120" height="70" class="box" />
+    <text x="60" y="32" class="title">Middleware</text>
+    <text x="60" y="50" class="subtitle">Logging &amp; Context</text>
+  </g>
+  <line x1="290" y1="95" x2="315" y2="95" class="arrow" />
+
+  <!-- Step 3: Interceptors (Before) -->
+  <g transform="translate(320, 60)">
+    <rect width="120" height="70" class="box" />
+    <text x="60" y="32" class="title">Interceptors</text>
+    <text x="60" y="50" class="subtitle">Cache &amp; Rate Limit</text>
+  </g>
+  <line x1="440" y1="95" x2="465" y2="95" class="arrow" />
+
+  <!-- Step 4: Pipes -->
+  <g transform="translate(470, 60)">
+    <rect width="120" height="70" class="box" />
+    <text x="60" y="32" class="title">Pipes</text>
+    <text x="60" y="50" class="subtitle">Zod Validation</text>
+  </g>
+  <line x1="590" y1="95" x2="615" y2="95" class="arrow" />
+
+  <!-- Step 5: Handler -->
+  <g transform="translate(620, 50)">
+    <rect width="120" height="90" class="box-active" />
+    <text x="60" y="38" class="title">Handler</text>
+    <text x="60" y="58" class="subtitle">@Tool Method</text>
+    <text x="60" y="74" class="subtitle">Business Logic</text>
+  </g>
+  <line x1="740" y1="95" x2="765" y2="95" class="arrow" />
+
+  <!-- Step 6: Filters -->
+  <g transform="translate(770, 60)">
+    <rect width="90" height="70" class="box" />
+    <text x="45" y="32" class="title">Filters</text>
+    <text x="45" y="50" class="subtitle">Error Handler</text>
+  </g>
+</svg>

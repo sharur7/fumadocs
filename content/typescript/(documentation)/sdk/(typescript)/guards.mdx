@@ -1,0 +1,185 @@
+---
+title: "Guards"
+description: "Request authorization, canActivate, and guard pipeline"
+---
+
+import { Route, ShieldCheck, Sparkles } from 'lucide-react';
+
+Guards are the first line of defense in NitroStack's tool request pipeline. They act as the **bouncer at the door**, determining whether an incoming tool invocation should proceed or be denied immediately.
+
+If a guard returns `false` (or throws an error), the tool execution pipeline halts: no middleware executes, no interceptors run, and your handler code is never invoked.
+
+## Where guards run
+
+Guards run before every other stage of a tool call:
+
+<Fork
+  start={[{ title: 'tools/call', icon: 'Bot' }, { title: 'Guards', sub: 'canActivate() on each guard, in order', icon: 'ShieldCheck' }]}
+  branches={[
+    { label: 'Every guard returns true', accent: true, steps: [{ title: 'Middleware' }, { title: 'Interceptors' }, { title: 'Pipes' }, { title: 'Your handler', sub: 'The tool runs' }] },
+    { label: 'A guard returns false or throws', steps: [{ title: 'Access denied', sub: 'Nothing after the guard runs' }, { title: 'Exception filters', sub: 'Turn the error into a response' }] },
+  ]}
+  caption="Guards run first. A denied call never reaches middleware, pipes, or your handler."
+/>
+
+## The Guard Interface
+
+Custom guards implement the `Guard` interface exported from `@nitrostack/core`:
+
+```typescript
+import { ExecutionContext } from '@nitrostack/core';
+
+export interface Guard {
+  canActivate(context: ExecutionContext): boolean | Promise<boolean>;
+}
+```
+
+- **Return `true`**: The request is authorized and continues through the pipeline.
+- **Return `false`**: The request is denied immediately with `Error('Access denied by guard')` and routed through any configured `@UseFilters`.
+- **Throw an Exception**: Rejects the request with an error, routed through any configured `@UseFilters`.
+
+## Implementing a Guard
+
+Here is a practical example of a **write guard** protecting mutations (such as adding or deleting books) in the BookShelf catalog:
+
+```typescript
+// src/modules/library/guards/library-write.guard.ts
+import { Guard, ExecutionContext, Injectable } from '@nitrostack/core';
+
+@Injectable()
+export class LibraryWriteGuard implements Guard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const expectedToken = process.env.LIBRARY_ADMIN_TOKEN;
+
+    // Production security: fail closed if no token is configured
+    if (!expectedToken) {
+      context.logger.error('LIBRARY_ADMIN_TOKEN is unset; rejecting request (fail-closed)');
+      return false;
+    }
+
+    // Inspect request metadata passed by client or gateway
+    const meta = context.metadata as Record<string, unknown> | undefined;
+    const providedToken = meta?.adminToken ?? meta?.libraryAdminToken;
+
+    if (typeof providedToken === 'string' && providedToken === expectedToken) {
+      // Attach identity details to context for downstream handlers
+      context.auth = {
+        authenticated: true,
+        subject: 'admin-user',
+        scopes: ['write', 'admin'],
+        claims: { role: 'admin' },
+      };
+      return true;
+    }
+
+    context.logger.warn('Write guard denied tool execution: missing or invalid admin token');
+    return false;
+  }
+}
+```
+
+## Applying Guards
+
+Apply guards to tool methods using the `@UseGuards()` decorator:
+
+### Method-Level Application
+Protect specific sensitive actions while leaving read operations public:
+
+```typescript
+import { ToolDecorator as Tool, UseGuards, ExecutionContext, z } from '@nitrostack/core';
+import { LibraryWriteGuard } from './guards/library-write.guard.js';
+
+export class LibraryTools {
+  // Public tool: no guard required
+  @Tool({
+    name: 'list_books',
+    description: 'List all books in the catalog',
+    inputSchema: z.object({}),
+  })
+  async listBooks(_input: unknown, ctx: ExecutionContext) {
+    return { books: this.catalogService.findAll() };
+  }
+
+  // Protected tool: guarded by LibraryWriteGuard
+  @UseGuards(LibraryWriteGuard)
+  @Tool({
+    name: 'delete_book',
+    description: 'Permanently remove a book from the catalog',
+    inputSchema: z.object({ bookId: z.string() }),
+  })
+  async deleteBook(input: { bookId: string }, ctx: ExecutionContext) {
+    ctx.logger.info('Deleting book', { id: input.bookId, auth: ctx.auth });
+    return this.catalogService.delete(input.bookId);
+  }
+}
+```
+
+Multiple guards can be chained:
+
+```typescript
+@UseGuards(AuthGuard, ScopeGuard)
+@Tool({ name: 'purge_catalog', ... })
+async purgeCatalog(...) {}
+```
+
+Guards execute sequentially in the order passed to `@UseGuards()`. If any guard returns `false`, execution terminates immediately.
+
+## Authentication Guards
+
+NitroStack supports authentication guards to protect sensitive operations:
+
+| Guard | Origin | Description | Typical Use Case |
+|-------|--------|-------------|------------------|
+| **`OAuthGuard`** | `@nitrostack/core` (Built-in) | Validates OAuth 2.1 access tokens via JWT verification or RFC 7662 token introspection. | User-facing apps, OpenAI Apps SDK, enterprise IdPs |
+| **`ApiKeyGuard`** | Application Guard / Starter Template | Validates API keys against environment variables (`API_KEY_1`, `API_KEY_2`) or headers (`x-api-key`). | Service-to-service, CI bots, internal microservices |
+| **`JwtGuard`** | Application Guard / Starter Template | Verifies signed JSON Web Tokens using shared secrets or public keys with issuer and audience validation. | Microservices, API gateways, first-party authentication |
+
+### Using OAuthGuard
+
+`OAuthGuard` is exported directly by `@nitrostack/core`:
+
+```typescript
+import { ToolDecorator as Tool, UseGuards, OAuthGuard, ExecutionContext, z } from '@nitrostack/core';
+
+export class SecureTools {
+  @UseGuards(OAuthGuard)
+  @Tool({
+    name: 'sync_database',
+    description: 'Sync database records (requires OAuth 2.1 authentication)',
+    inputSchema: z.object({ target: z.string() }),
+  })
+  async syncDatabase(input: { target: string }, ctx: ExecutionContext) {
+    return { status: 'synced', user: ctx.auth?.subject };
+  }
+}
+```
+
+### Using Custom API Key / JWT Guards
+
+For API Key or JWT authentication, implement the guard in your project's `guards/` directory (or use templates scaffolded by `nitrostack-cli init`):
+
+```typescript
+// src/modules/secure/secure.tools.ts
+import { ToolDecorator as Tool, UseGuards, ExecutionContext, z } from '@nitrostack/core';
+import { ApiKeyGuard } from '../../guards/apikey.guard.js';
+
+export class AdminTools {
+  @UseGuards(ApiKeyGuard)
+  @Tool({
+    name: 'purge_catalog',
+    description: 'Purge catalog items',
+    inputSchema: z.object({ confirm: z.boolean() }),
+  })
+  async purgeCatalog(input: { confirm: boolean }, ctx: ExecutionContext) {
+    return { purged: true };
+  }
+}
+```
+
+## Related
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Authentication Overview" href="/docs/sdk/auth/overview" description="In-depth guide to OAuth 2.1, JWT, and API Keys." />
+  <Card icon={<Route />} title="Middleware Guide" href="/docs/sdk/middleware" description="Cross-cutting request processing." />
+  <Card icon={<Sparkles />} title="Interceptors Guide" href="/docs/sdk/interceptors" description="Around-invoke response transforms." />
+</Cards>

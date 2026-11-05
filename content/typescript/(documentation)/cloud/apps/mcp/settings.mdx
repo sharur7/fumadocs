@@ -1,0 +1,35 @@
+---
+title: "Settings"
+description: "Name, slug, description, and deleting the server"
+---
+
+import { Rocket, Server } from 'lucide-react';
+
+**Settings**, in the MCP menu, holds the server's name, slug, and description, and the option to delete it. Only owners and admins can change these.
+
+<Screenshot src="/images/cloud/mcp-settings.png" alt="MCP settings: name, slug, and description fields, and the Delete MCP button" />
+
+## General
+
+| Field | What it's for |
+|-------|---------------|
+| **Name** | The server's label in the console. |
+| **Slug** | Part of the server's public MCP URL. |
+| **Description** | Shown on the app overview. |
+
+<Callout type="warn" title="Changing the slug changes the URL">
+  Saving a new slug changes the MCP endpoint. Clients that still use the old URL stop connecting until you update them, so change it before you share the server, or update every client right after.
+</Callout>
+
+## Delete the server
+
+**Delete MCP**, in the **Danger zone**, removes this server with its deployments, domains, and environment variables. Confirm in the dialog; you can't undo it.
+
+The app and its chat stay, so you can deploy a new server into the same app.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Server />} title="Overview" href="/docs/cloud/apps/mcp" description="The endpoint and connected clients." />
+  <Card icon={<Rocket />} title="Deployments" href="/docs/cloud/apps/mcp/deployments" description="Ship a new version." />
+</Cards>

@@ -1,0 +1,19 @@
+---
+title: "Pizzaz Template"
+description: "python-pizzaz shops, map, and widgets"
+---
+
+```bash
+nitrostack-py init pizzaz --template python-pizzaz
+```
+
+Pizza shop finder with list/map/shop widgets under `widgets/out/`.
+
+Open shops only:
+
+- `show_pizza_list` with `{"openNow": true}`
+- `show_pizza_map` with `{"filter": "open_now"}`
+
+Omitting those fields returns every shop, including closed ones.
+
+Inspector: HTTP + stateless, auth **off**. `NITROSTACK_APP_MODE=universal`. See [Widgets](/python/sdk/widgets).

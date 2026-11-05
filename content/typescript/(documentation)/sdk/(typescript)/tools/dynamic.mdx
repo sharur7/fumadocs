@@ -1,0 +1,38 @@
+---
+title: "Dynamic Registration"
+description: "Add tools at runtime instead of with decorators"
+---
+
+import { Shuffle } from 'lucide-react';
+
+Most tools are declared with `@Tool`, but some only exist at runtime, such as one tool per table in a database the server discovers at startup. You can register those programmatically.
+
+NitroStack supports dynamic tool registration and notifies connected clients when the tool list changes.
+
+## List Changed Notifications
+
+When tools are added or removed at runtime, the server automatically sends a `notifications/tools/list_changed` notification to all connected clients. This enables dynamic tool discovery.
+
+```typescript
+import { McpApplicationFactory } from '@nitrostack/core';
+
+// Access the server instance
+const app = await McpApplicationFactory.create(AppModule);
+const server = app.getServer();
+
+// Notify clients after dynamic changes
+server.notifyToolsListChanged();
+```
+
+## Use Cases for Dynamic Tools
+
+1. **Feature flags**: Enable/disable tools based on configuration
+2. **Permission-based**: Show different tools based on user roles
+3. **Plugin systems**: Load tools from external modules
+4. **A/B testing**: Expose different tool sets to different clients
+
+## Next steps
+
+<Cards>
+  <Card icon={<Shuffle />} title="Transforms" href="/docs/sdk/transforms" description="Control which tools a client sees." />
+</Cards>

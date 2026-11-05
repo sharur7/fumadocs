@@ -1,0 +1,75 @@
+---
+title: Studio Overview
+description: A desktop app for building, testing, and shipping MCP servers.
+icon: Monitor
+---
+
+import { Download, FolderPlus, FolderOpen, Settings, Network, Wrench, Boxes, FileText, ListChecks, MessageSquare, Sparkles, GraduationCap, FlaskConical, HeartPulse, ScrollText, Rocket, Lock } from 'lucide-react';
+
+NitroStudio is a desktop app for working on MCP servers. Open a project and Studio starts your server, connects to it the way an AI client would, and shows everything it offers: tools, resources, prompts, and tasks. From there you can call a tool by hand, chat with a model that uses your tools, generate and run test cases, and deploy to [NitroCloud](/docs/cloud/overview) without leaving the app.
+
+Studio works with any NitroStack project, and with other MCP servers too. While you edit your code, it reloads the server on save, so what you see always matches what you wrote.
+
+<StudioMapDiagram />
+
+<Cards>
+  <Card className="nx-card-featured" icon={<Download />} title="Download NitroStudio" href="https://nitrostack.ai/studio" external description="Free for macOS, Windows, and Linux." />
+</Cards>
+
+| Platform | Package | Requires |
+| :-- | :-- | :-- |
+| macOS | Universal `.dmg` (Apple Silicon and Intel) | macOS 12 or later |
+| Windows | 64-bit installer (`.exe`) | Windows 10 or later |
+| Linux | `.deb` package, x64 | Debian 10+ or Ubuntu 20.04+ |
+
+All platforms need at least 4 GB of RAM.
+
+## Get started
+
+Create a server or open one you already have. Studio keeps a list of your projects and can connect to several at once.
+
+<Cards className="nx-cards-3">
+  <Card className="nx-card-illo" icon={<Illustration name="sparkle" />} title="Create an MCP server" href="/docs/studio/create-mcp-server" description="Generate a server from an API description, or start from a template." />
+  <Card className="nx-card-illo" icon={<Illustration name="folder" />} title="Add an MCP server" href="/docs/studio/add-mcp-server" description="Open a project folder or connect a prebuilt server." />
+  <Card className="nx-card-illo" icon={<Illustration name="grid" />} title="Configuration" href="/docs/studio/configuration" description="Project, chat, and app settings." />
+</Cards>
+
+## Inspect
+
+See and exercise everything your server exposes, the same way a client does.
+
+<Cards className="nx-cards-3">
+  <Card icon={<Network />} title="App Canvas" href="/docs/studio/app-canvas" description="Your whole server as one connected map." />
+  <Card icon={<Wrench />} title="Tools" href="/docs/studio/tools" description="Run any tool from a generated form and see its widget." />
+  <Card icon={<Boxes />} title="Resources" href="/docs/studio/resources" description="Read any resource and copy its contents." />
+  <Card icon={<FileText />} title="Prompts" href="/docs/studio/prompts" description="Fill in a prompt's arguments and run it." />
+  <Card icon={<ListChecks />} title="Tasks" href="/docs/studio/tasks" description="Follow long-running tool calls as they progress." />
+</Cards>
+
+## Agent
+
+Work with a model that can call your tools.
+
+<Cards className="nx-cards-3">
+  <Card icon={<MessageSquare />} title="AI Chat" href="/docs/studio/chat" description="Chat with a model that calls your tools and renders widgets." />
+  <Card icon={<Sparkles />} title="Compose" href="/docs/studio/compose" description="Build and change an MCP app by describing it." />
+  <Card icon={<GraduationCap />} title="Skills" href="/docs/studio/skills" description="Give the model step-by-step instructions for your workflows." />
+</Cards>
+
+## System
+
+Test, observe, secure, and ship the server.
+
+<Cards className="nx-cards-3">
+  <Card icon={<FlaskConical />} title="Test Cases" href="/docs/studio/test-cases" description="Generate conversation tests with AI and run them." />
+  <Card icon={<HeartPulse />} title="Health" href="/docs/studio/health" description="Health checks and protocol details." />
+  <Card icon={<ScrollText />} title="Logs" href="/docs/studio/logs" description="Server output and every MCP message." />
+  <Card icon={<Rocket />} title="Deployments" href="/docs/studio/deployments" description="Deploy to NitroCloud and see the history." />
+  <Card icon={<Lock />} title="Authentication" href="/docs/studio/authentication" description="Credentials for servers that require sign-in." />
+</Cards>
+
+## Watch the video
+
+Check out the video for a walkthrough of everything on this page.
+
+<YouTube id="PKjrjZBJUCI" title="NitroStudio: Everything You Can Do With Your MCP Server" />

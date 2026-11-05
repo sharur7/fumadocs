@@ -1,0 +1,161 @@
+---
+title: "Connect to clients"
+description: "Connect Claude Desktop, Cursor, and VS Code"
+---
+
+import { AppWindow, Container, ShieldCheck } from 'lucide-react';
+
+Connect your running NitroStack MCP server to AI clients including Claude Desktop, Cursor, Visual Studio Code, and ChatGPT.
+
+## Transport Selection
+
+MCP supports two standard [transport](/docs/getting-started/core-concepts/transports) protocols:
+
+1. **Stdio (`stdio`)**: The client launches your server as a local child process communicating over standard input/output. Ideal for single-user desktop applications (Claude Desktop).
+2. **Streamable HTTP (`http`)**: The client communicates over HTTP POST and Server-Sent Events (SSE). Ideal for web clients, multi-user deployments, remote servers, and IDE network connections.
+
+## Client Configuration
+
+Each client stores its MCP servers in its own configuration file. Pick yours below.
+
+### Claude Desktop
+
+To connect Claude Desktop to your local server over `stdio`:
+
+1. Open your Claude Desktop configuration file:
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+2. Add your server under `mcpServers`:
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "node",
+      "args": ["/absolute/path/to/my-server/dist/index.js"]
+    }
+  }
+}
+```
+
+3. Restart Claude Desktop. The hammer icon in the prompt input will display your registered tools.
+
+### Cursor
+
+The `cursor` command automatically configures your NitroStack MCP server inside [Cursor IDE](https://cursor.com), allowing AI agents in Cursor to immediately discover and invoke your tools.
+
+It writes configuration directly to `.cursor/mcp.json` (project-level) or `~/.cursor/mcp.json` (global).
+
+#### Usage
+
+Run it from your project folder:
+
+```bash
+npx @nitrostack/cli cursor [options]
+# or using alias:
+nitrostack-cli c [options]
+```
+
+When run without flags in an interactive terminal, the command displays a guided prompt to select the connection type and scope.
+
+#### Options
+
+Every option is optional; without them, the command asks.
+
+| Option | Shorthand | Description | Default |
+|--------|-----------|-------------|---------|
+| `--global` | `-g` | Install configuration globally to `~/.cursor/mcp.json` | `false` |
+| `--local` | `-l` | Install configuration locally to `.cursor/mcp.json` | `true` |
+| `--type <type>` | `-t` | Connection type: `command`, `legacy-sse`, or `streamable-http` | `command` |
+| `--url <url>` | `-u` | Custom HTTP URL for `legacy-sse` or `streamable-http` | Auto-generated |
+| `--port <port>` | `-p` | Server port used to generate default HTTP URL | `3000` |
+| `--force` | | Overwrite existing configuration if server name already exists | `false` |
+
+#### Connection Types
+
+**Direct Command (`command`): Default for Local Dev**
+Cursor spawns the MCP server directly as a subprocess over standard I/O (STDIO):
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "node",
+      "args": ["/path/to/my-server/dist/index.js"]
+    }
+  }
+}
+```
+
+```bash
+nitrostack-cli cursor --type command
+```
+
+**Streamable HTTP (`streamable-http`)**
+Connects Cursor to a running NitroStack server using the modern Streamable HTTP endpoint:
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+```bash
+nitrostack-cli cursor --type streamable-http --port 3000
+```
+
+**Legacy SSE (`legacy-sse`)**
+Connects Cursor to the legacy Server-Sent Events endpoint:
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "url": "http://localhost:3000/sse"
+    }
+  }
+}
+```
+
+```bash
+nitrostack-cli cursor --type legacy-sse --port 3000
+```
+
+### Visual Studio Code
+
+Connect via the official MCP extension:
+
+1. Install the [Model Context Protocol](/docs/getting-started/core-concepts/mcp-basics) extension from the VS Code Marketplace.
+2. In VS Code Settings, add your server configuration:
+
+```json
+{
+  "mcp.servers": {
+    "my-server": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+### ChatGPT / Web & Remote Clients
+
+Web agents and remote orchestrators connect over Streamable HTTP. Point them at `http://localhost:3000/mcp` while developing, or at your public HTTPS URL in production. Requests are JSON-RPC 2.0 messages sent as `application/json`.
+
+When authentication is enabled (e.g. using `ApiKeyModule` or `OAuthModule`), pass the authorization credentials in standard headers:
+```bash
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <YOUR_API_KEY>" \
+  -d '{"jsonrpc": "2.0", "method": "tools/list", "id": 1}'
+```
+
+## See also
+
+<Cards>
+  <Card icon={<AppWindow />} title="Interactive UI Widgets" href="/docs/sdk/ui/widgets" description="Return rich visual widgets to clients that support UI rendering." />
+  <Card icon={<ShieldCheck />} title="Authentication" href="/docs/sdk/auth/overview" description="Add API key or OAuth 2.1 protection." />
+  <Card icon={<Container />} title="Deploy to Production" href="/docs/deployment/docker" description="Deploy your server to Docker or cloud platforms." />
+</Cards>

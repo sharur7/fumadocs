@@ -1,0 +1,107 @@
+---
+title: "Caching"
+description: "Reuse a recent result instead of running the handler again"
+---
+
+import { Gauge, Database, Activity } from 'lucide-react';
+
+Some tools return the same answer for the same input for a while: a product's details, today's exchange rates, the server's configuration. `@Cache` remembers a handler's result for a number of seconds. When the same call arrives again within that time, NitroStack returns the stored result without running your handler, which saves time and calls to slow or paid services.
+
+```typescript
+import { ToolDecorator as Tool, Cache, ExecutionContext, z } from '@nitrostack/core';
+
+export class ConfigTools {
+  @Tool({ name: 'get_config', description: 'Get the application configuration', inputSchema: z.object({}) })
+  @Cache({ ttl: 3600 }) // keep the result for one hour
+  async getConfig(input: {}, ctx: ExecutionContext) {
+    return this.configService.load();
+  }
+}
+```
+
+`@Cache` works the same way on resources and prompts.
+
+## How it works
+
+Every call is turned into a cache key. If a fresh result is stored under that key, it's returned straight away. Otherwise the handler runs and its result is stored for `ttl` seconds.
+
+<Fork
+  start={[{ title: 'Tool call', icon: 'Wrench' }, { title: 'Build the cache key', sub: 'From the class, method, and input' }]}
+  branches={[
+    { label: 'Cache hit', accent: true, steps: [{ title: 'Return the stored result', sub: 'The handler does not run' }] },
+    { label: 'Cache miss or expired', steps: [{ title: 'Run the handler' }, { title: 'Store the result', sub: 'For ttl seconds' }] },
+  ]}
+  caption="Hits and misses are logged at the info level, so you can see the cache working in your server logs."
+/>
+
+## Options
+
+`@Cache` takes one required option and two optional ones.
+
+| Option | Type | Description |
+| :-- | :-- | :-- |
+| `ttl` | `number` | How long to keep a result, in seconds. Required |
+| `key` | `(input, context) => string` | Builds the cache key yourself, instead of from the whole input |
+| `storage` | `CacheStorage` | Where results are kept. Defaults to memory in the server process |
+
+## Choosing a TTL
+
+The TTL is a trade-off between freshness and speed. A result can be up to `ttl` seconds out of date, so choose the longest time your users can accept stale data for.
+
+| Data | Example TTL |
+| :-- | :-- |
+| Live prices or stock levels | `60` (1 minute) |
+| Search results, product listings | `300` (5 minutes) |
+| Reference data, configuration | `3600` (1 hour) |
+| Data that changes only on deploy | `86400` (1 day) |
+
+## Cache keys
+
+By default, the key is the class name, the method name, and the tool's input as JSON, for example `ProductTools:getProduct:{"productId":"p-1"}`. Two calls share a result only when their input is identical.
+
+Pass `key` when only some of the input should matter, or when two different inputs mean the same thing:
+
+```typescript
+@Cache({
+  ttl: 600,
+  key: (input) => `product:${(input as { productId: string }).productId}`,
+})
+```
+
+<Callout type="warn" title="Cached results are shared between callers">
+
+The default key ignores who is calling. If a tool returns data that depends on the caller, such as their recommendations or their orders, include the caller in the key, or one user could receive another user's cached result:
+
+```typescript
+@Cache({
+  ttl: 1800,
+  key: (input, ctx) => `recommendations:${(ctx as ExecutionContext).auth?.subject}`,
+})
+```
+
+</Callout>
+
+## Clear the cache
+
+When the underlying data changes, remove the stale entry with `clearCache()`. Pass a key to remove one entry, or nothing to empty the default in-memory cache.
+
+```typescript
+import { clearCache } from '@nitrostack/core';
+
+@Tool({ name: 'update_product', description: 'Update a product' })
+async updateProduct(input: ProductUpdate, ctx: ExecutionContext) {
+  const product = await this.products.update(input);
+  await clearCache(`product:${product.id}`); // the key used by get_product
+  return product;
+}
+```
+
+`clearCache()` acts on the default in-memory storage. If you pass your own `storage`, clear entries through that store instead.
+
+## Related
+
+<Cards>
+  <Card icon={<Database />} title="Cache storage" href="/docs/sdk/caching/storage" description="Share cached results across servers with Redis." />
+  <Card icon={<Gauge />} title="Rate limiting" href="/docs/sdk/rate-limiting" description="Cap how often a tool runs." />
+  <Card icon={<Activity />} title="Events" href="/docs/sdk/events" description="Clear caches when data changes." />
+</Cards>

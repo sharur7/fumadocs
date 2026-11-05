@@ -1,0 +1,104 @@
+---
+title: "Access Rules"
+description: "Rate limits, time windows, and conditional access"
+---
+
+import { ShieldCheck, KeyRound, Clock, BookOpen } from 'lucide-react';
+
+Not every rule is about identity. These guards allow or deny calls based on usage, time, or the state of the server.
+
+## Rate Limit Guard
+
+Counts calls per caller and rejects them once a limit is reached within a window. The built-in [@RateLimit](/docs/sdk/rate-limiting) decorator does the same with less code.
+
+```typescript
+@Injectable({ deps: [] })
+export class RateLimitGuard implements Guard {
+  private requests = new Map<string, { count: number; resetAt: number }>();
+  private readonly limit = 100;
+  private readonly windowMs = 60000;  // 1 minute
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const key = context.auth?.subject || context.requestId || 'anonymous';
+    const now = Date.now();
+    
+    let entry = this.requests.get(key);
+    
+    if (!entry || now > entry.resetAt) {
+      entry = { count: 0, resetAt: now + this.windowMs };
+    }
+    
+    entry.count++;
+    this.requests.set(key, entry);
+    
+    if (entry.count > this.limit) {
+      context.logger.warn('Rate limit exceeded', { key, count: entry.count });
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+    
+    return true;
+  }
+}
+```
+
+## Time-Based Access
+
+Allows calls only during business hours, in UTC.
+
+```typescript
+@Injectable({ deps: [] })
+export class BusinessHoursGuard implements Guard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const now = new Date();
+    const hour = now.getUTCHours();
+    const day = now.getUTCDay();
+    
+    // Allow access Monday-Friday, 9am-5pm UTC
+    const isWeekday = day >= 1 && day <= 5;
+    const isBusinessHours = hour >= 9 && hour < 17;
+    
+    if (!isWeekday || !isBusinessHours) {
+      context.logger.info('Access denied outside business hours');
+      return false;
+    }
+    
+    return true;
+  }
+}
+```
+
+## Conditional Guard
+
+Rejects calls during maintenance, except from administrators and operators.
+
+```typescript
+@Injectable({ deps: [] })
+export class MaintenanceModeGuard implements Guard {
+  private readonly bypassRoles = ['admin', 'operator'];
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isMaintenanceMode = process.env.MAINTENANCE_MODE === 'true';
+    
+    if (!isMaintenanceMode) {
+      return true;  // Not in maintenance mode
+    }
+    
+    // Allow admins to bypass
+    const roles = context.auth?.roles as string[] | undefined;
+    const canBypass = roles?.some(role => this.bypassRoles.includes(role));
+    
+    if (!canBypass) {
+      throw new Error('System is under maintenance. Please try again later.');
+    }
+    
+    return true;
+  }
+}
+```
+
+## More guard patterns
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Custom Guards" href="/docs/api-reference/guards/custom-guards" description="Role, permission, and clearance checks." />
+  <Card icon={<KeyRound />} title="Authentication Guards" href="/docs/api-reference/guards/authentication-guards" description="Validate JWTs and API keys." />
+</Cards>

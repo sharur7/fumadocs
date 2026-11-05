@@ -1,0 +1,75 @@
+---
+title: Overview
+description: Build end-to-end, production-ready MCP servers.
+icon: BookOpen
+---
+
+import { Rocket, GraduationCap, Workflow, Layers, Plug, Bot, Server, Route, Sparkles, Funnel, ShieldAlert, ShieldCheck, Activity } from 'lucide-react';
+
+Welcome to NitroStack. This guide details the architecture and capabilities of the framework designed for building production-grade [Model Context Protocol (MCP)](/docs/getting-started/core-concepts/mcp-basics) servers.
+
+NitroStack is a high-performance framework engineered for scalability and maintainability, with SDKs for [TypeScript](/docs/getting-started/core-concepts/server-concepts) and [Python](/python/sdk/quick-start). It provides a robust architecture for developing MCP servers, offering advanced features such as [dependency injection](/docs/getting-started/core-concepts/dependency-injection), [modular organization](/docs/getting-started/core-concepts/modules), and [type-safe tooling](/docs/sdk/tools) out of the box.
+
+<Cards>
+  <Card
+    className="nx-card-featured"
+    icon={<Rocket />}
+    title="Quickstart: Build your first MCP server"
+    href="/docs/getting-started/quickstart"
+    description="Initialize your first NitroStack project, run it, and call your first tool."
+  />
+</Cards>
+
+## Choose how to start
+
+<Cards className="nx-cards-3">
+  <Card
+    className="nx-card-illo"
+    icon={<Illustration name="book" />}
+    title="New to MCP?"
+    href="/docs/getting-started/core-concepts/mcp-basics"
+    description="Tools, resources, prompts, and the protocol primitives."
+  />
+  <Card
+    className="nx-card-illo"
+    icon={<Illustration name="rocket" />}
+    title="Ready to build?"
+    href="/docs/getting-started/quickstart"
+    description="Build and run your first MCP server."
+  />
+  <Card
+    className="nx-card-illo"
+    icon={<Illustration name="flow" />}
+    title="How it works"
+    href="/docs/getting-started/how-nitrostack-works"
+    description="What happens from startup to a tool call."
+  />
+</Cards>
+
+## Ecosystem features
+
+These run around your handlers. Each one is optional and added with a decorator.
+
+<Cards className="nx-cards-3">
+  <Card className="nx-card-illo" icon={<Illustration name="shield" />} title="Guards and authentication" href="/docs/sdk/auth/overview" description="Decide whether a call may run. API key, JWT, and OAuth 2.1 are built in." />
+  <Card className="nx-card-illo" icon={<Illustration name="route" />} title="Middleware" href="/docs/sdk/middleware" description="Run code before and after every call, such as logging and timing." />
+  <Card className="nx-card-illo" icon={<Illustration name="sparkle" />} title="Interceptors" href="/docs/sdk/interceptors" description="Change a handler's result: add fields, mask data, or cache it." />
+  <Card className="nx-card-illo" icon={<Illustration name="funnel" />} title="Pipes" href="/docs/sdk/pipes" description="Transform and validate input before your handler sees it." />
+  <Card className="nx-card-illo" icon={<Illustration name="alert" />} title="Exception filters" href="/docs/sdk/error-handling" description="Turn thrown errors into consistent error responses." />
+  <Card className="nx-card-illo" icon={<Illustration name="pulse" />} title="Logging and events" href="/docs/sdk/events" description="Structured logs and an event system for your server." />
+</Cards>
+
+## Why NitroStack?
+
+**For enterprise development.** NitroStack enforces consistent patterns across large teams, is built on proven architectural patterns for long-term maintainability, and follows a security-first design with robust [authentication and authorization](/docs/sdk/auth/overview) mechanisms.
+
+**For AI integration.** NitroStack is built specifically for the [Model Context Protocol specification](https://modelcontextprotocol.io). It delivers structured data and [interactive UI components](/docs/getting-started/core-concepts/widgets) to AI agents, and efficiently manages [tools](/docs/sdk/tools) and [resources](/docs/sdk/resources) for complex agentic workflows.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Layers />} title="Core Concepts" href="/docs/getting-started/core-concepts" description="How a NitroStack server is put together." />
+  <Card icon={<Server />} title="Server Architecture" href="/docs/getting-started/core-concepts/server-concepts" description="Deep dive into server concepts." />
+  <Card icon={<Plug />} title="Connect to Clients" href="/docs/guides/connect-to-clients" description="Connect Claude Desktop, Cursor, VS Code, and ChatGPT." />
+  <Card icon={<Bot />} title="Connect Your Coding Agent" href="/docs/guides/connect-your-coding-agent" description="Agent skills and rules for Cursor, Claude Code, and Copilot." />
+</Cards>

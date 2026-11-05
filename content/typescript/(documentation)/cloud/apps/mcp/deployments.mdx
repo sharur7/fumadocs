@@ -1,0 +1,124 @@
+---
+title: "Deployments"
+description: "Deploy your MCP server from GitHub or a .zip file"
+---
+
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Activity, GitBranch } from 'lucide-react';
+
+**Deployments**, in the app's MCP menu, is where you ship your server. You can connect a GitHub repository, so every push deploys, or upload your project as a `.zip` file.
+
+<Flow
+  steps={[
+    { title: 'Your code', sub: 'A GitHub repository or a .zip file', icon: 'FolderGit2' },
+    { title: 'Build', sub: 'Node.js 20; start command detected', icon: 'Hammer' },
+    { title: 'Live', sub: 'Served at your MCP endpoint', icon: 'Globe' },
+  ]}
+/>
+
+<Screenshot src="/images/cloud/mcp-deployments.png" alt="The Deployments page: Connect Repository and Upload Code Package on the left, Deployment history on the right" />
+
+## Deploy from GitHub
+
+<Steps>
+<Step>
+
+### Install the GitHub App
+
+Your organization needs the NitroStack GitHub App. Install it once from [Integrations](/docs/cloud/integrations).
+
+</Step>
+<Step>
+
+### Pick a repository
+
+Under **Connect Repository**, search for the repository and select it.
+
+</Step>
+<Step>
+
+### Link it
+
+Click **Link Repository & Enable Auto-Deploy**. NitroCloud deploys the repository, and deploys again on every push.
+
+</Step>
+</Steps>
+
+You can also deploy a linked project straight from [NitroStudio](/docs/studio/deployments).
+
+## Upload a .zip file
+
+Under **Upload Code Package**, drag your project's `.zip` file onto the drop area, or click it to choose the file. The package must:
+
+- contain your whole NitroStack project, including `package.json` and all source files
+- be 100 MB or smaller
+
+TypeScript projects build on the Node.js 20 runtime. [`nitrostack-cli pack`](/docs/cli/build-and-ship#pack) creates a clean archive without `node_modules`, build output, or `.env` files.
+
+### Python projects
+
+NitroCloud recognizes a Python app when `nitrostack` is a dependency in `pyproject.toml` or `requirements.txt`, or the code imports it. The same packaging rules apply: the archive holds the project root (or the project one folder down), and it's 100 MB or smaller.
+
+The container runs `python main.py`, with `HOST=0.0.0.0`, `PORT=3000`, and `MCP_TRANSPORT_TYPE=http` already set. You don't need a Dockerfile, and a `uv.lock` in the archive is used when present. Python builds don't use `npm start`.
+
+Before you upload, check the project locally:
+
+```bash
+nitrostack-py validate
+MCP_TRANSPORT_TYPE=http nitrostack-py start
+```
+
+See [Prepare your project](/docs/cloud/dashboard#prepare-your-project) for the full checklist of files.
+
+## Start command
+
+NitroCloud detects how your app starts from your code, and shows **Auto-detected** when it has. If detection fails, click **Add Start Command** and enter it yourself.
+
+## Environment variables
+
+Add your secrets and settings under **Environment variables**: click **Add Variable** for one, or **Bulk Edit** to paste several. Values are encrypted, and they apply to the next deployment, so deploy again after you change them.
+
+Keep secrets here, never in your code or in a committed `.env` file.
+
+## Deployment history
+
+**Deployment history** lists every deployment, newest first. The one serving traffic is marked **Live**, with a **Production** badge; earlier ones are marked **Previously live**. Each entry shows its version (`v6`, `v5`, and so on), how long the build took, how it was deployed, such as a CLI deployment, and when and by whom.
+
+### Deployment details
+
+The arrow on an entry opens that deployment. Its page shows:
+
+- the version, its status (**Live**, **Previously live**, or failed), who deployed it, and when
+- where it came from: a GitHub push, a `.zip` upload, or NitroStudio
+- the build log
+- the environment variables applied to that build, with their values masked
+
+<Screenshot src="/images/cloud/mcp-deployment-detail.png" alt="A live deployment: its version and status, the pipeline steps, details about who deployed it and when, and the deployment logs" />
+
+## When a deployment fails
+
+A failed deployment stays in **Deployment history** and never becomes **Live**. The previous live deployment keeps serving traffic, so a bad build doesn't take your server down.
+
+Open the failed entry and read its build log.
+
+<Screenshot src="/images/cloud/mcp-deployment-cancelled.png" alt="A deployment marked Cancelled that never became live, with its pipeline steps, details, and deployment logs" /> The usual causes are:
+
+- a missing entry file: `package.json` for TypeScript, or `main.py` for Python
+- a start command that doesn't listen on port 3000
+- an archive over 100 MB, often because it includes `node_modules`
+
+Fix the cause and deploy again. Changing an environment variable doesn't affect the running deployment either; add the variable, then deploy again.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Activity />} title="Monitoring" href="/docs/cloud/apps/mcp/monitoring" description="Check that the new version is healthy." />
+  <Card icon={<GitBranch />} title="Integrations" href="/docs/cloud/integrations" description="Install the GitHub App for your organization." />
+</Cards>
+
+## Watch the video
+
+Check out the video for a walkthrough of everything on this page.
+
+<YouTube id="JilkYHS-wjM" title="Deploy Your Own MCP Server From GitHub to NitroCloud" />

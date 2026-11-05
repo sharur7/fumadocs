@@ -1,0 +1,51 @@
+---
+title: "Widget SDK"
+description: "Hooks and methods for reading data, calling tools, and controlling the display from a widget"
+---
+
+import { AppWindow, Wrench } from 'lucide-react';
+
+`@nitrostack/widgets` is the library your widgets use to talk to the host. Its hooks give you the tool's output, the host's theme and display mode, and persistent state; its `WidgetSDK` class calls tools and controls the display.
+
+## Quick Start
+
+A widget that reads the tool's output and follows the host's theme:
+
+```typescript
+'use client';
+
+import { useWidgetSDK, useTheme } from '@nitrostack/widgets';
+
+export default function MyWidget() {
+  const { isReady, callTool, getToolOutput } = useWidgetSDK();
+  const theme = useTheme();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  return (
+    <div style={{ 
+      background: theme === 'dark' ? '#000' : '#fff',
+      color: theme === 'dark' ? '#fff' : '#000'
+    }}>
+      <h1>{data.title}</h1>
+    </div>
+  );
+}
+```
+
+## Reference
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="code" />} title="Hooks" href="/docs/sdk/ui/widget-sdk/hooks" description="Read data and host state in React." />
+  <Card className="nx-card-illo" icon={<Illustration name="layers" />} title="WidgetSDK Class" href="/docs/sdk/ui/widget-sdk/class" description="Tools, state, display, navigation, and data." />
+  <Card className="nx-card-illo" icon={<Illustration name="funnel" />} title="Utilities and Types" href="/docs/sdk/ui/widget-sdk/utilities" description="Helpers, types, and components." />
+  <Card className="nx-card-illo" icon={<Illustration name="book" />} title="Legacy API" href="/docs/sdk/ui/widget-sdk/legacy" description="withToolData and migration." />
+</Cards>
+
+## Related
+
+<Cards>
+  <Card icon={<AppWindow />} title="Widgets guide" href="/docs/sdk/ui/widgets" description="Build and style widgets." />
+</Cards>

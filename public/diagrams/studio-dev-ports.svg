@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 220" width="100%" height="100%">
+  <defs>
+    <style>
+      .box { fill: #111827; stroke: #374151; stroke-width: 1.5; rx: 8; }
+      .box-server { fill: #042f2e; stroke: #14b8a6; stroke-width: 2; rx: 8; }
+      .box-widget { fill: #311042; stroke: #c084fc; stroke-width: 2; rx: 8; }
+      .title { fill: #f9fafb; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 600; text-anchor: middle; }
+      .subtitle { fill: #9ca3af; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 11px; text-anchor: middle; }
+      .port { font-family: ui-monospace, monospace; font-size: 13px; font-weight: bold; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <!-- CLI Runner -->
+  <g transform="translate(30, 45)">
+    <rect width="180" height="130" class="box" />
+    <text x="90" y="45" class="title">nitrostack-cli dev</text>
+    <text x="90" y="75" class="subtitle">Single CLI Process</text>
+    <text x="90" y="100" class="subtitle">Hot-Reload Watcher</text>
+  </g>
+
+  <!-- Port 3000 MCP Server -->
+  <g transform="translate(280, 25)">
+    <rect width="210" height="80" class="box-server" />
+    <text x="105" y="30" class="title">Port 3000</text>
+    <text x="105" y="50" class="port" fill="#14b8a6">:3000/mcp &amp; :3000/health</text>
+    <text x="105" y="68" class="subtitle">MCP Server (HTTP / SSE)</text>
+  </g>
+
+  <!-- Port 3001 Widget Server -->
+  <g transform="translate(280, 115)">
+    <rect width="210" height="80" class="box-widget" />
+    <text x="105" y="30" class="title">Port 3001</text>
+    <text x="105" y="50" class="port" fill="#c084fc">:3001</text>
+    <text x="105" y="68" class="subtitle">Next.js Widget Dev Server</text>
+  </g>
+
+  <!-- Client Connections -->
+  <g transform="translate(560, 45)">
+    <rect width="170" height="130" class="box" />
+    <text x="85" y="35" class="title">Studio / Inspector</text>
+    <text x="85" y="65" class="subtitle">Connects to :3000/mcp</text>
+    <text x="85" y="90" class="subtitle">Renders :3001 widgets</text>
+    <text x="85" y="110" class="subtitle">in iframe viewport</text>
+  </g>
+</svg>

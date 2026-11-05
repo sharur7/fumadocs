@@ -1,0 +1,66 @@
+---
+title: "Stacked Limits"
+description: "Combine several rate limits on one tool"
+---
+
+import { Database, Gauge } from 'lucide-react';
+
+One limit rarely fits every concern. A per-minute limit stops bursts, while a per-day limit caps total cost. Stack several `@RateLimit` decorators on one tool and a call must pass all of them.
+
+## Bursts and sustained load
+
+This tool allows short bursts of up to 10 calls a minute, but no more than 100 an hour and 500 a day.
+
+```typescript
+@Tool({ name: 'send_email', description: 'Send an email' })
+@RateLimit({ requests: 10, window: '1m' })
+@RateLimit({ requests: 100, window: '1h' })
+@RateLimit({ requests: 500, window: '1d' })
+async sendEmail(input: EmailInput, ctx: ExecutionContext) {
+  return this.emailService.send(input);
+}
+```
+
+<Flow steps={[
+  { title: '10 per minute', sub: 'Stops bursts' },
+  { title: '100 per hour', sub: 'Smooths sustained load' },
+  { title: '500 per day', sub: 'Caps total cost' },
+  { title: 'Handler', icon: 'Wrench' },
+]} caption="Each limit keeps its own counter. The first one that's exceeded rejects the call." />
+
+## Different limits for different callers
+
+`requests` is a fixed number, so one decorator can't give premium users a higher limit than free users. Expose the action as two tools instead, each with its own limit, and protect each with a guard that checks the caller's plan:
+
+```typescript
+@Tool({ name: 'export_report', description: 'Export a report' })
+@UseGuards(JWTGuard, FreePlanGuard)
+@RateLimit({ requests: 10, window: '1d' })
+async exportReport(input: ExportInput, ctx: ExecutionContext) {
+  return this.reports.export(input);
+}
+
+@Tool({ name: 'export_report_pro', description: 'Export a report (Pro plan)' })
+@UseGuards(JWTGuard, ProPlanGuard)
+@RateLimit({ requests: 1000, window: '1d' })
+async exportReportPro(input: ExportInput, ctx: ExecutionContext) {
+  return this.reports.export(input);
+}
+```
+
+## Common limits
+
+Reasonable starting points; tune them to how your tools are actually used.
+
+| Tool | Suggested limits | Why |
+| :-- | :-- | :-- |
+| Sending email or messages | 10 per minute, 500 per day | Prevents spam if a model loops |
+| Calling a paid third-party API | Match the provider's own quota | Avoids errors and overage charges |
+| File uploads | 5 per minute | Limits storage and processing load |
+
+## Next steps
+
+<Cards>
+  <Card icon={<Database />} title="Storage" href="/docs/sdk/rate-limiting/storage" description="Share counters across servers." />
+  <Card icon={<Gauge />} title="Rate limit keys" href="/docs/sdk/rate-limiting/keys" description="Decide who each call counts against." />
+</Cards>

@@ -1,0 +1,11 @@
+{
+  "title": "Inspect",
+  "pages": [
+    "app-canvas",
+    "tools",
+    "resources",
+    "prompts",
+    "tasks"
+  ],
+  "icon": "ScanSearch"
+}

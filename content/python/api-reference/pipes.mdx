@@ -1,0 +1,16 @@
+---
+title: "Pipes API"
+description: "use_pipes and PipeMetadata"
+---
+
+Protocol: `async def transform(self, value, metadata: PipeMetadata)`.
+
+```python
+from nitrostack import use_pipes
+
+@use_pipes(StripPipe)
+async def handler(...):
+    ...
+```
+
+Scaffold: `nitrostack-py generate pipe Validation`. See [Pipes](/python/sdk/pipes).

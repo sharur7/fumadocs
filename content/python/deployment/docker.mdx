@@ -1,0 +1,264 @@
+---
+title: "Docker"
+description: "Containerize a Python NitroStack server"
+---
+
+import { Cloud } from 'lucide-react';
+
+Package your Python MCP server as a container for any platform.
+
+## A basic Dockerfile
+
+This Dockerfile installs the SDK and your dependencies, then starts the server over HTTP on port 3000.
+
+```dockerfile
+FROM python:3.12-slim
+WORKDIR /app
+COPY . .
+RUN pip install --no-cache-dir nitrostack && pip install --no-cache-dir -r requirements.txt
+ENV HOST=0.0.0.0 MCP_TRANSPORT_TYPE=http PORT=3000
+EXPOSE 3000
+CMD ["nitrostack-py", "start", "--port", "3000"]
+```
+
+The container must use the HTTP transport. `stdio` has no network port to expose.
+
+## Build and run
+
+Build the image once, then run it with your `.env` file.
+
+### Build the image
+
+Run this from the project root, where the Dockerfile is.
+
+```bash
+docker build -t my-mcp-server .
+```
+
+### Run the container
+
+Map port 3000 and pass your settings from `.env`.
+
+```bash
+docker run --rm -p 3000:3000 --env-file .env my-mcp-server
+```
+
+Check it:
+
+```bash
+curl http://localhost:3000/mcp/health
+```
+
+## Multi-stage build
+
+Build dependencies in one stage and copy only the virtualenv into a slim runtime image:
+
+```dockerfile
+# Build stage
+FROM python:3.12-slim AS build
+WORKDIR /app
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+COPY requirements.txt .
+RUN pip install --no-cache-dir nitrostack -r requirements.txt
+
+# Production stage
+FROM python:3.12-slim
+WORKDIR /app
+COPY --from=build /opt/venv /opt/venv
+COPY . .
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    HOST=0.0.0.0 \
+    MCP_TRANSPORT_TYPE=http \
+    PORT=3000
+EXPOSE 3000
+CMD ["nitrostack-py", "start", "--port", "3000"]
+```
+
+### With uv
+
+If your project uses `uv`, install from `pyproject.toml` and `uv.lock` instead of `requirements.txt`.
+
+```dockerfile
+FROM python:3.12-slim
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+WORKDIR /app
+COPY pyproject.toml uv.lock* ./
+RUN uv sync --no-dev
+COPY . .
+ENV PATH="/app/.venv/bin:$PATH" HOST=0.0.0.0 MCP_TRANSPORT_TYPE=http PORT=3000
+EXPOSE 3000
+CMD ["nitrostack-py", "start", "--port", "3000"]
+```
+
+## Environment variables
+
+Do not copy `.env` into the image. Pass secrets at runtime.
+
+```bash
+# From a file
+docker run --rm -p 3000:3000 --env-file .env my-mcp-server
+
+# Individually
+docker run --rm -p 3000:3000 \
+  -e API_KEY=$API_KEY \
+  -e JWT_SECRET=$JWT_SECRET \
+  my-mcp-server
+```
+
+Common variables: `HOST`, `PORT`, `MCP_TRANSPORT_TYPE`, `MCP_MAX_SESSIONS`, `API_KEY`, `JWT_SECRET`, `OAUTH_REQUIRED`.
+
+## Docker Compose
+
+Compose keeps the run settings in a file, so `docker compose up` replaces the long `docker run` command.
+
+```yaml
+# docker-compose.yml
+services:
+  mcp-server:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      MCP_TRANSPORT_TYPE: http
+      PORT: "3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/mcp/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+```
+
+```bash
+docker compose up -d
+docker compose logs -f mcp-server
+```
+
+## Production settings
+
+Three additions make the image safer to run in production.
+
+### Health checks
+
+`python:3-slim` has no `curl`, so use Python itself:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/mcp/health')"
+```
+
+### Non-root user
+
+Run the server as an unprivileged user so a compromised process can't change the container.
+
+```dockerfile
+RUN useradd --create-home --uid 1001 mcp
+USER mcp
+```
+
+### Security
+
+Install the latest patches for the base image at build time.
+
+```dockerfile
+# Patch the base image
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+```
+
+Also pin the base image tag, and keep `.env` and `.git` out of the build context.
+
+## Persistent storage
+
+Mount a volume for any files the server must keep between restarts.
+
+```bash
+docker run --rm -p 3000:3000 -v mcp-data:/app/data my-mcp-server
+```
+
+Containers are disposable. Keep any state your server writes on a volume or in an external database.
+
+## Networking
+
+Run your server next to its dependencies on one Compose network and use service names as hostnames:
+
+```yaml
+services:
+  mcp-server:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://app:secret@db:5432/app
+    depends_on:
+      - db
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+```
+
+## .dockerignore
+
+Keep secrets, caches, and local environments out of the image.
+
+```
+.git
+.venv
+__pycache__
+*.pyc
+.env
+.env.*
+dist
+tests
+.pytest_cache
+```
+
+## Troubleshooting
+
+Fixes for the problems you're most likely to hit.
+
+### The container crashes
+
+Read the logs of the stopped container to see why it exited.
+
+```bash
+docker logs <container>
+docker ps -a
+```
+
+Common causes: missing env vars, a Python version below 3.10, or the app still on `stdio` transport (set `MCP_TRANSPORT_TYPE=http`).
+
+### The port is already in use
+
+Map a different host port to the container's port 3000.
+
+```bash
+docker run --rm -p 8080:3000 my-mcp-server
+```
+
+### The server starts but is unreachable
+
+`HOST` is probably `127.0.0.1`. Set `HOST=0.0.0.0`.
+
+### The client gets a redirect on /mcp
+
+Call `/mcp` without a trailing slash. The MCP Inspector requires that form.
+
+### Permission errors on a volume
+
+Give the non-root user (UID 1001) ownership of the volume.
+
+```bash
+# Fix volume permissions for the non-root user
+docker run --rm -v mcp-data:/data alpine chown -R 1001:1001 /data
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Cloud />} title="Cloud Platforms" href="/python/deployment/cloud" description="Deploy to a cloud provider." />
+</Cards>

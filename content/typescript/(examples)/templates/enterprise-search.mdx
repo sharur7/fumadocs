@@ -1,0 +1,90 @@
+---
+title: "Enterprise Search"
+description: "BM25 progressive tool discovery for large tool catalogs"
+icon: Search
+---
+
+import { Boxes, Search, Eye, AppWindow, Code, BookOpen } from 'lucide-react';
+
+The Enterprise Search template (TypeScript only) shows how to serve a large tool catalog without flooding the model's context. Tools are grouped by domain with `@Controller`, and `BM25SearchTransform` collapses the catalog into two meta-tools that the model uses to find and call the tool it needs.
+
+## What's included
+
+<Cards>
+  <Card icon={<Boxes />} title="Three controllers" description="Finance, inventory, and support tools, each with a name prefix." />
+  <Card icon={<Search />} title="BM25 search" description="In-memory search over tool names, descriptions, and parameters." />
+  <Card icon={<Eye />} title="Always-visible tools" description="Four bootstrap tools stay in the catalog." />
+  <Card icon={<AppWindow />} title="Widgets" description="financial-summary, inventory-monitor, and system-health." />
+</Cards>
+
+## Create the project
+
+Scaffold the template and start it:
+
+```bash
+npx @nitrostack/cli init enterprise-tools --template typescript-enterprise-search
+cd enterprise-tools
+npm run dev
+```
+
+## How it works
+
+Each controller adds a prefix to its tools, so `calculate_tax` in `@Controller('finance')` is exposed as `finance_calculate_tax`:
+
+```typescript title="src/controllers/finance.controller.ts"
+@Controller('finance')
+export class FinanceController {
+  @Tool({
+    name: 'calculate_tax',
+    description: 'Calculate sales and corporate tax for a transaction',
+    inputSchema: z.object({
+      amount: z.number().positive().describe('Gross transaction amount'),
+      region: z.enum(['US-CA', 'US-NY', 'EU-DE', 'UK']).describe('Tax jurisdiction'),
+    }),
+  })
+  async calculateTax(input: { amount: number; region: string }, ctx: ExecutionContext) {
+    // ...
+  }
+}
+```
+
+The root module attaches the transform and lists the tools that should stay visible:
+
+```typescript title="src/app.module.ts"
+@McpApp({
+  module: AppModule,
+  server: { name: 'enterprise-search-service', version: '1.0.0' },
+  transforms: [
+    new BM25SearchTransform({
+      defaultLimit: 5,
+      alwaysVisible: [
+        'support_auth_login',
+        'support_get_system_status',
+        'finance_get_financial_summary',
+        'inventory_report',
+      ],
+    }),
+  ],
+})
+```
+
+## What the model sees
+
+`tools/list` returns six tools instead of the full catalog: `search_tools`, `call_tool`, and the four always-visible tools. To use anything else, the model first searches, then calls the tool through `call_tool`:
+
+```json
+{ "name": "search_tools", "arguments": { "query": "calculate customer sales tax" } }
+```
+
+```json
+{ "name": "call_tool", "arguments": { "name": "finance_calculate_tax", "arguments": { "amount": 1000, "region": "US-CA" } } }
+```
+
+The second call returns `{ "gross": 1000, "tax": 82.5, "net": 1082.5 }`. Arguments are validated against the tool's schema even when it is called through `call_tool`.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Code />} title="Code Mode template" href="/docs/templates/code-mode" description="Collapse the catalog and run whole pipelines in one call." />
+  <Card icon={<BookOpen />} title="Transforms" href="/docs/sdk/transforms" description="How catalog transforms work and how to configure them." />
+</Cards>

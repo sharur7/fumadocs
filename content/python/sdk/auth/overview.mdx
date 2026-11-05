@@ -1,0 +1,53 @@
+---
+title: "Authentication Overview"
+description: "API keys, JWT, OAuth 2.1 modules"
+---
+
+import { Key, KeyRound } from 'lucide-react';
+
+A server that does anything sensitive needs to know who is calling. Python NitroStack ships three modules for this: API keys for services and integrations, JWTs for users you sign in yourself, and OAuth 2.1 for users of an identity provider. Each comes with a guard you put on the tools that need it.
+
+Python ships three Nest-style modules: **API keys**, **JWT (HS256)**, and **OAuth 2.1**.
+
+| Module | Guard | Typical env |
+|--------|-------|-------------|
+| `ApiKeyModule.for_root(...)` | `ApiKeyGuard` | `API_KEY` |
+| `JWTModule.for_root(...)` | `JwtGuard` | `JWT_SECRET` |
+| `OAuthModule.for_root(...)` | `OAuthGuard` | JWKS / introspection + `OAUTH_REQUIRED` |
+
+Import the module on `AppModule`, then stack `@use_guards(...)` on tools.
+
+```python
+from nitrostack import module, ApiKeyModule, OAuthModule, JWTModule
+
+@module(
+    name="app",
+    imports=[
+        ApiKeyModule.for_root(),
+        JWTModule.for_root(),
+        OAuthModule.for_root(
+            resource_uri="https://mcplocal",
+            authorization_servers=["https://auth.example.com"],
+            scopes_supported=["read", "write"],
+        ),
+    ],
+)
+class AppModule:
+    pass
+```
+
+`context.auth` is an `AuthContext` (`subject`, `scopes`, `client_id`, `aud`, `claims`) after a successful guard.
+
+<Callout type="info" title="Agent skill">
+
+`nitrostack-python-auth-security` (OAuth-focused). JWT and API keys are covered in the pages below.
+
+</Callout>
+
+## Next steps
+
+<Cards>
+  <Card icon={<Key />} title="API Key Auth" href="/python/sdk/auth/api-key" description="Keys for services and integrations." />
+  <Card icon={<KeyRound />} title="OAuth 2.1" href="/python/sdk/auth/oauth" description="Sign-in with an identity provider." />
+  <Card icon={<KeyRound />} title="OAuth 2.1 Guide" href="/python/sdk/auth/oauth" description="Sign-in with an identity provider." />
+</Cards>

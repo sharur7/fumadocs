@@ -1,0 +1,85 @@
+---
+title: "Quick start"
+description: "Install the Python SDK and serve your first tool"
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Wrench, Layers, Terminal } from 'lucide-react';
+
+This page adds the SDK to a Python project. To start from a ready-made project instead, run `nitrostack-py init my-server --template python-starter`, which writes the project files and installs dependencies.
+
+<Steps>
+<Step>
+
+### Install the package
+
+Python 3.10 or newer is required. One package installs both the SDK and the `nitrostack-py` command.
+
+```bash
+pip install nitrostack
+nitrostack-py --help
+```
+
+</Step>
+<Step>
+
+### Write a tool
+
+A tool is a method on a controller class, marked with `@tool`. Its input is a Pydantic model.
+
+```python title="calculator.py"
+from pydantic import BaseModel, Field
+from nitrostack import tool, injectable, module, ExecutionContext
+
+class AddInput(BaseModel):
+    a: float = Field(description="First number")
+    b: float = Field(description="Second number")
+
+@injectable(deps=[])
+class CalculatorController:
+    @tool(name="add", description="Add two numbers together", input_schema=AddInput)
+    async def add(self, input: AddInput, context: ExecutionContext) -> float:
+        context.logger.info(f"Adding {input.a} and {input.b}")
+        return input.a + input.b
+
+@module(name="calculator", controllers=[CalculatorController])
+class CalculatorModule:
+    pass
+```
+
+</Step>
+<Step>
+
+### Create the root module and start the server
+
+The root module imports your feature modules. The factory builds the application from it.
+
+```python title="main.py"
+import asyncio
+from nitrostack import module, McpApplicationFactory
+from calculator import CalculatorModule
+
+@module(name="app", imports=[CalculatorModule])
+class AppModule:
+    pass
+
+async def main():
+    app = await McpApplicationFactory.create(AppModule)
+    await app.start()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+Run it with `nitrostack-py dev`, which hot-reloads `main.py`. The transport defaults to `stdio` unless you set `MCP_TRANSPORT_TYPE`. To try it over HTTP with MCP Inspector, run `MCP_TRANSPORT_TYPE=http MCP_STATELESS=true nitrostack-py dev --port 3000` and connect to `http://localhost:3000/mcp`, with no trailing slash.
+
+</Step>
+</Steps>
+
+## Next steps
+
+<Cards>
+  <Card icon={<Wrench />} title="Tools" href="/python/sdk/tools" description="Actions the model can call." />
+  <Card icon={<Layers />} title="Server Concepts" href="/docs/getting-started/core-concepts/server-concepts" description="Modules, dependency injection, and the factory." />
+  <Card icon={<Terminal />} title="CLI Overview" href="/docs/cli/overview" description="Every nitrostack-py command." />
+</Cards>

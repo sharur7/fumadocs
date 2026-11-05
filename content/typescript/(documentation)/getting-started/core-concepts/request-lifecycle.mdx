@@ -1,0 +1,72 @@
+---
+title: Request Lifecycle
+description: What runs before and after your handler, and where to put cross-cutting logic.
+---
+
+import { ShieldCheck, Route, Sparkles, Funnel } from 'lucide-react';
+
+When a client calls a tool, your method is not the first or last thing to run. The call passes through a fixed pipeline, and each stage has one job. Knowing the order tells you where logic belongs.
+
+<PipelineDiagram />
+
+## The stages
+
+**Guards decide whether the call may run.** A guard returns `true` or `false`. If any guard says no, nothing else runs, including your handler. Use [guards](/docs/api-reference/guards) for authentication and permissions. See [Guards](/docs/sdk/guards).
+
+**Middleware wraps the whole call.** It runs code before and after everything that follows, which makes it the place for logging, request IDs, and timing. See [Middleware](/docs/sdk/middleware).
+
+**Interceptors wrap the handler and can change its result.** Use them to add metadata, mask sensitive fields, or cache responses. See [Interceptors](/docs/sdk/interceptors).
+
+**Pipes transform and validate input.** Your [Zod](https://zod.dev) schema already validates input; pipes handle extra work such as trimming strings or coercing types. See [Pipes](/docs/sdk/pipes).
+
+**Exception filters handle errors.** They catch anything thrown during the call and turn it into a consistent error response. See [Error Handling](/docs/sdk/error-handling).
+
+## Attaching stages to a tool
+
+Each stage is a class you attach with a decorator. They stack, and you only add the ones you need:
+
+```typescript
+import { ToolDecorator as Tool, UseGuards, UseMiddleware, ExecutionContext, z } from '@nitrostack/core';
+import { AdminGuard } from './admin.guard.js';
+import { LoggingMiddleware } from './logging.middleware.js';
+
+export class AdminTools {
+  @Tool({
+    name: 'delete_product',
+    description: 'Remove a product from the catalog',
+    inputSchema: z.object({ id: z.string() }),
+  })
+  @UseGuards(AdminGuard)
+  @UseMiddleware(LoggingMiddleware)
+  async deleteProduct(input: { id: string }, ctx: ExecutionContext) {
+    ctx.logger.info('Deleting product', { id: input.id, by: ctx.auth?.subject });
+    return { deleted: input.id };
+  }
+}
+```
+
+A guard is a class with a `canActivate` method:
+
+```typescript title="admin.guard.ts"
+import { Guard, ExecutionContext, Injectable } from '@nitrostack/core';
+
+@Injectable()
+export class AdminGuard implements Guard {
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
+    return ctx.auth?.scopes?.includes('admin') ?? false;
+  }
+}
+```
+
+## The execution context
+
+Every stage and every handler receives the same `ExecutionContext` for the call. It carries a `logger`, a `requestId` for tracing, the `toolName`, and `auth`, which guards fill in once a caller is identified. Reading `ctx.auth` in your handler is how you know who is calling. The full shape is in [Server Concepts](/docs/getting-started/core-concepts/execution-context).
+
+## Go deeper
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Authentication" href="/docs/sdk/auth/overview" description="Built-in API key, JWT, and OAuth 2.1 support." />
+  <Card icon={<Route />} title="Middleware" href="/docs/sdk/middleware" description="Patterns for logging, metrics, and error handling." />
+  <Card icon={<Sparkles />} title="Interceptors" href="/docs/sdk/interceptors" description="Reshape, mask, and cache responses." />
+  <Card icon={<Funnel />} title="Pipes" href="/docs/sdk/pipes" description="Transform and validate input." />
+</Cards>

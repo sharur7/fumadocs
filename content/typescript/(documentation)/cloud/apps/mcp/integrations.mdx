@@ -1,0 +1,20 @@
+---
+title: "Integrations"
+description: "See whether this server deploys on push"
+---
+
+import { GitBranch, Rocket } from 'lucide-react';
+
+**Integrations** in the MCP menu shows whether this server can deploy on push. **Connection status** tells you whether the GitHub App is installed for your organization and whether auto-deploy is set up for this app.
+
+<Screenshot src="/images/cloud/mcp-integrations.png" alt="The app Integrations page showing that the GitHub App is installed and auto-deploy is not configured" />
+
+- **Deploy settings** opens [Deployments](/docs/cloud/apps/mcp/deployments), where you link a repository to turn on auto-deploy.
+- **Organization integrations** opens [Integrations](/docs/cloud/integrations), where you install or manage the GitHub App.
+
+## Next steps
+
+<Cards>
+  <Card icon={<GitBranch />} title="Organization integrations" href="/docs/cloud/integrations" description="Install the GitHub App." />
+  <Card icon={<Rocket />} title="Deployments" href="/docs/cloud/apps/mcp/deployments" description="Link a repository." />
+</Cards>

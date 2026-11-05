@@ -1,0 +1,274 @@
+---
+title: "Middleware, Caching, and Errors"
+description: "Wrap tools with middleware, cache and rate-limit them, inject services, and handle errors"
+---
+
+import { DatabaseZap, Route, ShieldAlert } from 'lucide-react';
+
+Tools run inside NitroStack's [request pipeline](/docs/getting-started/core-concepts/request-lifecycle), so the same decorators that add logging, caching, and rate limits to one tool work on any other.
+
+## The request pipeline
+
+Attach pipeline classes to a tool with decorators. They run in a fixed order: guards, middleware, interceptors, pipes, then the handler.
+
+### Guards
+
+Guards control access to tools based on authentication or authorization:
+
+```typescript
+import { UseGuards } from '@nitrostack/core';
+import { JWTGuard } from './guards/jwt.guard.js';
+import { RoleGuard } from './guards/role.guard.js';
+
+// Single guard
+@Tool({ name: 'get_profile' })
+@UseGuards(JWTGuard)
+async getProfile(input: {}, ctx: ExecutionContext) {
+  return this.userService.findById(ctx.auth!.subject);
+}
+
+// Multiple guards (all must pass)
+@Tool({ name: 'delete_user' })
+@UseGuards(JWTGuard, RoleGuard('admin'))
+async deleteUser(input: { userId: string }, ctx: ExecutionContext) {
+  return this.userService.delete(input.userId);
+}
+```
+
+### Middleware
+
+Middleware executes before and after the tool handler:
+
+```typescript
+import { UseMiddleware } from '@nitrostack/core';
+import { LoggingMiddleware } from './middleware/logging.middleware.js';
+import { TimingMiddleware } from './middleware/timing.middleware.js';
+
+@Tool({ name: 'expensive_operation' })
+@UseMiddleware(LoggingMiddleware, TimingMiddleware)
+async expensiveOperation(input: OperationInput, ctx: ExecutionContext) {
+  // Middleware executes in order: Logging -> Timing -> Handler -> Timing -> Logging
+  return this.computeService.process(input);
+}
+```
+
+### Interceptors
+
+Interceptors transform responses or add cross-cutting behavior:
+
+```typescript
+import { UseInterceptors } from '@nitrostack/core';
+import { TransformInterceptor } from './interceptors/transform.interceptor.js';
+
+@Tool({ name: 'get_data' })
+@UseInterceptors(TransformInterceptor)
+async getData(input: { id: string }, ctx: ExecutionContext) {
+  return { value: 42 };
+  // Interceptor transforms to: { success: true, data: { value: 42 }, timestamp: '...' }
+}
+```
+
+### Pipes
+
+Pipes validate and transform input before handler execution:
+
+```typescript
+import { UsePipes } from '@nitrostack/core';
+import { TrimPipe } from './pipes/trim.pipe.js';
+import { ValidationPipe } from './pipes/validation.pipe.js';
+
+@Tool({ name: 'search' })
+@UsePipes(TrimPipe, ValidationPipe)
+async search(input: { query: string }, ctx: ExecutionContext) {
+  // Input strings are trimmed and validated
+  return this.searchService.query(input.query);
+}
+```
+
+### Exception Filters
+
+Exception filters handle errors and transform error responses:
+
+```typescript
+import { UseFilters } from '@nitrostack/core';
+import { HttpExceptionFilter } from './filters/http-exception.filter.js';
+
+@Tool({ name: 'risky_operation' })
+@UseFilters(HttpExceptionFilter)
+async riskyOperation(input: RiskyInput, ctx: ExecutionContext) {
+  // Errors are caught and transformed by the filter
+  return this.riskyService.execute(input);
+}
+```
+
+## Caching and rate limiting
+
+Two decorators control how often a tool's handler actually runs: `@Cache` reuses a recent result, and `@RateLimit` caps how often a caller can invoke the tool.
+
+### Response Caching
+
+Cache tool responses to improve performance:
+
+```typescript
+import { Cache } from '@nitrostack/core';
+
+@Tool({ name: 'get_product' })
+@Cache({
+  ttl: 300,  // Cache for 5 minutes
+  key: (input) => `product:${input.productId}`  // Custom cache key
+})
+async getProduct(input: { productId: string }, ctx: ExecutionContext) {
+  return this.productService.findById(input.productId);
+}
+
+// Cache with event-based invalidation
+@Tool({ name: 'get_user_profile' })
+@Cache({
+  ttl: 600,
+  key: (input) => `user:${input.userId}:profile`,
+  invalidateOn: ['user.updated', 'user.deleted']
+})
+async getUserProfile(input: { userId: string }, ctx: ExecutionContext) {
+  return this.userService.getProfile(input.userId);
+}
+```
+
+### Rate Limiting
+
+Protect tools from abuse with rate limiting:
+
+```typescript
+import { RateLimit } from '@nitrostack/core';
+
+@Tool({ name: 'send_email' })
+@RateLimit({
+  requests: 10,
+  window: '1m',  // 10 requests per minute
+  key: (ctx) => ctx.auth?.subject || 'anonymous',  // Per-user limiting
+  message: 'Email rate limit exceeded. Please wait before sending more emails.'
+})
+async sendEmail(input: EmailInput, ctx: ExecutionContext) {
+  return this.emailService.send(input);
+}
+
+// Multiple rate limits
+@Tool({ name: 'api_call' })
+@RateLimit({ requests: 100, window: '1m' })   // Burst limit
+@RateLimit({ requests: 1000, window: '1h' })  // Hourly limit
+@RateLimit({ requests: 10000, window: '1d' }) // Daily limit
+async apiCall(input: ApiInput, ctx: ExecutionContext) {
+  return this.apiService.call(input);
+}
+```
+
+## Dependency injection
+
+Inject services into tool classes:
+
+```typescript
+import { Injectable } from '@nitrostack/core';
+
+@Injectable()
+export class ProductService {
+  constructor(
+    private db: DatabaseService,
+    private cache: CacheService
+  ) {}
+
+  async findById(id: string): Promise<Product | null> {
+    const cached = await this.cache.get(`product:${id}`);
+    if (cached) return cached;
+
+    const product = await this.db.query(
+      'SELECT * FROM products WHERE id = $1',
+      [id]
+    );
+
+    if (product) {
+      await this.cache.set(`product:${id}`, product, 300);
+    }
+
+    return product;
+  }
+}
+
+export class ProductTools {
+  constructor(private productService: ProductService) {}
+
+  @Tool({ name: 'get_product' })
+  async getProduct(input: { productId: string }, ctx: ExecutionContext) {
+    const product = await this.productService.findById(input.productId);
+    if (!product) {
+      throw new Error(`Product not found: ${input.productId}`);
+    }
+    return product;
+  }
+}
+```
+
+## Error handling
+
+A tool reports failure by throwing. NitroStack turns the error into an MCP error result, after passing it through any [exception filters](/docs/api-reference/filters) attached to the tool.
+
+### Standard Errors
+
+Throwing a plain `Error` is enough for most failures. The message is what the model reads, so make it say what went wrong.
+
+```typescript
+@Tool({ name: 'get_user' })
+async getUser(input: { userId: string }, ctx: ExecutionContext) {
+  const user = await this.userService.findById(input.userId);
+
+  if (!user) {
+    throw new Error(`User not found: ${input.userId}`);
+  }
+
+  return user;
+}
+```
+
+### Custom Error Classes
+
+Custom error classes carry extra fields, such as which input was invalid, that an exception filter can turn into a structured response.
+
+```typescript
+export class NotFoundError extends Error {
+  constructor(resource: string, id: string) {
+    super(`${resource} not found: ${id}`);
+    this.name = 'NotFoundError';
+  }
+}
+
+export class ValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly field: string,
+    public readonly value: unknown
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+@Tool({ name: 'update_user' })
+async updateUser(input: UpdateUserInput, ctx: ExecutionContext) {
+  const user = await this.userService.findById(input.userId);
+  if (!user) {
+    throw new NotFoundError('User', input.userId);
+  }
+
+  if (input.email && !this.isValidEmail(input.email)) {
+    throw new ValidationError('Invalid email format', 'email', input.email);
+  }
+
+  return this.userService.update(input.userId, input);
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Route />} title="Middleware" href="/docs/sdk/middleware" description="Write your own middleware." />
+  <Card icon={<DatabaseZap />} title="Caching" href="/docs/sdk/caching" description="Cache results." />
+  <Card icon={<ShieldAlert />} title="Error handling" href="/docs/sdk/error-handling" description="Errors and exception filters." />
+</Cards>

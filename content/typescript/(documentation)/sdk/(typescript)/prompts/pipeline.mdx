@@ -1,0 +1,121 @@
+---
+title: "Pipeline and Services"
+description: "Protect prompts and inject services into them"
+---
+
+import { ShieldCheck, Syringe } from 'lucide-react';
+
+Prompts run through the same [request pipeline](/docs/getting-started/core-concepts/request-lifecycle) as tools and resources.
+
+## Guards and middleware
+
+Prompts accept the same pipeline decorators as tools.
+
+### Protected Prompts with Guards
+
+`@UseGuards` checks the caller before the prompt's messages are built. Here the guard identifies the user, and the handler uses that identity to load the report.
+
+```typescript
+import { UseGuards } from '@nitrostack/core';
+import { JWTGuard } from './guards/jwt.guard.js';
+
+@Prompt({
+  name: 'confidential_analysis',
+  description: 'Generate analysis for confidential business data'
+})
+@UseGuards(JWTGuard)
+async getConfidentialPrompt(args: { report_id: string }, ctx: ExecutionContext) {
+  const userId = ctx.auth?.subject;
+  ctx.logger.info('Confidential prompt accessed', { userId, reportId: args.report_id });
+
+  const report = await this.reportService.getConfidential(args.report_id, userId);
+
+  return [
+    {
+      role: 'user' as const,
+      content: {
+        type: 'text' as const,
+        text: `Analyze this confidential report:\n\n${JSON.stringify(report, null, 2)}`
+      }
+    }
+  ];
+}
+```
+
+## Dependency injection
+
+Inject services into the class that holds your prompts, and use them to build messages.
+
+### Injecting Services
+
+These two services provide the data and insights a reporting prompt needs.
+
+```typescript
+import { Injectable } from '@nitrostack/core';
+
+@Injectable()
+export class MetricsService {
+  async getPerformanceMetrics(period: string): Promise<PerformanceMetrics> {
+    // Load metrics from database
+  }
+}
+
+@Injectable()
+export class InsightService {
+  async generateInsights(data: unknown): Promise<string[]> {
+    // Generate AI-powered insights
+  }
+}
+
+export class AnalyticsPrompts {
+  constructor(
+    private metricsService: MetricsService,
+    private insightService: InsightService
+  ) {}
+
+  @Prompt({
+    name: 'performance_review',
+    description: 'Generate performance review analysis prompt',
+    arguments: [
+      { name: 'period', required: true, description: 'Review period' },
+      { name: 'department', required: false, description: 'Department filter' }
+    ]
+  })
+  async getPerformancePrompt(
+    args: { period: string; department?: string },
+    ctx: ExecutionContext
+  ) {
+    const metrics = await this.metricsService.getPerformanceMetrics(args.period);
+    const preliminaryInsights = await this.insightService.generateInsights(metrics);
+
+    return [
+      {
+        role: 'user' as const,
+        content: {
+          type: 'text' as const,
+          text: `Review performance metrics for ${args.period}${args.department ? ` (${args.department})` : ''}:
+
+Metrics:
+${JSON.stringify(metrics, null, 2)}
+
+Preliminary Insights:
+${preliminaryInsights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
+
+Please provide:
+1. Executive summary
+2. Key achievements
+3. Areas for improvement
+4. Recommendations for next period`
+        }
+      }
+    ];
+  }
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Guards" href="/docs/sdk/guards" description="Protect prompts." />
+  <Card icon={<Syringe />} title="Dependency injection" href="/docs/sdk/dependency-injection" description="Inject services." />
+</Cards>

@@ -1,0 +1,65 @@
+---
+title: "Resources"
+description: "Expose data that clients and models can read"
+---
+
+import { Braces, Monitor } from 'lucide-react';
+
+Resources are data your server makes available to read: files, records, configuration, or a widget's HTML. Where a tool performs an action, a resource is addressed by a URI and reading it never changes anything. A client reads resources to give the model context.
+
+## Basic Resource Definition
+
+Resources are defined using the `@Resource` decorator on class methods:
+
+```typescript
+import { ResourceDecorator as Resource, ExecutionContext } from '@nitrostack/core';
+
+export class ProductResources {
+  constructor(private productService: ProductService) {}
+
+  @Resource({
+    uri: 'product://{id}',
+    name: 'Product Details',
+    description: 'Retrieve detailed product information including pricing and inventory',
+    mimeType: 'application/json'
+  })
+  async getProduct(uri: string, context: ExecutionContext) {
+    const id = this.extractId(uri, 'product://');
+    const product = await this.productService.findById(id);
+
+    if (!product) {
+      throw new Error(`Product not found: ${id}`);
+    }
+
+    return {
+      contents: [{
+        uri,
+        mimeType: 'application/json',
+        text: JSON.stringify(product, null, 2)
+      }]
+    };
+  }
+
+  private extractId(uri: string, prefix: string): string {
+    return uri.replace(prefix, '');
+  }
+}
+```
+
+## Resource topics
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="code" />} title="Options and Annotations" href="/docs/sdk/resources/options" description="Every @Resource option, and annotations." />
+  <Card className="nx-card-illo" icon={<Illustration name="route" />} title="URI Templates" href="/docs/sdk/resources/uri-templates" description="One handler for a whole family of URIs." />
+  <Card className="nx-card-illo" icon={<Illustration name="pulse" />} title="Subscriptions" href="/docs/sdk/resources/subscriptions" description="Notify clients when a resource changes." />
+  <Card className="nx-card-illo" icon={<Illustration name="book" />} title="Responses and MIME Types" href="/docs/sdk/resources/responses" description="Text and binary content, and MIME types." />
+  <Card className="nx-card-illo" icon={<Illustration name="shield" />} title="Pipeline and Services" href="/docs/sdk/resources/pipeline" description="Guards, caching, widgets, and injected services." />
+  <Card className="nx-card-illo" icon={<Illustration name="sparkle" />} title="Dynamic Registration" href="/docs/sdk/resources/dynamic" description="Register resources at runtime." />
+</Cards>
+
+## Related
+
+<Cards>
+  <Card icon={<Braces />} title="Decorator reference" href="/docs/api-reference/decorators/mcp-primitives" description="Every @Resource option." />
+  <Card icon={<Monitor />} title="Read resources in Studio" href="/docs/studio/resources" description="Browse and read every resource." />
+</Cards>

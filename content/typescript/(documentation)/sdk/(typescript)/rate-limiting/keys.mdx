@@ -1,0 +1,75 @@
+---
+title: "Rate Limit Keys"
+description: "Choose which caller each call counts against"
+---
+
+import { ShieldCheck, Layers } from 'lucide-react';
+
+A rate limit counts calls per key. Every call with the same key shares one counter, so the key decides what "a caller" means: one user, one API key, one organization, or everyone together.
+
+## The default key
+
+Without a `key` option, NitroStack uses `ctx.auth.subject`, the identity a [guard](/docs/sdk/guards) sets after it authenticates the caller. Calls with no authenticated caller all share one counter under the key `anonymous`.
+
+```typescript
+@Tool({ name: 'create_post', description: 'Create a post' })
+@UseGuards(JWTGuard)                          // sets ctx.auth.subject
+@RateLimit({ requests: 50, window: '1h' })    // 50 posts per hour, per user
+async createPost(input: PostInput, ctx: ExecutionContext) {
+  return this.posts.create(ctx.auth!.subject!, input);
+}
+```
+
+<Callout type="warn" title="Unauthenticated tools share one limit">
+
+On a tool without a guard, every caller counts against `anonymous`, so one busy client can use up the limit for everyone. Add a guard, or a `key` that identifies callers some other way.
+
+</Callout>
+
+## Per API key
+
+When callers authenticate with an [API key](/docs/sdk/auth/api-key), you can give each key its own quota. If your API key guard records which key was used, for example as `ctx.auth.keyId`, count calls against it:
+
+```typescript
+@Tool({ name: 'api_call', description: 'Call the partner API' })
+@UseGuards(ApiKeyGuard)
+@RateLimit({
+  requests: 1000,
+  window: '1h',
+  key: (ctx) => String(ctx.auth?.keyId ?? 'unknown'),
+})
+async apiCall(input: ApiInput, ctx: ExecutionContext) {
+  return this.partner.call(input);
+}
+```
+
+## Custom keys
+
+The `key` function receives the [execution context](/docs/getting-started/core-concepts/execution-context) and can combine anything in it. This one gives each organization a shared quota, read from a claim the guard added:
+
+```typescript
+@RateLimit({
+  requests: 500,
+  window: '1h',
+  key: (ctx) => String(ctx.auth?.org ?? 'no-org'),
+})
+```
+
+Counters are always kept per tool, so the same key used on two tools still gives each tool its own counter.
+
+## Reset a counter
+
+`resetRateLimit()` clears one counter in the default in-memory storage. Pass the full key, which is the class name, the method name, and your key joined with colons:
+
+```typescript
+import { resetRateLimit } from '@nitrostack/core';
+
+await resetRateLimit('EmailTools:sendEmail:user-123');
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Layers />} title="Stacked limits" href="/docs/sdk/rate-limiting/patterns" description="Several windows on one tool." />
+  <Card icon={<ShieldCheck />} title="Guards" href="/docs/sdk/guards" description="Set ctx.auth so limits apply per user." />
+</Cards>

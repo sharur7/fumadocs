@@ -1,0 +1,26 @@
+---
+title: "Filters API"
+description: "use_filters and ExceptionFilter protocol"
+---
+
+Protocol: `async def catch(self, error: Exception, context: ExecutionContext) -> Any`.
+
+```python
+from nitrostack import use_filters, injectable, ExecutionContext
+
+@injectable()
+class HttpExceptionFilter:
+    async def catch(self, error: Exception, context: ExecutionContext):
+        context.logger.error(f"{type(error).__name__}: {error}")
+        return {
+            "error": type(error).__name__,
+            "message": str(error),
+            "tool": context.tool_name,
+        }
+
+@use_filters(HttpExceptionFilter)
+async def handler(...):
+    ...
+```
+
+Scaffold: `nitrostack-py generate filter HttpException`. See [Error Handling](/python/sdk/error-handling).

@@ -1,0 +1,56 @@
+---
+title: "Health Checks"
+description: "Report whether a dependency is working with @health_check and the health://status resource"
+---
+
+import { Settings, Server } from 'lucide-react';
+
+A health check is a small method that answers one question: is this dependency working? You write one for the things your server can't run without, such as a database or an upstream API, and NitroStack collects the answers in one place.
+
+## Define a health check
+
+Mark a method with `@health_check` and give the check a name. The method returns `True` when things are fine and `False` when they aren't. It can be sync or async.
+
+```python title="health/system_health.py"
+import time
+from nitrostack import health_check
+
+class SystemHealthCheck:
+    def __init__(self):
+        self.start_time = time.time()
+
+    @health_check("system")
+    def check_system(self) -> bool:
+        return time.time() - self.start_time >= 0
+```
+
+Register the class as a provider so NitroStack can find its checks:
+
+```python title="app_module.py"
+@module(name="app", providers=[SystemHealthCheck])
+class AppModule:
+    pass
+```
+
+## Read the results
+
+Every registered check runs when a client reads the `health://status` resource. The result is a JSON object with one entry per check:
+
+```json
+{ "system": "healthy" }
+```
+
+A check that returns `False` reports `"unhealthy"`, and a check that raises an error reports `"error: <message>"`.
+
+You can read it from [NitroStudio](/docs/studio/health) or from any MCP client.
+
+## The /mcp/health endpoint
+
+Over HTTP, the server also serves `/mcp/health`. It tells a load balancer or an orchestrator that the server is up, and reports the transport and protocol version. It doesn't run your health checks; use `health://status` for those.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Settings />} title="Configuration" href="/python/sdk/configuration" description="Read settings from the environment." />
+  <Card icon={<Server />} title="Docker" href="/python/deployment/docker" description="Run the server in a container." />
+</Cards>

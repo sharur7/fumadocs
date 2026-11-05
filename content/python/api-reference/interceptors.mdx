@@ -1,0 +1,16 @@
+---
+title: "Interceptors API"
+description: "use_interceptors protocol"
+---
+
+Protocol: `async def intercept(self, context: ExecutionContext, next_fn)`.
+
+```python
+from nitrostack import use_interceptors
+
+@use_interceptors(TimingInterceptor)
+async def handler(...):
+    ...
+```
+
+Scaffold: `nitrostack-py generate interceptor Transform`. See [Interceptors](/python/sdk/interceptors).

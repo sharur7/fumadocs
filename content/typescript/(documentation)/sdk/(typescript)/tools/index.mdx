@@ -1,0 +1,67 @@
+---
+title: "Tools"
+description: "Expose actions an AI model can call, with validated input"
+---
+
+import { Braces, Monitor } from 'lucide-react';
+
+Tools are how an AI model acts through your server. A tool is a method on a class, marked with `@Tool`: the model sees its name, its description, and its input schema, decides when to call it, and gets back whatever the method returns. NitroStack validates the input before your method runs, so handlers stay small.
+
+## Basic Tool Definition
+
+Tools are defined using the `@Tool` decorator on class methods:
+
+```typescript
+import { ToolDecorator as Tool, z, ExecutionContext } from '@nitrostack/core';
+
+export class WeatherTools {
+  @Tool({
+    name: 'get_weather',
+    description: 'Retrieve current weather conditions for a specified location',
+    inputSchema: z.object({
+      city: z.string().describe('City name (e.g., "San Francisco")'),
+      units: z.enum(['celsius', 'fahrenheit']).optional().default('celsius')
+        .describe('Temperature unit preference')
+    })
+  })
+  async getWeather(
+    input: { city: string; units?: 'celsius' | 'fahrenheit' },
+    context: ExecutionContext
+  ) {
+    context.logger.info('Fetching weather data', { city: input.city });
+
+    const weather = await this.weatherService.getCurrentConditions(input.city);
+
+    return {
+      city: input.city,
+      temperature: input.units === 'fahrenheit'
+        ? this.toFahrenheit(weather.tempCelsius)
+        : weather.tempCelsius,
+      units: input.units ?? 'celsius',
+      conditions: weather.conditions,
+      humidity: weather.humidity,
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+```
+
+## Tool topics
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="layers" />} title="Controllers and Initial Tools" href="/docs/sdk/tools/controllers" description="Prefix related tools, and run a tool when a client connects." />
+  <Card className="nx-card-illo" icon={<Illustration name="code" />} title="Options and Annotations" href="/docs/sdk/tools/options" description="Every @Tool option, and behavior hints for clients." />
+  <Card className="nx-card-illo" icon={<Illustration name="funnel" />} title="Input and Output" href="/docs/sdk/tools/input-and-output" description="Zod input schemas, output schemas, and resource links." />
+  <Card className="nx-card-illo" icon={<Illustration name="plug" />} title="Execution Context in Tools" href="/docs/sdk/tools/execution-context" description="Logging, caller identity, and cancellation in a handler." />
+  <Card className="nx-card-illo" icon={<Illustration name="flow" />} title="Ask the User for Input" href="/docs/sdk/tools/user-input" description="Pause a tool for confirmation with multi round-trip requests." />
+  <Card className="nx-card-illo" icon={<Illustration name="route" />} title="Middleware, Caching, and Errors" href="/docs/sdk/tools/pipeline" description="Middleware, caching, rate limits, services, and errors." />
+  <Card className="nx-card-illo" icon={<Illustration name="widget" />} title="Tool Widgets" href="/docs/sdk/tools/widgets" description="Render a React widget with the tool result." />
+  <Card className="nx-card-illo" icon={<Illustration name="sparkle" />} title="Dynamic Registration" href="/docs/sdk/tools/dynamic" description="Register tools at runtime." />
+</Cards>
+
+## Related
+
+<Cards>
+  <Card icon={<Braces />} title="Decorator reference" href="/docs/api-reference/decorators/mcp-primitives" description="Every @Tool option." />
+  <Card icon={<Monitor />} title="Try tools in Studio" href="/docs/studio/tools" description="Run any tool from a generated form." />
+</Cards>

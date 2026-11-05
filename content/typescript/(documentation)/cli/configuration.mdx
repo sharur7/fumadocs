@@ -1,0 +1,168 @@
+---
+title: "Configuration"
+description: "CLI and project configuration options"
+icon: Settings
+---
+
+import { Package, Play, Plug, Settings } from 'lucide-react';
+
+NitroStack uses a zero-config-file approach for tooling, paired with declarative TypeScript modules and standard `.env` environment variables for application runtime settings.
+
+There is no proprietary configuration file (such as `nitrostack.config.ts`). Everything is configured via:
+1. **CLI Flags**: For development ports, build targets, and scaffolding options.
+2. **`package.json`**: For project scripts, dependencies, and agent skills tracking.
+3. **Environment Variables (`.env`)**: For application secrets, server ports, and third-party credentials.
+4. **`ConfigModule`**: For type-safe in-code configuration management in `@nitrostack/core`.
+
+## CLI Configuration
+
+CLI commands accept command-line options directly:
+
+```bash
+# Set production server port
+nitrostack-cli start --port 3000
+
+# Custom build output directory
+nitrostack-cli build --output dist
+
+# Cursor integration options
+nitrostack-cli cursor --type streamable-http --url http://localhost:3000/mcp
+
+# Packaging options
+nitrostack-cli pack --include-env --output release.zip
+```
+
+## Environment Variables (`.env`)
+
+NitroStack applications read runtime configuration from `.env` files in the project root:
+
+```bash
+# Server Port (default: 3000)
+PORT=3000
+
+# MCP Protocol Era ('auto' | '2026-07-28' | 'legacy')
+NITRO_MCP_PROTOCOL_VERSION=auto
+
+# Application Mode ('universal' | 'openai' | 'mcp-app')
+# Default: 'universal' (concurrently serves Claude Desktop via MCP Apps and ChatGPT via OpenAI Apps SDK)
+APP_MODE=universal
+NITROSTACK_APP_MODE=universal
+
+# Logging Level ('debug' | 'info' | 'warn' | 'error')
+LOG_LEVEL=info
+
+# OAuth 2.1 Configuration (for typescript-oauth template)
+RESOURCE_URI=http://localhost:3000
+AUTH_SERVER_URL=https://auth.example.com
+OAUTH_REQUIRED=false
+JWKS_URI=https://auth.example.com/.well-known/jwks.json
+
+# API Key Authentication (for ApiKeyModule)
+API_KEY_1=<YOUR_API_KEY>
+API_KEY_2=<TEST_API_KEY>
+
+# External Service Credentials
+DUFFEL_API_KEY=duffel_test_xyz
+MAPBOX_ACCESS_TOKEN=pk.eyJ1...
+```
+
+### Application Mode (`APP_MODE`)
+
+NitroStack allows you to dynamically control widget protocol conventions for different AI host environments:
+
+| Mode | Target Hosts | Tool `_meta` | Widget Resource MIME |
+|:---|:---|:---|:---|
+| `universal` (default) | Claude Desktop & ChatGPT | Dual keys (`openai/outputTemplate` + `_meta.ui`) | `text/html;profile=mcp-app` |
+| `openai` | OpenAI ChatGPT | `openai/outputTemplate`, `ui/template` | `text/html` |
+| `mcp-app` | Claude Desktop / MCP Hosts | `_meta.ui` (`resourceUri`, `visibility`, CSP) | `text/html;profile=mcp-app` |
+
+Utilities exported from `@nitrostack/core`:
+- `getAppMode()`: Returns the active mode parsed from `APP_MODE` or `NITROSTACK_APP_MODE`.
+- `isOpenAiMode()`: Returns `true` if mode is `openai` or `universal`.
+- `isMcpAppMode()`: Returns `true` if mode is `mcp-app` or `universal`.
+- `getWidgetMimeType()`: Returns the resolved MIME type string for widget HTTP handlers.
+
+## Type-Safe In-Code Configuration (`ConfigModule`)
+
+For structured, validated access to environment variables within your services and tools, use `ConfigModule.forRoot()` and inject `ConfigService`. See [SDK Configuration](/docs/sdk/configuration) for the full `ConfigModule` and `ConfigService` reference.
+
+## Project Metadata (`package.json`)
+
+Project scripts and skills metadata are maintained in `package.json`:
+
+```json
+{
+  "name": "my-mcp-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "nitrostack-cli dev",
+    "build": "nitrostack-cli build",
+    "start": "nitrostack-cli start",
+    "upgrade": "nitrostack-cli upgrade",
+    "install:all": "nitrostack-cli install"
+  },
+  "dependencies": {
+    "@nitrostack/core": "^1.0.16"
+  },
+  "nitrostack": {
+    "skillsVersion": "1.0.0"
+  }
+}
+```
+
+## Python configuration
+
+A Python project has no `nitro.yaml` either. It is configured with a `.env` file, the process environment, and `ServerConfig`. For type-safe access in code, use `ConfigModule.for_root(env_file_path=".env", defaults={...})` and read values with `ConfigService.get` or `get_or_throw`; see [Python Configuration](/python/sdk/configuration).
+
+### Ports
+
+`--port` and `--widget` on `init`, `dev`, and `start` set the MCP and widget ports. If you don't pass them, the CLI uses `PORT` or `MCP_SERVER_PORT`, and `WIDGETS_DEV_PORT`, from the environment, then the project's `.env`, and finally the defaults, 3000 and 3001.
+
+### Environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `HOST` | Bind address (default `127.0.0.1`). Use `0.0.0.0` in containers. |
+| `PORT` / `MCP_SERVER_PORT` | HTTP port (default 3000). Overridden by `--port`. |
+| `WIDGETS_DEV_PORT` | Widget port (default 3001). Overridden by `--widget`. |
+| `MCP_TRANSPORT_TYPE` | `stdio`, `http`, or `dual` |
+| `NODE_ENV` | `production` makes the transport default to `dual` unless overridden |
+| `MCP_STATELESS` | `true` forces modern, stateless HTTP; `false` forces sessions |
+| `NITRO_MCP_PROTOCOL_VERSION` | Protocol era (`auto`, `modern`, `legacy`, and so on) |
+| `MCP_MAX_SESSIONS` | Concurrent Streamable HTTP sessions; extra sessions get HTTP 429 |
+| `MCP_SESSION_TIMEOUT_MS` | Idle timeout for stateful HTTP sessions |
+| `MCP_GRACEFUL_SHUTDOWN_TIMEOUT_MS` | How long in-flight requests may finish on shutdown (default 10000) |
+| `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | DNS-rebinding allow-lists when CORS is off |
+| `TRUSTED_PROXIES` / `MCP_TRUSTED_PROXIES` | Who may send `X-Forwarded-Host` and `X-Forwarded-Proto` |
+| `NITROSTACK_APP_MODE` | Widget mode: `universal`, `openai`, or `mcp-app` |
+| `NITROSTACK_LOG_FILE` / `NITROSTACK_LOG_LEVEL` / `NITROSTACK_LOG_TO_STDOUT` | Logging |
+| `NITROSTACK_HTTP_DEBUG` | `1` logs every HTTP request to stderr |
+| `OAUTH_REQUIRED` | When unset, `OAuthGuard` may allow calls with no token |
+| `API_KEY` / `API_KEY_*` | API key authentication |
+| `JWT_SECRET` | Secret for HS256 JWTs |
+
+### ServerConfig
+
+The same settings can be made in code with `ServerConfig`. `ServerConfig.protocol_era` is used only when `MCP_STATELESS` and `NITRO_MCP_PROTOCOL_VERSION` are both unset.
+
+```python
+from nitrostack import ServerConfig
+
+server = ServerConfig(
+    name="my-server",
+    version="1.0.0",
+    transport_type="http",
+    max_sessions=100,
+    session_timeout_ms=1_800_000,
+)
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Settings />} title="SDK Configuration Guide" href="/docs/sdk/configuration" description="Full ConfigModule and ConfigService reference." />
+  <Card icon={<Play />} title="Dev Command" href="/docs/cli/dev" description="Starting the development server." />
+  <Card icon={<Package />} title="Build Command" href="/docs/cli/build-and-ship#build" description="Compiling for production." />
+  <Card icon={<Plug />} title="Connect Cursor" href="/docs/guides/connect-to-clients#cursor" description="Configuring Cursor MCP connections." />
+</Cards>

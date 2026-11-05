@@ -1,0 +1,165 @@
+---
+title: "Dual transport: STDIO and HTTP"
+description: "Serve local and remote clients from one server process"
+---
+
+import { ArrowLeftRight, Container, KeyRound, ShieldCheck, Activity } from 'lucide-react';
+
+In dual mode, one NitroStack server listens on two [transports](/docs/getting-started/core-concepts/transports) at once. A local client, such as Claude Desktop or NitroStudio, starts the server and talks to it over STDIO. Remote clients, any number of them, reach the same process over HTTP. Your tools, resources, and prompts are registered once and served on both.
+
+## How it works
+
+<DualTransportDiagram />
+
+STDIO carries JSON-RPC messages over the process's standard input and output. Only the program that started the server can use it, so there is no network exposure and nothing to authenticate.
+
+HTTP serves the MCP endpoint at `/mcp` using [Streamable HTTP](/docs/guides/streamable-http). Older clients that only speak Server-Sent Events use `/sse` and `/mcp/messages` instead. The HTTP server also answers `GET /mcp/health` with its status, which load balancers and container platforms use to know the server is ready. Outside development mode, the server root `/` serves a small page that lists your tools and the MCP endpoint URL.
+
+## When dual mode is on
+
+You usually don't turn dual mode on yourself. The server picks its transport when it starts, in this order:
+
+1. The `transport` option passed to `server.start()`.
+2. The `MCP_TRANSPORT_TYPE` environment variable: `stdio`, `http`, or `dual`.
+3. The transport configured in `@McpApp`.
+4. Otherwise `NODE_ENV`: STDIO when it's `development` or unset, dual when it's `production`.
+
+`npm run dev` runs in development mode, so it uses STDIO. `npm start` runs `nitrostack-cli start`, which sets `NODE_ENV=production`, so it uses dual mode on port 3000.
+
+## Turn it on explicitly
+
+To choose the transport in code, pass options to `start()` in `src/index.ts`. Every option is optional; the values below are the defaults, except `transport` and `host`.
+
+```typescript title="src/index.ts"
+import 'dotenv/config';
+import { McpApplicationFactory } from '@nitrostack/core';
+import { AppModule } from './app.module.js';
+
+async function bootstrap() {
+  const server = await McpApplicationFactory.create(AppModule);
+
+  await server.start({
+    transport: 'dual',
+    port: Number(process.env.PORT ?? 3000),
+    host: '0.0.0.0',
+    endpoint: '/mcp',
+    enableCors: true,
+  });
+}
+
+bootstrap();
+```
+
+`host` defaults to `localhost`, which accepts connections from the same machine only. Use `0.0.0.0` when other machines, or a container's port mapping, need to reach the server.
+
+The same settings are available as environment variables, which is the better choice when the code shouldn't change between environments:
+
+| Variable | Default | Description |
+| :-- | :-- | :-- |
+| `MCP_TRANSPORT_TYPE` | from `NODE_ENV` | `stdio`, `http`, or `dual` |
+| `PORT` | `3000` | HTTP port |
+| `HOST` | `localhost` | Interface to listen on |
+| `ENABLE_CORS` | enabled | Set to `false` to turn off CORS headers |
+
+## HTTP endpoints
+
+The HTTP side of a dual server answers on these paths:
+
+| Method and path | Purpose |
+| :-- | :-- |
+| `POST /mcp` | MCP requests over Streamable HTTP |
+| `GET /mcp`, `DELETE /mcp` | Server-sent messages and session close, for clients that use sessions |
+| `GET /mcp/health` | Status, transport, protocol version, open sessions, and uptime |
+| `GET /sse`, `POST /mcp/messages` | Legacy SSE transport for older clients |
+| `GET /` | Tool list and endpoint URL, outside development mode |
+
+## Protocol versions
+
+The HTTP endpoint speaks two generations of the MCP protocol. The current revision, `2026-07-28`, is stateless: each request stands alone, and clients discover the server's capabilities with `server/discover`. The earlier revision uses sessions identified by an `Mcp-Session-Id` header. By default the server answers both, so old and new clients work side by side.
+
+To accept only one, set `NITRO_MCP_PROTOCOL_VERSION` to `2026-07-28` or `legacy`. Leave it unset, or set it to `auto`, to serve both.
+
+## OAuth 2.1
+
+When your app imports `OAuthModule`, the server always runs in dual mode and listens on `0.0.0.0`, because clients need to reach the OAuth metadata over HTTP. It publishes that metadata at `/.well-known/oauth-protected-resource`, and protects `/mcp`, `/sse`, and `/mcp/messages` with token checks.
+
+```typescript title="src/app.module.ts"
+@Module({
+  imports: [
+    OAuthModule.forRoot({
+      resourceUri: process.env.RESOURCE_URI,
+      authorizationServers: [process.env.AUTH_SERVER_URL],
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+See [OAuth 2.1](/docs/sdk/auth/oauth) for the full configuration.
+
+## Secure the HTTP side
+
+STDIO is reachable only by the process that started the server. HTTP is reachable by anyone who can reach the port, so treat it like any other web service.
+
+Serve it over HTTPS, either from a platform that terminates TLS for you, such as [NitroCloud](/docs/cloud/overview) or a cloud load balancer, or behind a reverse proxy. With nginx, pass `/mcp` through and turn off buffering so streamed responses arrive as they're sent:
+
+```nginx title="nginx.conf"
+server {
+  listen 443 ssl;
+  server_name mcp.example.com;
+
+  location /mcp {
+    proxy_pass http://localhost:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+  }
+}
+```
+
+Then require credentials on every call with [OAuth 2.1, JWT, or API keys](/docs/sdk/auth/overview), and limit how often a client can call expensive tools with [rate limiting](/docs/sdk/rate-limiting).
+
+## Python servers
+
+A Python NitroStack server supports the same three modes, chosen with `MCP_TRANSPORT_TYPE`. In dual mode the STDIO and HTTP transports run as asyncio tasks in one process and share the same dependency injection container. If either transport stops, whether STDIO reaches end of input or HTTP receives a stop signal, the other stops with it.
+
+| Value | Use |
+|-------|-----|
+| `stdio` | The default outside production. For Claude Desktop and Cursor. |
+| `http` | Streamable HTTP and legacy SSE. For cloud deployments and the MCP Inspector. |
+| `dual` | The default when `NODE_ENV=production`. STDIO and HTTP together. |
+
+The HTTP side answers on these paths:
+
+| Method and path | Purpose |
+| :-- | :-- |
+| `POST`, `GET`, `DELETE /mcp` | Streamable HTTP. `/mcp` and `/mcp/` are equivalent, but the Inspector wants no trailing slash for the SSE `GET`. |
+| `GET /sse`, `POST /mcp/messages/` | Legacy HTTP and SSE. The trailing slash is required. |
+| `GET /mcp/health` | Transport status. |
+
+To set the transport in code, put it in the server configuration:
+
+```python
+server = ServerConfig(name="my-server", transport_type="http", max_sessions=100)
+```
+
+## Troubleshooting
+
+**HTTP clients get connection refused.** The server is running over STDIO only. Check that `NODE_ENV=production` or `MCP_TRANSPORT_TYPE` is set, then confirm with `curl http://localhost:3000/mcp/health`.
+
+**It works on your machine but not from another one.** The server is listening on `localhost`. Set `HOST=0.0.0.0`.
+
+**The port is already in use.** Another process holds port 3000; find it with `lsof -i :3000`, or set `PORT` to a free port.
+
+**A browser client reports CORS errors.** CORS headers are on by default. Check that `ENABLE_CORS` isn't set to `false`, and that the client calls `/mcp` and not another path.
+
+## See also
+
+<Cards>
+  <Card icon={<ArrowLeftRight />} title="Streamable HTTP and SSE" href="/docs/guides/streamable-http" description="Request formats for each endpoint." />
+  <Card icon={<Activity />} title="Verify and debug transports" href="/docs/guides/verify-transport" description="Confirm which transport a client uses." />
+  <Card icon={<KeyRound />} title="OAuth 2.1" href="/docs/sdk/auth/oauth" description="Protect the HTTP endpoint with OAuth." />
+  <Card icon={<ShieldCheck />} title="Authentication" href="/docs/sdk/auth/overview" description="JWT, API keys, and OAuth compared." />
+  <Card icon={<Container />} title="Deploy with Docker" href="/docs/deployment/docker" description="Run the HTTP transport in a container." />
+</Cards>

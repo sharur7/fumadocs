@@ -1,0 +1,281 @@
+---
+title: "Execution Context"
+description: "The context object passed to every handler, in TypeScript and Python"
+icon: Braces
+---
+
+import { AtSign, ListTodo, Wrench } from 'lucide-react';
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+The `ExecutionContext` object is passed as the second argument to all MCP tool handlers, resources, prompts, middleware, interceptors, and exception filters. It provides contextual metadata for tracing, structured logging, authenticated user principals, session isolation keys, cancellation signals, long-running task progress, and progressive tool discovery controls.
+
+## Interface Definition
+
+The full shape of the context object, in both SDKs.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import {
+  Logger,
+  JsonValue,
+  AuthContext,
+  TaskContext
+} from '@nitrostack/core';
+
+export interface ExecutionContext {
+  /**
+   * Unique request identifier for distributed tracing and request correlation.
+   */
+  requestId: string;
+
+  /**
+   * Name of the tool currently being executed (if applicable).
+   */
+  toolName?: string;
+
+  /**
+   * Scoped logger instance for this request.
+   * Write logs through ctx.logger rather than console.log to avoid corrupting stdio MCP JSON-RPC streams.
+   */
+  logger: Logger;
+
+  /**
+   * Additional metadata passed from the transport or middleware pipeline.
+   */
+  metadata?: Record<string, JsonValue>;
+
+  /**
+   * Authentication context populated when using JWT, OAuth 2.1, or API Key guards.
+   */
+  auth?: AuthContext;
+
+  /**
+   * Session isolation key for this request.
+   * Formatted internally as 'anon:<session>' or 'user:<subject>:<session>'.
+   */
+  sessionId?: string;
+
+  /**
+   * AbortSignal triggered when sandbox execution times out or the client disconnects.
+   * Handlers performing long-running computations should check ctx.abortSignal.aborted.
+   */
+  abortSignal?: AbortSignal;
+
+  /**
+   * Verified principal identifier for tenant-scoped visibility rules.
+   * Populated securely from verified auth claims.
+   */
+  verifiedSubject?: string;
+
+  /**
+   * Dynamically reveals specified tools for the current session.
+   * Used for progressive tool discovery workflows.
+   */
+  enableTools?(names: string[]): Promise<void>;
+
+  /**
+   * Dynamically hides specified tools for the current session.
+   */
+  disableTools?(names: string[]): Promise<void>;
+
+  /**
+   * Returns current set of allowed tool names for this session.
+   */
+  getVisibleTools?(): Set<string> | undefined;
+
+  /**
+   * MCP Task context populated when a tool is invoked asynchronously as a task.
+   * Use this to report progress or verify cooperative cancellation.
+   */
+  task?: TaskContext;
+}
+```
+
+</Tab>
+<Tab value="Python">
+
+`ExecutionContext` is passed as the last argument to tools, resources, and prompts.
+
+| Field | Purpose |
+|-------|---------|
+| `request_id` | Correlate logs |
+| `logger` | Structured logger |
+| `metadata` | Headers / MCP extras (`authorization`, `headers`, `_oauth`) |
+| `auth` | `AuthContext` after a successful guard |
+| `task` | `TaskContext` (`update_progress`, `cancel`, `throw_if_cancelled`) |
+| `mcp_headers` | Incoming MCP HTTP headers |
+| `trace` | Tracing bag |
+| `input_responses` | MRTR follow-ups |
+
+`AuthContext`: `subject`, `scopes`, `client_id`, `aud`, `claims`.
+
+Do not treat this as an Express/Starlette request object.
+
+</Tab>
+</Tabs>
+
+## Properties Reference
+
+What each property holds:
+
+| Property | Type | Description |
+|:---|:---|:---|
+| `requestId` | `string` | Unique identifier generated for every inbound JSON-RPC request. |
+| `toolName` | `string` (optional) | The canonical name of the tool currently executing. |
+| `logger` | `Logger` | Logger instance (`debug`, `info`, `warn`, `error`). Writes to stderr or configured transport sinks. |
+| `metadata` | `Record<string, JsonValue>` | Request-scoped key-value dictionary. |
+| `auth` | `AuthContext` | Decoded authentication credentials and verified token payload. |
+| `sessionId` | `string` (optional) | Tenant/session isolation identifier. |
+| `abortSignal` | `AbortSignal` (optional) | Standard DOM AbortSignal indicating timeout or client disconnect. |
+| `verifiedSubject` | `string` (optional) | Verified user or service principal identifier. |
+| `enableTools` | `(names: string[]) => Promise<void>` | Dynamically makes hidden tools visible to the calling session. |
+| `disableTools` | `(names: string[]) => Promise<void>` | Dynamically removes tools from the calling session catalog. |
+| `getVisibleTools` | `() => Set<string> \| undefined` | Returns the set of currently visible tool names. |
+| `task` | `TaskContext` (optional) | Context for reporting progress and status in long-running MCP tasks. |
+
+## Event Emission Note
+
+<Callout type="warn" title="Important">
+
+The `ExecutionContext` object does **not** contain an `emit()` method.
+To emit application events, import and use `emitEvent` or `EventEmitter` directly from `@nitrostack/core`:
+
+```typescript
+import { emitEvent } from '@nitrostack/core';
+
+// Inside your tool or service:
+await emitEvent('order.created', { orderId: 'ord_123', total: 49.99 });
+```
+
+</Callout>
+
+## Usage Examples
+
+Two things you'll often do with the context.
+
+### Accessing Authentication & Scoped Logging
+
+Read who is calling from `ctx.auth`, set by a guard, and log with fields that tie each line to the request.
+
+```typescript
+import { ToolDecorator as Tool, UseGuards, ExecutionContext, z } from '@nitrostack/core';
+import { JWTGuard } from '@nitrostack/core';
+
+export class UserTools {
+  @Tool({
+    name: 'get_profile',
+    description: 'Fetch authenticated user profile details',
+    inputSchema: z.object({}),
+  })
+  @UseGuards(JWTGuard)
+  async getProfile(input: Record<string, never>, ctx: ExecutionContext) {
+    // Log with request ID tracking
+    ctx.logger.info(`Fetching profile for user ${ctx.auth?.subject}`);
+
+    return {
+      userId: ctx.auth?.subject,
+      scopes: ctx.auth?.scopes ?? [],
+      requestId: ctx.requestId,
+    };
+  }
+}
+```
+
+### Progressive Tool Discovery (`enableTools` & `disableTools`)
+
+Tools can be registered with `visibility: 'hidden'` so they do not clutter the model's catalog initially. The model unlocks them dynamically during execution:
+
+```typescript
+import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
+
+export class AuthTools {
+  @Tool({
+    name: 'login',
+    description: 'Authenticate and unlock administrative tools',
+    inputSchema: z.object({ apiKey: z.string().describe('API key token') }),
+  })
+  async login(input: { apiKey: string }, ctx: ExecutionContext) {
+    if (input.apiKey === 'secret-admin-key') {
+      // Dynamically reveal administrative tools for this session
+      if (ctx.enableTools) {
+        await ctx.enableTools(['admin_purge_cache', 'admin_view_telemetry']);
+      }
+
+      ctx.logger.info('Admin tools unlocked for session');
+      return { success: true, message: 'Admin privileges granted.' };
+    }
+
+    return { success: false, message: 'Invalid key.' };
+  }
+}
+```
+
+### Handling Timeouts with `abortSignal`
+
+When the client cancels a call or it times out, `ctx.abortSignal` fires. Pass it to anything that supports cancellation, such as `fetch`, and check it between steps of long work, so the tool stops instead of running on for nobody.
+
+```typescript
+import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
+
+export class ComputeTools {
+  @Tool({
+    name: 'heavy_compute',
+    description: 'Executes heavy calculation while checking for abort signals',
+    inputSchema: z.object({ iterations: z.number().default(1000000) }),
+  })
+  async compute(input: { iterations: number }, ctx: ExecutionContext) {
+    for (let i = 0; i < input.iterations; i++) {
+      // Check if client disconnected or sandbox watchdog triggered timeout
+      if (ctx.abortSignal?.aborted) {
+        ctx.logger.warn(`Execution aborted at iteration ${i}`);
+        throw new Error('Operation aborted due to timeout or client cancellation');
+      }
+
+      // Perform unit of work...
+    }
+
+    return { completed: true };
+  }
+}
+```
+
+### Progress Reporting for Asynchronous Tasks
+
+When a tool is declared with `taskSupport: 'optional'` or `taskSupport: 'required'`, NitroStack populates `ctx.task`:
+
+```typescript
+import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
+
+export class MigrationTools {
+  @Tool({
+    name: 'migrate_data',
+    description: 'Long-running database migration task',
+    inputSchema: z.object({ batchSize: z.number().default(100) }),
+    taskSupport: 'required',
+  })
+  async migrate(input: { batchSize: number }, ctx: ExecutionContext) {
+    if (ctx.task) {
+      await ctx.task.updateProgress('Initializing migration schema...', 10);
+      ctx.task.throwIfCancelled();
+
+      await ctx.task.updateProgress('Migrating batch 1/3...', 40);
+      ctx.task.throwIfCancelled();
+
+      await ctx.task.updateProgress('Finalizing indices...', 90);
+    }
+
+    return { status: 'completed', recordsMigrated: 1250 };
+  }
+}
+```
+
+## Related
+
+<Cards>
+  <Card icon={<Wrench />} title="Tools Guide" href="/docs/sdk/tools" />
+  <Card icon={<AtSign />} title="Decorators API Reference" href="/docs/api-reference/decorators" />
+  <Card icon={<ListTodo />} title="MCP Tasks Guide" href="/docs/sdk/tasks" />
+</Cards>

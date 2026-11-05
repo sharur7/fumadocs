@@ -1,0 +1,95 @@
+---
+title: "Execution Context"
+description: "The object every handler receives: logger, request ID, caller, and cancellation"
+---
+
+import { Activity, Braces, ShieldCheck } from 'lucide-react';
+
+Every tool, resource, and prompt handler receives an `ExecutionContext` as its last argument. It carries what you need to know about the current call: a logger, a request ID for tracing, who is calling, and whether the client has cancelled.
+
+## The interface
+
+These are the fields available on every call. Fields marked optional are only set when they apply, for example `auth` after a guard has identified the caller.
+
+```typescript
+interface ExecutionContext {
+  /** Structured logger instance */
+  logger: Logger;
+
+  /** Name of the current tool (if applicable) */
+  toolName?: string;
+
+  /** Request identifier for tracing */
+  requestId: string;
+
+  /** Active transport connection or session identifier */
+  sessionId?: string;
+
+  /** Standard AbortSignal triggered if client cancels invocation */
+  abortSignal?: AbortSignal;
+
+  /** Authentication information (populated by guards) */
+  auth?: {
+    subject?: string;
+    token?: string;
+    scopes?: string[];
+    [key: string]: unknown;
+  };
+
+  /** Verified subject from cryptographic identity or token */
+  verifiedSubject?: string;
+
+  /** Request metadata storage */
+  metadata?: Record<string, unknown>;
+
+  /** MCP Background Task tracking metadata when taskSupport is active */
+  task?: {
+    taskId: string;
+    status: 'working' | 'completed' | 'failed' | 'cancelled';
+    totalSteps?: number;
+    currentStep?: number;
+    [key: string]: unknown;
+  };
+
+  /** Client responses to prior inputRequired elicitations (SEP-2322) */
+  inputResponses?: Record<string, unknown>;
+
+  /** Opaque round-trip state echoed by client (SEP-2322) */
+  requestState?: unknown;
+
+  /** Dynamic tool visibility helpers */
+  enableTools?: (toolNames: string[]) => void | Promise<void>;
+  disableTools?: (toolNames: string[]) => void | Promise<void>;
+}
+```
+
+## Using it in a handler
+
+This tool reads the caller's identity from `ctx.auth`, which the `JWTGuard` filled in, logs with context, and emits an event once the order exists.
+
+```typescript
+import { ToolDecorator as Tool, UseGuards, ExecutionContext, emitEvent } from '@nitrostack/core';
+import { JWTGuard } from './guards/jwt.guard.js';
+
+@Tool({ name: 'create_order', description: 'Create a new order' })
+@UseGuards(JWTGuard)
+async createOrder(input: CreateOrderInput, ctx: ExecutionContext) {
+  const userId = ctx.auth?.subject;
+  ctx.logger.info('Creating order', { userId, input });
+
+  const order = await this.orderService.create(input, userId);
+  
+  // Emit event across event bus
+  await emitEvent('order.created', { orderId: order.id, userId });
+
+  return order;
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Braces />} title="Execution context reference" href="/docs/api-reference/execution-context" description="Every field, with TypeScript and Python." />
+  <Card icon={<ShieldCheck />} title="Guards" href="/docs/sdk/guards" description="Fill in ctx.auth before the handler runs." />
+  <Card icon={<Activity />} title="Events" href="/docs/sdk/events" description="Emit and handle events." />
+</Cards>

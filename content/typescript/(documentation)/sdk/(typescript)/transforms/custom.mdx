@@ -1,0 +1,94 @@
+---
+title: "Write a Transform"
+description: "The transform interface, pipeline order, and catalog bypass"
+---
+
+import { Search } from 'lucide-react';
+
+A transform is any object that implements `McpTransform`. NitroStack calls it while answering `tools/list` and `tools/call`, in the order you list transforms in `@McpApp`.
+
+## The transform interface
+
+A transform implements the `McpTransform` interface, providing lifecycle hooks to reshape the tool catalog and resolve synthetic tool invocations:
+
+```typescript
+export interface McpTransform {
+  readonly name: string;
+
+  /** Called once when transform is attached to a server */
+  onRegister?(registry: TransformRegistry): void;
+
+  /** Releases resources (worker threads, timers) upon server shutdown */
+  dispose?(): Promise<void> | void;
+
+  /** Reshapes, filters, or augments catalog during tools/list */
+  transformTools?(
+    tools: Tool[],
+    context?: ExecutionContext
+  ): Promise<Tool[]> | Tool[];
+
+  /** Resolves synthetic or re-routed tools during tools/call */
+  resolveTool?(
+    name: string,
+    next: NextToolHandler,
+    context?: ExecutionContext
+  ): Promise<Tool | undefined>;
+}
+```
+
+Transforms execute sequentially in the order defined in `@McpApp({ transforms: [...] })`.
+
+## Reading the raw catalog
+
+Transforms often need to list or inspect registered tools without triggering infinite recursion or rebuilding search indexes. NitroStack provides `CatalogTransform.withBypass()`:
+
+```typescript
+import { CatalogTransform } from '@nitrostack/core';
+
+// Internal search engine indexing tools
+const rawTools = await CatalogTransform.withBypass(async () => {
+  return await server.getRegisteredTools();
+});
+```
+
+* `BM25SearchTransform` and `CodeModeTransform` honor the bypass scope and return the raw tool list.
+* `VisibilityTransform` intentionally ignores the bypass (`honorsBypass(): false`), ensuring security filtering and tenant boundaries can never be evaded.
+
+## Combining transforms
+
+Multiple transforms can be combined in the `@McpApp` configuration decorator:
+
+```typescript
+import {
+  McpApp,
+  Module,
+  VisibilityTransform,
+  BM25SearchTransform,
+} from '@nitrostack/core';
+
+@McpApp({
+  module: AppModule,
+  server: {
+    name: 'enterprise-hybrid-service',
+    version: '1.0.0',
+  },
+  transforms: [
+    // 1. First filter hidden tools based on session authorization
+    new VisibilityTransform(),
+    
+    // 2. Then index authorized tools into progressive BM25 search
+    new BM25SearchTransform({
+      defaultLimit: 5,
+      alwaysVisible: ['auth_login', 'system_status'],
+    }),
+  ],
+})
+@Module({})
+export class AppModule {}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Search />} title="Progressive search" href="/docs/sdk/transforms/search" description="A built-in transform." />
+</Cards>

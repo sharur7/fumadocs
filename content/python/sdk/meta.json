@@ -1,0 +1,26 @@
+{
+  "title": "SDK",
+  "pages": [
+    "quick-start",
+    "tools",
+    "resources",
+    "prompts",
+    "auth",
+    "widgets",
+    "guards",
+    "middleware",
+    "interceptors",
+    "pipes",
+    "validation",
+    "dependency-injection",
+    "configuration",
+    "caching",
+    "rate-limiting",
+    "health-checks",
+    "tasks",
+    "error-handling",
+    "testing",
+    "events",
+    "performance"
+  ]
+}

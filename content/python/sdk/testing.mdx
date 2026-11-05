@@ -1,0 +1,29 @@
+---
+title: "Testing"
+description: "NitroTestingModule in-process harness"
+---
+
+`NitroTestingModule` runs your app in the test process, with no transport and no subprocess. Your tests call tools, read resources, and get prompts the same way a client would.
+
+Use the in-process harness — no subprocess, no real transport.
+
+```python
+import asyncio
+from nitrostack.testing import NitroTestingModule
+from app_module import AppModule
+
+async def test_add():
+    harness = await NitroTestingModule.create(AppModule)
+    result = await harness.call_tool("add", {"a": 5, "b": 10})
+    assert result == 15.0
+
+    await harness.read_resource("calc://info")
+    await harness.get_prompt("flight_search_assistant", {})
+
+if __name__ == "__main__":
+    asyncio.run(test_add())
+```
+
+`NitroTestingModule.create` wraps the module in a test `@mcp_app` and dispatches through the same low-level MCP `request_handlers` as stdio/HTTP.
+
+Project tests in the SDK repo use pytest (`pip install -e ".[dev]"`).

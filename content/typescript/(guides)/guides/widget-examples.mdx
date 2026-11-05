@@ -1,0 +1,161 @@
+---
+title: "Define widget examples"
+description: "Give widgets sample data so they can be built and previewed before the tool exists"
+---
+
+import { AppWindow, ShieldCheck } from 'lucide-react';
+
+A [widget](/docs/getting-started/core-concepts/widgets) renders the output of a tool. Widget examples are sample outputs you attach to the widget itself, so the widget can be designed, previewed, and reviewed before the tool that feeds it is written. Frontend and backend work stops blocking each other: the frontend builds against the examples, and the backend later connects a real tool that returns the same shape.
+
+## How it works
+
+1. You describe the widget and its examples with `defineWidgetMetadata()` in the widget's page file.
+2. The same metadata goes into `src/widgets/widget-manifest.json`.
+3. When the server starts, it loads the manifest and exposes every widget and its examples through the `widget://examples` resource.
+4. NitroStudio uses those examples whenever a tool linked to the widget has no example of its own.
+
+When Studio needs sample data for a tool, it looks in this order:
+
+```text
+Tool has an example?            → use the tool's example
+Otherwise, widget has one?      → use the widget's example
+Otherwise                       → show a placeholder
+```
+
+## Define the widget's examples
+
+In the widget's page file, for example `src/widgets/app/my-widget/page.tsx`, export the metadata next to the component. Each example has a name, a short description, and the data the widget should render.
+
+```tsx title="src/widgets/app/my-widget/page.tsx"
+'use client';
+
+import { useWidgetSDK, defineWidgetMetadata } from '@nitrostack/widgets';
+
+export const metadata = defineWidgetMetadata({
+  uri: '/my-widget',
+  name: 'My Widget',
+  description: 'Shows a title and a count',
+  examples: [
+    { name: 'Basic', description: 'A short title', data: { title: 'Hello', count: 42 } },
+    { name: 'Large count', description: 'A bigger number', data: { title: 'World', count: 99 } },
+  ],
+  tags: ['display'],
+});
+
+interface MyWidgetData {
+  title: string;
+  count: number;
+}
+
+export default function MyWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  if (!isReady) return <div>Loading...</div>;
+
+  const data = getToolOutput<MyWidgetData>();
+  return (
+    <div>
+      <h1>{data.title}</h1>
+      <p>Count: {data.count}</p>
+    </div>
+  );
+}
+```
+
+`defineWidgetMetadata()` returns the object you pass it unchanged. Its purpose is type checking: your editor flags a missing field or a misspelled property while you write the examples.
+
+## Add the widget to the manifest
+
+The server reads examples from `src/widgets/widget-manifest.json`, not from the page files, so add the same metadata there. Write the manifest by hand for now; there's no build step that generates it from your page files yet.
+
+```json title="src/widgets/widget-manifest.json"
+{
+  "version": "1.0.0",
+  "widgets": [
+    {
+      "uri": "/my-widget",
+      "name": "My Widget",
+      "description": "Shows a title and a count",
+      "examples": [
+        { "name": "Basic", "description": "A short title", "data": { "title": "Hello", "count": 42 } }
+      ],
+      "tags": ["display"]
+    }
+  ],
+  "generatedAt": "2026-01-01T00:00:00.000Z"
+}
+```
+
+## Preview it in Studio
+
+1. Start the server with `npm run dev` and open the project in [NitroStudio](/docs/studio/overview).
+2. Open **Resources** and select **Widget Examples** (`widget://examples`).
+3. Check that your widget and its examples appear in the JSON.
+4. Open **Tools** and run a tool linked to the widget; with no tool example, Studio renders the widget with the widget's example data.
+
+This is enough to design the widget, try it with realistic data, and share it for review, all before any backend code exists.
+
+## Connect a tool to the widget
+
+When the tool is ready, link it to the widget with `@Widget`. If the tool should show its own sample data in Studio, add `examples` to `@Tool`; tool examples take priority over widget examples. Leave them out and Studio keeps using the widget's examples.
+
+```typescript title="src/modules/demo/demo.tools.ts"
+import { ToolDecorator as Tool, Widget, ExecutionContext, z } from '@nitrostack/core';
+
+export class DemoTools {
+  @Tool({
+    name: 'my_tool',
+    description: 'Returns a title and a count',
+    inputSchema: z.object({ input: z.string() }),
+    examples: {
+      request: { input: 'test' },
+      response: { title: 'Result', count: 4 },
+    },
+  })
+  @Widget('my-widget')
+  async myTool({ input }: { input: string }, ctx: ExecutionContext) {
+    return { title: 'Result', count: input.length };
+  }
+}
+```
+
+The tool must return data in the shape the widget expects, which is the same shape as the widget's examples. Agreeing on that shape first is what lets the two sides work in parallel.
+
+## Working as a team
+
+Teams usually take one of three routes, and all of them end in the same place.
+
+When the frontend goes first, it builds the widget with several examples, previews it in Studio, and commits it. The backend then writes the tool, links it with `@Widget`, and the widget already works with real output. Tool-specific examples can be added later.
+
+When the backend goes first, it writes the tool with `examples` in `@Tool`, so Studio shows realistic output straight away. The frontend builds a widget that matches that output and adds widget metadata only if it also wants a preview in Resources.
+
+When both work in parallel, they agree on the data shape before starting. The frontend writes widget examples and the backend writes a tool that returns the same structure. Once the tool is linked, its examples, if it has any, replace the widget's.
+
+## Reference
+
+`defineWidgetMetadata(metadata)` takes:
+
+| Field | Type | Description |
+| :-- | :-- | :-- |
+| `uri` | `string` | The widget's route, such as `/my-widget` |
+| `name` | `string` | Display name |
+| `description` | `string` | What the widget shows |
+| `examples` | `WidgetExample[]` | Sample data, each with `name`, `description`, and `data` |
+| `tags` | `string[]` | Optional labels for grouping |
+
+The manifest has the same fields for each widget, inside a `widgets` array, plus a `version` and a `generatedAt` timestamp. The `widget://examples` resource returns the whole manifest as JSON.
+
+## Troubleshooting
+
+**The widget doesn't appear in `widget://examples`.** Check that `src/widgets/widget-manifest.json` exists and is valid JSON, then look in the server logs for the line that says the widget examples resource was registered.
+
+**Examples don't update after you edit them.** The manifest is read when the server starts. Restart `npm run dev` after changing it.
+
+**Your editor can't find `defineWidgetMetadata`.** Import it from `@nitrostack/widgets`, and make sure that package is installed in `src/widgets`.
+
+## See also
+
+<Cards>
+  <Card icon={<AppWindow />} title="Widgets guide" href="/docs/sdk/ui/widgets" description="Build and connect widgets." />
+  <Card icon={<AppWindow />} title="Widget SDK" href="/docs/sdk/ui/widget-sdk" description="Hooks for widget data and state." />
+  <Card icon={<ShieldCheck />} title="Configure widget CSP" href="/docs/guides/widget-csp" description="Allow external images, fonts, and APIs." />
+</Cards>

@@ -1,0 +1,37 @@
+---
+title: "Cloud Platforms"
+description: "Deploy your NitroStack MCP server to AWS, Google Cloud, Azure, DigitalOcean, or Heroku"
+icon: CloudUpload
+---
+
+import { Cloud, Server, Container, Droplet, Hexagon, Rocket } from 'lucide-react';
+
+You can run a NitroStack server anywhere that runs a container or a Node.js process. Each guide below covers deployment, secrets, health checks, and logs on one platform.
+
+Every platform needs the same three things from your server. It must listen on all interfaces (`HOST=0.0.0.0`) and on the port the platform expects (`PORT`). It should run over HTTP only (`MCP_TRANSPORT_TYPE=http`). And the platform should check the built-in `/mcp/health` endpoint to know when the server is ready. [Deploy with Docker](/docs/deployment/docker) explains each of these settings.
+
+<Cards>
+  <Card className="nx-card-featured" icon={<Cloud />} title="Prefer not to manage infrastructure?" href="/docs/cloud/overview" description="NitroStack Cloud builds and runs your server from your repository, with scaling, monitoring, and SSL included." />
+</Cards>
+
+## Platforms
+
+<Cards>
+  <Card icon={<Server />} title="AWS" href="/docs/deployment/cloud/aws" description="ECS on Fargate behind a load balancer, with Secrets Manager and CloudWatch." />
+  <Card icon={<Container />} title="Google Cloud" href="/docs/deployment/cloud/google-cloud" description="Cloud Run or GKE, Secret Manager, and Cloud Logging." />
+  <Card icon={<Hexagon />} title="Microsoft Azure" href="/docs/deployment/cloud/azure" description="Azure Container Instances or AKS, from Azure Container Registry." />
+  <Card icon={<Droplet />} title="DigitalOcean" href="/docs/deployment/cloud/digitalocean" description="App Platform, deployed from your GitHub repository." />
+  <Card icon={<Rocket />} title="Heroku" href="/docs/deployment/cloud/heroku" description="Deploy with git push, no Dockerfile needed." />
+</Cards>
+
+## Comparison
+
+A rough guide to choosing:
+
+| Platform | Best for | Cost | Scaling |
+| :-- | :-- | :-- | :-- |
+| AWS ECS | Enterprise | $$$ | Excellent |
+| Google Cloud Run | Serverless containers | $$ | Automatic |
+| GKE / AKS | Large scale | $$$ | Manual |
+| DigitalOcean | Simplicity | $$ | Manual |
+| Heroku | Quick deploy | $$ | Easy |

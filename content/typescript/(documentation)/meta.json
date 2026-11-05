@@ -1,0 +1,21 @@
+{
+  "title": "Documentation",
+  "root": true,
+  "pages": [
+    "---Getting Started---",
+    "...getting-started",
+    "---NitroStack SDK---",
+    "...sdk",
+    "---NitroStack Studio---",
+    "...studio",
+    "---NitroStack Cloud---",
+    "...cloud",
+    "---NitroStack CLI---",
+    "...cli",
+    "---Deployment---",
+    "...deployment",
+    "---Support---",
+    "...troubleshooting",
+    "...support"
+  ]
+}

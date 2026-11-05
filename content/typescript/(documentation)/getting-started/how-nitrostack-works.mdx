@@ -1,0 +1,50 @@
+---
+title: How NitroStack works
+description: What happens from the moment your server starts to the moment a tool call returns.
+icon: Workflow
+---
+
+import { Layers, Workflow, ArrowLeftRight, AppWindow } from 'lucide-react';
+
+A NitroStack project is an MCP server. An AI client ([Claude Desktop](/docs/guides/connect-to-clients), Cursor, ChatGPT, VS Code, or [NitroStudio](/docs/studio/overview)) connects to it, discovers what it offers, and calls it during a conversation. NitroStack handles the protocol, the transport, and the plumbing in between, so your code only has to describe capabilities and implement them.
+
+<RequestFlowDiagram />
+
+## The server starts
+
+`src/index.ts` calls `McpApplicationFactory.create(AppModule)`. NitroStack reads the root module, follows its imports, and compiles and validates the dependency graph. It then creates every service, registers each `@Tool`, `@Resource`, and `@Prompt`, and runs the `onModuleInit()` hooks.
+
+Next, the transports start listening (STDIO, HTTP, or both), and `onApplicationBootstrap()` runs once the server is fully operational. If a dependency is missing, startup fails with an error instead of failing later during a request.
+
+## A client connects and discovers capabilities
+
+The client connects over a [transport](/docs/getting-started/core-concepts/transports). Local clients usually start the server themselves and talk over STDIO; remote and web clients send HTTP requests to the `/mcp` endpoint.
+
+Once connected, the client asks the server what it can do. NitroStack answers with your tools (with their names, descriptions, and input schemas), resources, and prompts. The AI model uses those descriptions to decide what to call and with which arguments.
+
+## A tool call runs through the pipeline
+
+When the model calls a tool, the client sends a `tools/call` message. NitroStack finds the method registered under that name and runs the call through a fixed [request pipeline](/docs/getting-started/core-concepts/request-lifecycle):
+
+**Guards** decide whether the call may run at all. **Middleware** wraps the whole call for logging and tracing. **Interceptors** run around your handler and can reshape its result. **Pipes** transform and validate the input. Then **your handler** runs. If anything throws, **exception filters** turn the error into a clean response.
+
+Every stage receives the same `ExecutionContext`, which carries the logger, request ID, tool name, and authentication details.
+
+## The result goes back, sometimes with UI
+
+Your handler's return value is sent back to the client as the tool result. If the tool has a `@Widget`, clients that support MCP UI (such as ChatGPT and NitroStudio) render that React [widget](/docs/getting-started/core-concepts/widgets) with the result, instead of showing raw data. Other clients still receive the data.
+
+## During development
+
+`npm run dev` compiles your code, watches for changes, and runs the server over STDIO, which is how NitroStudio and desktop clients start it. It also runs a widget dev server at `http://localhost:3001`. Saving a file recompiles the server, so new tools appear without a restart.
+
+`npm start` builds the project and serves it over HTTP at `http://localhost:3000/mcp`, the way a deployed server runs. When you are ready to ship, `nitrostack-cli pack` creates an optimized deployment zip.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Layers />} title="Core Concepts" href="/docs/getting-started/core-concepts" description="Modules, dependency injection, and the request lifecycle." />
+  <Card icon={<Workflow />} title="Request Lifecycle" href="/docs/getting-started/core-concepts/request-lifecycle" description="Each pipeline stage and when to use it." />
+  <Card icon={<ArrowLeftRight />} title="Transports" href="/docs/getting-started/core-concepts/transports" description="STDIO, HTTP, and when to use each." />
+  <Card icon={<AppWindow />} title="Widgets" href="/docs/getting-started/core-concepts/widgets" description="Return interactive React UI from a tool." />
+</Cards>

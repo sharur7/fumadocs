@@ -1,0 +1,15 @@
+---
+title: "Performance"
+description: "Sessions, transports, and logging"
+---
+
+A few settings matter most for how a Python server behaves under load: how many HTTP sessions it keeps, how long idle sessions live, and where it writes logs.
+
+- Cap concurrent HTTP sessions with `MCP_MAX_SESSIONS` (overflow → HTTP 429).
+- Set `MCP_SESSION_TIMEOUT_MS` so idle stateful sessions die.
+- Prefer `MCP_STATELESS=true` for Inspector and horizontally scaled HTTP.
+- `dual` transport runs stdio + HTTP as asyncio tasks in **one** event loop (shared `DIContainer`).
+- Logging to stdout under `stdio` can corrupt the protocol stream — use `NITROSTACK_LOG_FILE` or `NITROSTACK_LOG_TO_STDOUT=true` only when you know it is safe.
+- `NITROSTACK_HTTP_DEBUG=1` logs method, path, headers, and body to stderr for client connect failures (uvicorn access logs omit this).
+
+See [Configuration](/docs/cli/configuration#python-configuration) and [Dual Transport](/docs/guides/dual-transport).

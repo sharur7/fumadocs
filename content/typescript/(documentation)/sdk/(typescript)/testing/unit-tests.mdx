@@ -1,0 +1,293 @@
+---
+title: "Unit Tests"
+description: "Test tools, services, middleware, and interceptors in isolation"
+---
+
+import { Layers } from 'lucide-react';
+
+A unit test checks one class with its dependencies replaced by mocks. These tests are fast and pinpoint exactly what broke.
+
+## Testing Tools
+
+Create the tool class with mock services, then call its method with a mock context.
+
+### Basic Tool Test
+
+The tool's dependencies are plain objects with Jest mocks, so the test controls every response.
+
+```typescript
+import { createMockContext } from '@nitrostack/core/testing';
+import { ProductsTools } from '../products/products.tools.js';
+import { ProductService } from '../products/products.service.js';
+
+describe('ProductsTools', () => {
+  let tools: ProductsTools;
+  let mockProductService: jest.Mocked<ProductService>;
+  
+  beforeEach(() => {
+    mockProductService = {
+      findById: jest.fn(),
+      search: jest.fn()
+    } as any;
+    
+    tools = new ProductsTools(mockProductService);
+  });
+  
+  describe('getProduct', () => {
+    it('should return product by ID', async () => {
+      const mockProduct = {
+        id: 'prod-1',
+        name: 'Test Product',
+        price: 99.99
+      };
+      
+      mockProductService.findById.mockResolvedValue(mockProduct);
+      
+      const ctx = createMockContext();
+      const result = await tools.getProduct({ product_id: 'prod-1' }, ctx);
+      
+      expect(result).toEqual(mockProduct);
+      expect(mockProductService.findById).toHaveBeenCalledWith('prod-1');
+    });
+    
+    it('should throw if product not found', async () => {
+      mockProductService.findById.mockResolvedValue(null);
+      
+      const ctx = createMockContext();
+      
+      await expect(
+        tools.getProduct({ product_id: 'invalid' }, ctx)
+      ).rejects.toThrow('Product not found');
+    });
+  });
+});
+```
+
+### Testing with Authentication
+
+Pass `auth` to `createMockContext` to test how a tool behaves for a signed-in user.
+
+```typescript
+describe('AuthenticatedTools', () => {
+  it('should use authenticated user ID', async () => {
+    const ctx = createMockContext({
+      auth: {
+        subject: 'user-123',
+        token: 'fake-token'
+      }
+    });
+    
+    const result = await tools.getUserProfile({}, ctx);
+    
+    expect(result.id).toBe('user-123');
+  });
+});
+```
+
+### Testing Guards
+
+Call `canActivate()` directly with contexts that should pass and fail.
+
+```typescript
+import { JWTGuard } from '../guards/jwt.guard';
+
+describe('JWTGuard', () => {
+  let guard: JWTGuard;
+  let mockConfigService: any;
+  
+  beforeEach(() => {
+    mockConfigService = {
+      get: jest.fn().mockReturnValue('test-secret')
+    };
+    guard = new JWTGuard(mockConfigService);
+  });
+  
+  it('should allow valid token', async () => {
+    const ctx = createMockContext({
+      metadata: {
+        authorization: 'Bearer valid-token'
+      }
+    });
+    
+    // Mock JWT verification
+    jest.spyOn(jwt, 'verify').mockReturnValue({
+      sub: 'user-123',
+      email: 'test@example.com'
+    });
+    
+    const result = await guard.canActivate(ctx);
+    
+    expect(result).toBe(true);
+    expect(ctx.auth?.subject).toBe('user-123');
+  });
+  
+  it('should reject missing token', async () => {
+    const ctx = createMockContext();
+    
+    const result = await guard.canActivate(ctx);
+    
+    expect(result).toBe(false);
+  });
+  
+  it('should reject invalid token', async () => {
+    const ctx = createMockContext({
+      metadata: {
+        authorization: 'Bearer invalid-token'
+      }
+    });
+    
+    jest.spyOn(jwt, 'verify').mockImplementation(() => {
+      throw new Error('Invalid token');
+    });
+    
+    const result = await guard.canActivate(ctx);
+    
+    expect(result).toBe(false);
+  });
+});
+```
+
+## Testing Services
+
+Services are plain classes: construct them with mocked dependencies.
+
+### Basic Service Test
+
+Mock the database the service uses, then check what the service does with its results.
+
+```typescript
+describe('ProductService', () => {
+  let service: ProductService;
+  let mockDb: jest.Mocked<DatabaseService>;
+  
+  beforeEach(() => {
+    mockDb = {
+      query: jest.fn(),
+      queryOne: jest.fn(),
+      execute: jest.fn()
+    } as any;
+    
+    service = new ProductService(mockDb);
+  });
+  
+  describe('findById', () => {
+    it('should return product', async () => {
+      const mockProduct = { id: 'prod-1', name: 'Test' };
+      mockDb.queryOne.mockResolvedValue(mockProduct);
+      
+      const result = await service.findById('prod-1');
+      
+      expect(result).toEqual(mockProduct);
+      expect(mockDb.queryOne).toHaveBeenCalledWith(
+        'SELECT * FROM products WHERE id = ?',
+        ['prod-1']
+      );
+    });
+  });
+  
+  describe('search', () => {
+    it('should search products', async () => {
+      const mockProducts = [
+        { id: 'prod-1', name: 'Test 1' },
+        { id: 'prod-2', name: 'Test 2' }
+      ];
+      mockDb.query.mockResolvedValue(mockProducts);
+      
+      const result = await service.search('test');
+      
+      expect(result).toEqual(mockProducts);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('LIKE'),
+        ['%test%']
+      );
+    });
+  });
+});
+```
+
+## Testing Middleware
+
+Call `use()` with a mock context and a mock `next`, then check what happened before and after.
+
+```typescript
+import { LoggingMiddleware } from '../middleware/logging.middleware';
+
+describe('LoggingMiddleware', () => {
+  let middleware: LoggingMiddleware;
+  let ctx: any;
+  let next: jest.Mock;
+  
+  beforeEach(() => {
+    middleware = new LoggingMiddleware();
+    ctx = createMockContext();
+    next = jest.fn().mockResolvedValue('result');
+  });
+  
+  it('should log before and after execution', async () => {
+    const logSpy = jest.spyOn(ctx.logger, 'info');
+    
+    const result = await middleware.use(ctx, next);
+    
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Before'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('After'));
+    expect(next).toHaveBeenCalled();
+    expect(result).toBe('result');
+  });
+  
+  it('should log errors', async () => {
+    const error = new Error('Test error');
+    next.mockRejectedValue(error);
+    
+    const errorSpy = jest.spyOn(ctx.logger, 'error');
+    
+    await expect(middleware.use(ctx, next)).rejects.toThrow(error);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Error'));
+  });
+});
+```
+
+## Testing Interceptors
+
+Call `intercept()` with a `next` that returns a known value, and check the transformed result.
+
+```typescript
+import { TransformInterceptor } from '../interceptors/transform.interceptor';
+
+describe('TransformInterceptor', () => {
+  let interceptor: TransformInterceptor;
+  let ctx: any;
+  let next: jest.Mock;
+  
+  beforeEach(() => {
+    interceptor = new TransformInterceptor();
+    ctx = createMockContext();
+    next = jest.fn();
+  });
+  
+  it('should wrap result in success response', async () => {
+    next.mockResolvedValue({ id: 1, name: 'Test' });
+    
+    const result = await interceptor.intercept(ctx, next);
+    
+    expect(result).toEqual({
+      success: true,
+      data: { id: 1, name: 'Test' },
+      metadata: expect.any(Object)
+    });
+  });
+  
+  it('should include timestamp', async () => {
+    next.mockResolvedValue({ data: 'test' });
+    
+    const result = await interceptor.intercept(ctx, next);
+    
+    expect(result.metadata.timestamp).toBeDefined();
+  });
+});
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Layers />} title="Integration tests" href="/docs/sdk/testing/integration" description="Test through the full pipeline." />
+</Cards>

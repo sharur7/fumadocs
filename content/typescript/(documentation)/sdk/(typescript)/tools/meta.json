@@ -1,0 +1,14 @@
+{
+  "title": "Tools",
+  "pages": [
+    "index",
+    "controllers",
+    "options",
+    "input-and-output",
+    "execution-context",
+    "user-input",
+    "pipeline",
+    "widgets",
+    "dynamic"
+  ]
+}

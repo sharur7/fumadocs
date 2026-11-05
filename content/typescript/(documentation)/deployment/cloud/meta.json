@@ -1,0 +1,11 @@
+{
+  "title": "Cloud Platforms",
+  "pages": [
+    "aws",
+    "google-cloud",
+    "azure",
+    "digitalocean",
+    "heroku"
+  ],
+  "icon": "CloudUpload"
+}

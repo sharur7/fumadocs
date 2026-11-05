@@ -1,0 +1,104 @@
+---
+title: "Tool Widgets"
+description: "Return interactive UI with a tool result"
+---
+
+import { AppWindow } from 'lucide-react';
+
+A tool can render a widget: a small React page that shows its result as a card, a chart, or a form. Clients that support MCP UI display the widget; others still receive the data.
+
+Attach visual components to tool responses using the `@Widget` decorator.
+
+## Basic Widget Connection
+
+Add `@Widget` with the widget's name, which matches a folder in `src/widgets/app/`. The tool's return value becomes the widget's data.
+
+```typescript
+import { Widget } from '@nitrostack/core';
+
+@Tool({
+  name: 'get_order_summary',
+  description: 'Get order summary with visual breakdown',
+  inputSchema: z.object({
+    orderId: z.string().describe('Order ID')
+  })
+})
+@Widget('order-summary')  // Maps to src/widgets/app/order-summary/page.tsx
+async getOrderSummary(input: { orderId: string }, ctx: ExecutionContext) {
+  return {
+    id: input.orderId,
+    items: await this.orderService.getItems(input.orderId),
+    total: await this.orderService.getTotal(input.orderId),
+    status: await this.orderService.getStatus(input.orderId)
+  };
+}
+```
+
+## Widget with Invocation Messages and Examples
+
+For the best user experience, provide invocation messages and example data:
+
+```typescript
+@Tool({
+  name: 'get_dashboard',
+  title: 'User Dashboard',
+  description: 'Get personalized dashboard with stats and recent activity',
+  inputSchema: z.object({
+    userId: z.string().describe('User ID')
+  }),
+  // Status messages shown in the UI during execution
+  invocation: {
+    invoking: 'Loading dashboard...',   // Shown while tool runs
+    invoked: 'Dashboard ready'          // Shown when complete
+  },
+  // IMPORTANT: Example data is used for widget preview!
+  examples: {
+    request: { userId: 'user-123' },
+    response: {
+      user: { name: 'John Doe', avatar: '/avatars/john.jpg' },
+      stats: { orders: 42, totalSpent: 1234.56 },
+      recentOrders: [
+        { id: 'order-1', total: 99.99, date: '2026-01-30' }
+      ]
+    }
+  }
+})
+@Widget('user-dashboard')
+async getDashboard(input: { userId: string }, ctx: ExecutionContext) {
+  // Return data matching the example structure
+  return { user: {...}, stats: {...}, recentOrders: [...] };
+}
+```
+
+<Callout type="warn" title="Important">
+
+The `examples.response` data is used by clients to render widget previews before the tool executes. Without it, the widget preview may not appear.
+
+</Callout>
+
+## How Widget Metadata is Exposed
+
+NitroStack exposes widget metadata in the tool's `_meta` field in multiple formats for compatibility:
+
+```json
+{
+  "name": "get_dashboard",
+  "_meta": {
+    "ui/template": "ui://widget/next-user-dashboard.html",
+    "ui": { "resourceUri": "ui://widget/next-user-dashboard.html" },
+    "openai/outputTemplate": "ui://widget/next-user-dashboard.html",
+    "openai/toolInvocation/invoking": "Loading dashboard...",
+    "openai/toolInvocation/invoked": "Dashboard ready",
+    "tool/examples": { "request": {...}, "response": {...} }
+  }
+}
+```
+
+See the [UI Widgets Guide](/docs/sdk/ui/widgets) for complete widget development documentation.
+
+## Next steps
+
+<Cards>
+  <Card icon={<AppWindow />} title="Widgets guide" href="/docs/sdk/ui/widgets" description="Build and style widgets." />
+  <Card icon={<AppWindow />} title="Widget examples" href="/docs/guides/widget-examples" description="Preview widgets with sample data." />
+</Cards>

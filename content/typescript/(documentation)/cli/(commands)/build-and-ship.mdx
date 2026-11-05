@@ -1,0 +1,195 @@
+---
+title: "Build and Ship"
+description: "Compile, run, and package your server for production."
+---
+
+import { Cloud, Container } from 'lucide-react';
+
+Three commands take a project from source to production. `build` compiles it, `start` runs the server in production mode, and `pack` packages it for deployment. Python projects have no compile step, so they skip `build`, and can check the project with `validate` before packing it.
+
+## Build
+
+TypeScript only. `build` compiles your TypeScript and bundles your widgets, ready for `start` or `pack`. A Python project runs straight from its source, so there is nothing to build.
+
+### Usage
+
+Run it from your project folder:
+
+```bash
+nitrostack-cli build [options]
+```
+
+### Options
+
+Every option is optional.
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--output <path>` | Output directory for compiled JavaScript | `dist` |
+
+### How it works
+
+The build runs in two steps:
+
+1. It looks for widgets. If `src/widgets/package.json` exists, it installs the widget dependencies when `node_modules` is missing, finds each widget entry point (`page.tsx` or `page.jsx`) under `src/widgets/app/`, and bundles it with esbuild into a standalone HTML file at `src/widgets/out/<widget-name>.html`.
+2. It compiles your TypeScript with `npx tsc`, using your project's `tsconfig.json`, and writes the JavaScript to the output directory.
+
+### Output
+
+After a build, `dist/` holds the compiled server and `src/widgets/out/` holds one HTML file per widget:
+
+```text
+dist/
+├── index.js               # Server entry point
+├── app.module.js          # Root application module
+├── modules/               # Feature modules
+└── ...
+
+src/widgets/out/           # Standalone widget bundles (if widgets present)
+├── calculator-result.html
+└── ...
+```
+
+## Start
+
+`start` runs your server in production mode. Unlike `dev`, it runs with no file watchers or development proxies, and sets `NODE_ENV=production`.
+
+### Usage
+
+In a TypeScript project made by `init`, `npm start` builds first and then starts the compiled server.
+
+```bash tab="TypeScript" tab-group="language"
+npx @nitrostack/cli start [options]
+# or, in a scaffolded project:
+npm start
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py start [options]
+```
+
+<Callout type="info" title="Build first">
+
+If you run `start` directly, make sure `dist/` is current by running `npm run build` (or `npx @nitrostack/cli build`) first. Without a build, `start` stops and asks you to run one.
+
+</Callout>
+
+### Options
+
+Every option is optional.
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--port <port>` | Port for the HTTP and SSE server | `3000` |
+| `--widget <port>` | Widget preview port (Python only) | `3001` |
+
+### Python servers in production
+
+`nitrostack-py start` defaults `MCP_TRANSPORT_TYPE` to `http` unless you set it. Use it in Docker and cloud images, where a TypeScript image would run `node dist/index.js`.
+
+### Examples
+
+Start on the default port, `3000`:
+
+```bash
+nitrostack-cli start
+```
+
+Pass `--port` when 3000 is taken, or when your platform expects another port, as many cloud hosts and containers do:
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli start --port 8080
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py start --port 8080
+```
+
+In TypeScript, you can also skip the CLI and run the compiled entry point directly:
+
+```bash
+node dist/index.js
+```
+
+### Endpoints
+
+Over HTTP, or in dual transport, the server exposes two endpoints on the port you chose. The streamable HTTP endpoint, `http://localhost:<PORT>/mcp`, is the main one and takes JSON-RPC 2.0 requests such as `tools/call` and `resources/read`. The legacy SSE endpoint, `http://localhost:<PORT>/sse`, is for clients that need the classic Server-Sent Events handshake, such as Cursor and older MCP clients.
+
+## Validate
+
+Python only. `validate` checks a project before you deploy it, and exits with code `1` if it finds an error, so it can stop a CI pipeline. It reports missing or conflicting dependencies, `@mcp_app` modules that fail to import, and `@module()` `imports` or `exports` that are not real classes. Code in the vendored SDK, `vendor/nitrostack`, is skipped.
+
+```bash
+nitrostack-py validate
+```
+
+## Pack
+
+`pack` packages your project for deployment. The TypeScript CLI creates a zip file and the Python CLI builds a wheel.
+
+### TypeScript zip
+
+The TypeScript `pack` creates a zip file for deployment, building a container image, or sending to NitroCloud. It leaves out build artifacts, dependencies, and secrets, and keeps your `.gitignore` in line with NitroStack's canonical rules.
+
+#### Usage
+
+```bash
+npx @nitrostack/cli pack [options]
+# or:
+nitrostack-cli pack [options]
+# or standalone:
+nitrostack-pack [options]
+```
+
+#### Options
+
+Every option is optional.
+
+| Option | Shorthand | Description | Default |
+|--------|-----------|-------------|---------|
+| `--output <path>` | `-o` | Zip filename, saved to the project root | `<project-name>.zip` |
+| `--dry-run` | | Preview what is included and excluded without creating the zip | `false` |
+| `--include-env` | | Include `.env` files in the zip (use with caution) | `false` |
+| `--no-sync-gitignore` | | Skip merging NitroStack's canonical ignore rules into `.gitignore` | `false` |
+| `--cwd <dir>` | | Project directory | Current directory |
+
+#### What is left out
+
+To keep the archive small and protect your credentials, `pack` excludes `node_modules/`, build output (`dist/`, `.next/`, `build/`, `out/`), environment files (`.env`, `.env.local`, `.env.production`, unless you pass `--include-env`), version control folders (`.git/`, `.github/`), and logs and operating system files (`*.log`, `.DS_Store`, `Thumbs.db`).
+
+#### Examples
+
+Create a clean archive. The zip is saved in the project root as `my-mcp-server.zip`:
+
+```bash
+nitrostack-cli pack
+```
+
+Preview what would be included before packing:
+
+```bash
+nitrostack-cli pack --dry-run
+```
+
+Choose the name of the zip file:
+
+```bash
+nitrostack-cli pack -o production-build.zip
+```
+
+### Python wheel
+
+The Python `pack` builds a wheel in `dist/` with setuptools, the same build backend as the SDK. It refreshes `requirements.txt` from `pyproject.toml` when it can, always includes `.env.example`, and deletes its temporary build folders afterwards. Real `.env`, `.env.local`, and `.env.production` files are left out unless you pass `--include-env`.
+
+```bash
+nitrostack-py pack --dry-run      # list the files; write nothing
+nitrostack-py pack                # write dist/*.whl
+nitrostack-py pack --include-env  # also pack .env files (use with caution)
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Container />} title="Deploy with Docker" href="/docs/deployment/docker" description="Package the server as a container image." />
+  <Card icon={<Cloud />} title="Deploy to the cloud" href="/docs/deployment/cloud" description="Run it on a cloud platform." />
+</Cards>

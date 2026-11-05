@@ -1,0 +1,136 @@
+---
+title: "Configuration"
+description: "Token introspection, custom validation, multiple providers, and security settings"
+---
+
+import { FlaskConical } from 'lucide-react';
+
+The defaults validate JWTs against your provider's published keys. These options cover opaque tokens, extra checks, and more than one provider.
+
+## Token checks
+
+By default, tokens are JWTs checked against your provider's published keys. These options change how tokens are checked.
+
+### Opaque tokens
+
+Some providers issue opaque tokens, random strings that can't be decoded. NitroStack checks those by asking the provider's introspection endpoint (RFC 7662):
+
+```typescript
+OAuthModule.forRoot({
+  resourceUri: process.env.RESOURCE_URI!,
+  authorizationServers: [process.env.AUTH_SERVER_URL!],
+  scopesSupported: ["read", "write"],
+
+  // Token introspection (RFC 7662)
+  tokenIntrospectionEndpoint: process.env.INTROSPECTION_ENDPOINT,
+  tokenIntrospectionClientId: process.env.INTROSPECTION_CLIENT_ID,
+  tokenIntrospectionClientSecret: process.env.INTROSPECTION_CLIENT_SECRET,
+});
+```
+
+### Custom validation
+
+Add your own rule on top of the standard checks, for example to accept only users from one email domain:
+
+```typescript
+OAuthModule.forRoot({
+  resourceUri: process.env.RESOURCE_URI!,
+  authorizationServers: [process.env.AUTH_SERVER_URL!],
+  scopesSupported: ["read", "write"],
+
+  // Custom validation
+  customValidation: async (tokenPayload) => {
+    // Check if user is active in your database
+    const user = await db.users.findOne({ id: tokenPayload.sub });
+    if (!user || !user.active) {
+      return false;
+    }
+
+    // Check subscription status
+    if (!user.subscription || user.subscription.expired) {
+      return false;
+    }
+
+    return true;
+  },
+});
+```
+
+### Several providers
+
+List more than one authorization server to accept tokens from each of them, for example a workforce provider and a customer provider:
+
+```typescript
+OAuthModule.forRoot({
+  resourceUri: process.env.RESOURCE_URI!,
+
+  // Accept tokens from multiple providers
+  authorizationServers: [
+    "https://auth0.example.com",
+    "https://okta.example.com",
+    "https://azuread.example.com",
+  ],
+
+  scopesSupported: ["read", "write"],
+});
+```
+
+## Security behavior
+
+Three rules keep tokens from being misused. NitroStack enforces the first; the other two are up to you and your provider.
+
+### Audience binding
+
+A token is accepted only if it was issued for your server's `resourceUri` (RFC 8707). Without this check, a token a user got for some other service would also work on yours.
+
+```typescript
+// Token MUST have your RESOURCE_URI in the audience claim
+{
+  "aud": "http://localhost:3002",  // ← Must match RESOURCE_URI
+  "sub": "user123",
+  "scope": "read write"
+}
+```
+
+**Why This Matters:**
+
+- Without audience binding: Tokens from ANY service work
+- With audience binding: Only tokens for YOUR service work
+
+### Don't pass tokens on
+
+A token issued for your server must never be forwarded to another API. If your tool calls another service, authenticate to it with that service's own credentials:
+
+```typescript
+// WRONG - Security vulnerability!
+async function callUpstream(clientToken: string) {
+  await upstreamAPI.call({
+    headers: { Authorization: clientToken },
+  });
+}
+
+// CORRECT - Get separate token
+async function callUpstream() {
+  const upstreamToken = await getTokenForUpstream();
+  await upstreamAPI.call({
+    headers: { Authorization: upstreamToken },
+  });
+}
+```
+
+### Short-lived tokens
+
+Keep access tokens short-lived in your provider's settings, so a leaked token stops working quickly:
+
+```
+Access Token: 1 hour
+Refresh Token: 30 days
+```
+
+NitroStudio refreshes tokens automatically when they expire.
+
+## Next steps
+
+<Cards>
+  <Card icon={<FlaskConical />} title="Testing and production" href="/docs/sdk/auth/oauth/testing-and-production" description="Test sign-in, then ship it." />
+</Cards>

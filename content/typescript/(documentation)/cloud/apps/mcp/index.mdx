@@ -1,0 +1,76 @@
+---
+title: "Overview"
+description: "Your deployed server: its endpoint, connected clients, and technical details"
+---
+
+import { Activity, Rocket, Settings } from 'lucide-react';
+
+Open an app and click **MCP** to see its server. The overview has the URL clients connect to, one-click setup for chat clients, and the server's current health.
+
+<Screenshot src="/images/cloud/mcp-overview.png" alt="The MCP overview: the app name with a Live badge, the MCP endpoint with Copy and Open buttons, and cards for NitroChat, ChatGPT, and Claude" />
+
+## The MCP endpoint
+
+**MCP endpoint** is your server's public URL, on a `nitrocloud.ai` address made from the app's slug and your organization's. Use it in any MCP client. **Copy** copies it, and **Open** opens your server's landing page in a new tab, which lists its tools and shows connection settings for common clients. The **Serving traffic** badge tells you the server is up. **Show details** expands more information about the deployment.
+
+To deploy a new version, click **Deploy**, which opens [Deployments](/docs/cloud/apps/mcp/deployments).
+
+## Use your MCP
+
+**Use your MCP** connects the server to a chat client:
+
+| Client | What it does |
+| :-- | :-- |
+| **NitroChat** | The app's own [hosted chat](/docs/cloud/apps/chat), already linked to this server. |
+| **ChatGPT** | Connect the server as a ChatGPT app. |
+| **Claude** | Add the server to Claude as a custom connector. |
+
+### Connect ChatGPT
+
+1. Copy the **MCP endpoint** from this page.
+2. In ChatGPT, add a custom app (connector) and paste the URL. Use the endpoint exactly as shown, including `/mcp`.
+3. If your server expects a bearer token, use the credential you set in the server's [environment variables](/docs/cloud/apps/mcp/deployments#environment-variables). NitroCloud doesn't create a ChatGPT-specific key.
+
+### Connect Claude
+
+1. Copy the **MCP endpoint**.
+2. In Claude, add a custom connector and paste the URL.
+3. Send a message that should call one of your server's tools. If the call fails, check that the overview shows **Serving traffic**, then read the [Logs](/docs/cloud/apps/mcp/logs).
+
+**NitroChat** needs no URL: it's already bound to this server. Open it to use the hosted chat.
+
+### Build and test with Studio
+
+Under these cards, **Vibe code your MCP** opens [NitroStudio](/docs/studio/compose), where you describe a change and watch the code, tools, and widgets update. The **Visualize your tools** and **Test your MCP** cards point to Studio's [tool runner](/docs/studio/tools) and [test cases](/docs/studio/test-cases).
+
+## Technical details
+
+At the bottom of the page, **Technical details** has four tabs:
+
+| Tab | Shows |
+| :-- | :-- |
+| **Health** | Response time, app health, total requests, and error rate. |
+| **Deployments** | Recent deployments and which one is live. |
+| **Details** | The linked repository, region, and linked chat, plus links to logs and monitoring. |
+| **Preview** | A live preview of the server's landing page. |
+
+## Next steps
+
+<Cards>
+  <Card icon={<Rocket />} title="Deployments" href="/docs/cloud/apps/mcp/deployments" description="Ship a new version." />
+  <Card icon={<Activity />} title="Logs" href="/docs/cloud/apps/mcp/logs" description="Read what the server writes." />
+  <Card icon={<Settings />} title="Settings" href="/docs/cloud/apps/mcp/settings" description="Name, slug, and description." />
+</Cards>
+
+## Watch the videos
+
+Check out these videos to see each client connected to a live NitroCloud server, step by step.
+
+<div className="nx-video-grid">
+
+<YouTube id="8rBD2vgguv0" title="Connect Your Live MCP Server to ChatGPT" />
+<YouTube id="UZv2gQRqpL0" title="Connect Your MCP Server from NitroCloud to Claude" />
+<YouTube id="L_mf3-Koz7c" title="Connect Your Live MCP Server to Cursor" />
+<YouTube id="L8ADOxiZnhU" title="Connect Your Live MCP Server to Antigravity" />
+
+</div>

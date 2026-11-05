@@ -1,0 +1,12 @@
+{
+  "title": "Resources",
+  "pages": [
+    "index",
+    "options",
+    "uri-templates",
+    "subscriptions",
+    "responses",
+    "pipeline",
+    "dynamic"
+  ]
+}

@@ -1,0 +1,125 @@
+---
+title: "Starter"
+description: "A calculator server that covers every NitroStack primitive"
+icon: Calculator
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Wrench, FileText, MessageSquare, AppWindow, Rocket, KeyRound, Pizza } from 'lucide-react';
+
+The Starter template is a minimal project for learning the core concepts: one calculator module with a tool, a resource, a prompt, and a widget, and no authentication or database to get in the way.
+
+## What's included
+
+<Cards>
+  <Card icon={<Wrench />} title="Tools" description="calculate for arithmetic, plus convert_temperature." />
+  <Card icon={<FileText />} title="Resource" description="calculator://operations lists the available operations." />
+  <Card icon={<MessageSquare />} title="Prompt" description="calculator_help returns usage instructions." />
+  <Card icon={<AppWindow />} title="Widget" description="calculator-result renders the result of a calculation." />
+</Cards>
+
+## Create the project
+
+Scaffold the template in your language:
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```bash
+npx @nitrostack/cli init my-calculator --template typescript-starter
+cd my-calculator
+npm run dev
+```
+
+The dev server runs the MCP server over STDIO and the widget dev server at `http://localhost:3001`. Open the project in NitroStudio to try it.
+
+</Tab>
+<Tab value="Python">
+
+```bash
+nitrostack-py init my-server --template python-starter
+```
+
+Calculator server with `@widget("calculator-result")`, `ConfigModule`, and a health check. No OAuth. To test in MCP Inspector, use HTTP + stateless with auth off at `http://localhost:3000/mcp`.
+
+</Tab>
+</Tabs>
+
+## Project structure
+
+The files that matter:
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```text
+src/
+├── modules/calculator/
+│   ├── calculator.module.ts      # Module definition
+│   ├── calculator.tools.ts       # @Tool methods
+│   ├── calculator.resources.ts   # @Resource methods
+│   └── calculator.prompts.ts     # @Prompt methods
+├── health/system.health.ts       # Health check
+├── widgets/app/calculator-result # Result widget
+├── app.module.ts                 # Root module
+└── index.ts                      # Bootstrap
+```
+
+</Tab>
+<Tab value="Python">
+
+```text
+main.py                            # McpApplicationFactory.create(AppModule)
+app_module.py                      # Root @module
+modules/calculator/                # Controller + service
+widgets/out/calculator-result.html # Widget
+health/system_health.py            # Health check
+```
+
+</Tab>
+</Tabs>
+
+## The calculate tool
+
+The tool validates its input with a schema, returns a result, and attaches the `calculator-result` widget. `examples` gives clients a preview of the widget before the tool runs.
+
+```typescript title="src/modules/calculator/calculator.tools.ts"
+@Tool({
+  name: 'calculate',
+  description: 'Perform basic arithmetic calculations',
+  inputSchema: z.object({
+    operation: z.enum(['add', 'subtract', 'multiply', 'divide']),
+    a: z.number(),
+    b: z.number(),
+  }),
+  examples: {
+    request: { operation: 'add', a: 5, b: 3 },
+    response: { result: 8, expression: '5 + 3 = 8' },
+  },
+})
+@Widget('calculator-result')
+async calculate(input: any, ctx: ExecutionContext) {
+  // ...
+}
+```
+
+## Try it
+
+Ask your AI client things like these:
+
+| Ask | What happens |
+| :-- | :-- |
+| "What's 12 times 8?" | The model calls `calculate` and the widget shows `12 × 8 = 96`. |
+| "How do I use the calculator?" | The client uses the `calculator_help` prompt. |
+| "What operations are available?" | The client reads the `calculator://operations` resource. |
+
+To grow the template, add operations to the enum in `calculator.tools.ts`, or add a feature module with `npx @nitrostack/cli generate module converter`.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Rocket />} title="Quickstart" href="/docs/getting-started/quickstart" description="Walk through this template step by step." />
+  <Card icon={<KeyRound />} title="OAuth 2.1 template" href="/docs/templates/oauth" description="Add authentication to your tools." />
+  <Card icon={<Pizza />} title="Pizzaz template" href="/docs/templates/pizzaz" description="Go further with widgets." />
+  <Card icon={<AppWindow />} title="Widgets" href="/docs/sdk/ui/widgets" description="Build your own widget UI." />
+</Cards>

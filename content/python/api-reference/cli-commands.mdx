@@ -1,0 +1,20 @@
+---
+title: "CLI Commands"
+description: "nitrostack-py command reference"
+---
+
+Entry: `nitrostack-py` or `python -m nitrostack.cli.main`.
+
+| Command | Purpose |
+|---------|---------|
+| `init [name]` | Scaffold (`--template`, `--skip-install`, `--force`, `--port`, `--widget`) |
+| `dev` | Hot reload (`--port`, `--widget`) |
+| `start` | Production (`--port`, `--widget`) |
+| `pack` | Wheel (`--dry-run`, `--include-env`) |
+| `generate <type> <name>` | `tool` `module` `guard` `pipe` `interceptor` `filter` `service` |
+| `install` | Deps (`--production`) |
+| `upgrade` | Pin/bump (`--version`, `--dry-run`, `--allow-downgrade`) |
+| `validate` | Lint project |
+| `register` | Claude Desktop (`--name`, `--file`) |
+
+There is no `build` command. See [CLI Overview](/docs/cli/overview).

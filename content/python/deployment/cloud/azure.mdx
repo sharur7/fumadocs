@@ -1,0 +1,50 @@
+---
+title: "Microsoft Azure"
+description: "Run the server on Azure Container Instances or AKS"
+---
+
+import { Cloud, Container } from 'lucide-react';
+
+Azure can run the container on its own with Container Instances, or on a Kubernetes cluster with AKS. Both pull the image from a registry such as Azure Container Registry.
+
+Every platform needs the same settings from your server: listen on all interfaces (`HOST=0.0.0.0`), use the port the platform expects (`PORT`), run over HTTP (`MCP_TRANSPORT_TYPE=http`), and point the health check at `/mcp/health`. [Docker](/python/deployment/docker) explains each one.
+
+## Container Instances
+
+Create a resource group, then start one container with your settings. `--secure-environment-variables` keeps the secret out of the portal and logs.
+
+```bash
+# Create resource group
+az group create --name mcp-rg --location eastus
+
+# Create container
+az container create \
+  --resource-group mcp-rg \
+  --name my-mcp-server \
+  --image <registry>/my-mcp-server:latest \
+  --ports 3000 \
+  --environment-variables HOST=0.0.0.0 MCP_TRANSPORT_TYPE=http PORT=3000 \
+  --secure-environment-variables JWT_SECRET=$JWT_SECRET
+```
+
+## AKS
+
+Create a cluster, fetch its credentials, and apply the same manifest as the [GKE example](/python/deployment/cloud/google-cloud#gke), with your registry's image.
+
+```bash
+# Create AKS cluster
+az aks create --resource-group mcp-rg --name mcp-aks --node-count 2
+
+# Get credentials
+az aks get-credentials --resource-group mcp-rg --name mcp-aks
+
+# Deploy (reuse the manifest from the GKE section, with your registry image)
+kubectl apply -f deployment.yaml
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Container />} title="Docker" href="/python/deployment/docker" description="The Dockerfile and runtime settings." />
+  <Card icon={<Cloud />} title="Cloud Platforms" href="/python/deployment/cloud" description="Compare the other platforms." />
+</Cards>

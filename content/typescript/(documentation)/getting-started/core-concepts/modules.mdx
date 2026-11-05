@@ -1,0 +1,251 @@
+---
+title: "Modules"
+description: "Organize features into modules with controllers and providers"
+---
+
+import { Syringe, WandSparkles, Wrench } from 'lucide-react';
+
+A module groups everything that belongs to one feature: the controllers that expose tools, resources, and prompts, and the services they use. The root `AppModule` imports the rest, so a large server stays a set of small, readable pieces.
+
+## Defining a module
+
+Modules organize your application into cohesive, loosely-coupled units. Each module encapsulates related functionality and declares its dependencies explicitly.
+
+```typescript
+import { Module } from '@nitrostack/core';
+
+@Module({
+  name: 'products',
+  description: 'Product catalog management',
+  controllers: [ProductsTools, ProductsResources, ProductsPrompts],
+  providers: [ProductService, DatabaseService],
+  imports: [HttpModule],
+  exports: [ProductService]
+})
+export class ProductsModule {}
+```
+
+## Module options
+
+Every option is optional except `name`.
+
+| Property | Type | Description | Required |
+|----------|------|-------------|----------|
+| `name` | `string` | Unique module identifier | Yes |
+| `description` | `string` | Human-readable description | No |
+| `controllers` | `Class[]` | Tool, resource, and prompt classes | No |
+| `providers` | `Class[]` | Services registered with the DI container | No |
+| `imports` | `Module[]` | Modules whose exports are available | No |
+| `exports` | `Class[]` | Providers available to importing modules | No |
+| `global` | `boolean` | If true, providers are available globally | No |
+
+## Controllers
+
+Controllers are the classes that hold your MCP primitives: tools, resources, and prompts. Clients see what they expose. A typical feature has one controller class per primitive type:
+
+```typescript
+// products.tools.ts
+import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
+
+export class ProductsTools {
+  constructor(private productService: ProductService) {}
+
+  @Tool({
+    name: 'get_product',
+    description: 'Retrieve product details by ID',
+    inputSchema: z.object({
+      product_id: z.string().describe('Product ID'),
+    }),
+  })
+  async getProduct(input: { product_id: string }, ctx: ExecutionContext) {
+    return this.productService.findById(input.product_id);
+  }
+}
+
+// products.resources.ts
+import { ResourceDecorator as Resource, ExecutionContext } from '@nitrostack/core';
+
+export class ProductsResources {
+  constructor(private productService: ProductService) {}
+
+  @Resource({
+    uri: 'product://{id}',
+    name: 'Product Details',
+    mimeType: 'application/json'
+  })
+  async getProductResource(uri: string, ctx: ExecutionContext) {
+    const id = uri.split('://')[1];
+    const product = await this.productService.findById(id);
+    return {
+      contents: [{
+        uri,
+        mimeType: 'application/json',
+        text: JSON.stringify(product, null, 2)
+      }]
+    };
+  }
+}
+
+// products.prompts.ts
+import { PromptDecorator as Prompt, ExecutionContext } from '@nitrostack/core';
+
+export class ProductsPrompts {
+  @Prompt({
+    name: 'review_product',
+    description: 'Generate a product review prompt'
+  })
+  async getReviewPrompt(args: { product_id: string }, ctx: ExecutionContext) {
+    return [
+      {
+        role: 'user' as const,
+        content: { type: 'text' as const, text: `Review product ${args.product_id}` }
+      }
+    ];
+  }
+}
+```
+
+## Providers
+
+Providers are services that hold your business logic, such as database access or API clients. Clients never see them directly; controllers and other providers receive them through [dependency injection](/docs/sdk/dependency-injection):
+
+```typescript
+import { Injectable } from '@nitrostack/core';
+
+@Injectable()
+export class ProductService {
+  constructor(private db: DatabaseService) {}
+
+  async findById(id: string): Promise<Product | null> {
+    return this.db.query('SELECT * FROM products WHERE id = $1', [id]);
+  }
+
+  async search(query: string, options?: SearchOptions): Promise<Product[]> {
+    return this.db.query(
+      'SELECT * FROM products WHERE name ILIKE $1 LIMIT $2 OFFSET $3',
+      [`%${query}%`, options?.limit ?? 20, options?.offset ?? 0]
+    );
+  }
+
+  async create(data: CreateProductDto): Promise<Product> {
+    const result = await this.db.query(
+      'INSERT INTO products (name, price, description) VALUES ($1, $2, $3) RETURNING *',
+      [data.name, data.price, data.description]
+    );
+    return result[0];
+  }
+}
+```
+
+## Imports and exports
+
+A module keeps its providers private unless it exports them. Another module gets access by importing it.
+
+**Imports** allow a module to use providers exported by other modules:
+
+```typescript
+@Module({
+  name: 'orders',
+  imports: [ProductsModule, PaymentsModule],  // Use exports from these modules
+  controllers: [OrdersTools],
+  providers: [OrderService]
+})
+export class OrdersModule {}
+```
+
+**Exports** make providers available to importing modules:
+
+```typescript
+@Module({
+  name: 'products',
+  providers: [ProductService, InternalHelper],
+  exports: [ProductService]  // Only ProductService is available to importers
+})
+export class ProductsModule {}
+```
+
+## Recommended structure
+
+Group files by feature, one folder per module, and keep shared pipeline classes in `common/`.
+
+```
+src/
+├── modules/
+│   ├── auth/
+│   │   ├── auth.module.ts
+│   │   ├── auth.tools.ts
+│   │   ├── auth.service.ts
+│   │   └── guards/
+│   │       └── jwt.guard.ts
+│   ├── products/
+│   │   ├── products.module.ts
+│   │   ├── products.tools.ts
+│   │   ├── products.resources.ts
+│   │   ├── products.prompts.ts
+│   │   ├── products.service.ts
+│   │   └── dto/
+│   │       ├── create-product.dto.ts
+│   │       └── update-product.dto.ts
+│   └── orders/
+│       ├── orders.module.ts
+│       ├── orders.tools.ts
+│       └── orders.service.ts
+├── common/
+│   ├── middleware/
+│   ├── interceptors/
+│   ├── pipes/
+│   └── filters/
+├── app.module.ts
+└── index.ts
+```
+
+## Feature modules
+
+A feature module holds everything for one business domain: its controllers, its services, and the services it shares with others.
+
+```typescript
+// Feature module encapsulates all product-related functionality
+@Module({
+  name: 'products',
+  controllers: [ProductsTools, ProductsResources],
+  providers: [ProductService, ProductRepository],
+  exports: [ProductService]
+})
+export class ProductsModule {}
+```
+
+## Shared modules
+
+A shared module provides services that many features need, such as database access. With `global: true`, its exports are available everywhere without an import.
+
+```typescript
+@Module({
+  name: 'database',
+  providers: [DatabaseService, TransactionManager],
+  exports: [DatabaseService, TransactionManager],
+  global: true  // Available to all modules without explicit import
+})
+export class DatabaseModule {}
+```
+
+## Core module
+
+A core module is a global shared module for services the whole application relies on, such as logging, caching, and metrics.
+
+```typescript
+@Module({
+  name: 'core',
+  providers: [Logger, CacheService, MetricsService],
+  exports: [Logger, CacheService, MetricsService],
+  global: true
+})
+export class CoreModule {}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Syringe />} title="Dependency injection" href="/docs/sdk/dependency-injection" description="How providers are created and shared." />
+  <Card icon={<Wrench />} title="Tools" href="/docs/sdk/tools" description="Write the tools a controller exposes." />
+  <Card icon={<WandSparkles />} title="Generate a module" href="/docs/cli/generate" description="Scaffold modules from the CLI." />
+</Cards>

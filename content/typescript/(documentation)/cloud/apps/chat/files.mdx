@@ -1,0 +1,31 @@
+---
+title: "Files"
+description: "Let people share images and documents in the chat"
+---
+
+import { Database, Palette } from 'lucide-react';
+
+**Files**, in the Chat menu, controls whether people can upload images and documents in their conversations. It's off by default, and only owners and admins can change it.
+
+<Screenshot src="/images/cloud/chat-files.png" alt="The File sharing page with a File upload configuration card, an Enable file sharing switch, and a list of what gets enabled" />
+
+## Turn on file sharing
+
+Under **File upload configuration**, turn on **Enable file sharing**, then click **Save changes**. That enables three things:
+
+- **Image upload and preview in chat.** People can attach an image and see it in the conversation.
+- **Vision capabilities with AI models.** Models that support images can read what's in them.
+- **File attachment support.** People can attach documents as well as images.
+
+Whether a model can read an image depends on the model; choose one that supports vision on [AI model](/docs/cloud/apps/chat/ai-model).
+
+Turning file sharing off hides the attachment button in the chat. Files that people have already sent aren't deleted.
+
+This is the same file-upload capability that the **Features** tab in [Settings](/docs/cloud/apps/chat/settings#features) refers to; it's switched on here.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Database />} title="Database" href="/docs/cloud/apps/chat/database" description="Keep chat history in MongoDB." />
+  <Card icon={<Palette />} title="Settings" href="/docs/cloud/apps/chat/settings" description="Theme and branding." />
+</Cards>

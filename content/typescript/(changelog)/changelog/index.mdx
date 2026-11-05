@@ -1,0 +1,361 @@
+---
+title: Changelog
+description: New features, improvements, and fixes in every NitroStack release, newest first.
+icon: History
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+Every release of the TypeScript SDK (`@nitrostack/core`), the CLI (`@nitrostack/cli`), and the Python SDK (`nitrostack`), newest first. To move a project to the latest release, see [Upgrade](#upgrade) at the end of the page.
+
+<Changelog>
+
+<Release date="17 Oct 2026" packages={[{ name: 'core', version: '1.1.2', lang: 'ts' }, { name: 'cli', version: '1.1.2', lang: 'ts' }]}>
+
+## Universal app mode by default
+
+`APP_MODE` now defaults to `universal`. A server built with NitroStack serves widgets to both Claude and ChatGPT without any configuration: tools carry the metadata each host expects, and widget resources use the MCP Apps MIME type. Set `APP_MODE=openai` or `APP_MODE=mcp-app` only when you target a single host. See [Application mode](/docs/cli/configuration#application-mode-app_mode).
+
+</Release>
+
+<Release date="16 Oct 2026" packages={[{ name: 'nitrostack', version: '0.4.2', lang: 'py' }, { name: 'nitrostack', version: '0.4.1', lang: 'py' }]}>
+
+## Python: environment variables and upgrades
+
+Two small Python releases on the same day.
+
+### Fixes
+
+- **Configuration.** `ConfigService` now gives the process environment priority over values in `.env`, so a variable set by your shell, container, or host is never overridden by a local file. (0.4.1)
+- **Upgrade.** `nitrostack-py upgrade` works in projects created by `init`, which keep a vendored copy of the SDK. (0.4.2)
+- **Init.** The note `init` prints about NitroStudio is corrected. (0.4.2)
+
+</Release>
+
+<Release date="15 Oct 2026" packages={[{ name: 'core', version: '1.1.1', lang: 'ts' }, { name: 'cli', version: '1.1.1', lang: 'ts' }]}>
+
+## Project names flow through new projects
+
+`nitrostack-cli init` now writes your project name into the scaffolded server's `name` and into the widget package's name, so a new project no longer starts with the template's names.
+
+### Fixes
+
+- **CLI.** Project names are sanitized before they're written into templates: newlines, control characters, and characters that have a special meaning in replacements are handled safely.
+- **CLI.** The OAuth template's startup message no longer names a specific server.
+- **Core.** `resolveServerIdentity` and `readLocalPackageManifest` are exported from the package entry point.
+- **Core.** Widget entry code generation escapes and normalizes file paths correctly.
+
+</Release>
+
+<Release date="8 Oct 2026" packages={[{ name: 'core', version: '1.1.0', lang: 'ts' }, { name: 'cli', version: '1.1.0', lang: 'ts' }]}>
+
+## Transforms, data spillover, and two new templates
+
+1.1.0 is about servers with a lot of tools and a lot of data. Transforms change which tools a client sees and how it calls them, data spillover keeps large results out of the model's context, and two new templates show both at work.
+
+### Search and code-mode transforms
+
+A [transform](/docs/sdk/transforms) sits between your tools and the client. The [search transform](/docs/sdk/transforms/search) replaces a long tool list with a search tool, using BM25 or regex matching, so the model discovers tools as it needs them. Without a query, it lists the catalog. The [code-mode transform](/docs/sdk/transforms/code-mode) lets the model write a short script that calls several tools in one step; scripts run in a QuickJS sandbox with memory limits. You can give both transforms custom tool descriptions.
+
+### Data spillover
+
+The [`DataSpilloverInterceptor`](/docs/sdk/data-spillover) catches tool results that are too large to send to a model. It returns a preview and a resource link, and stores the full result in memory or on the filesystem until the client reads it.
+
+### Session-based tool visibility
+
+Tools can be shown or hidden for each session through `ExecutionContext`, and clients are notified when the list changes. [Visibility](/docs/sdk/transforms/visibility) explains how to use it as a transform.
+
+### New templates
+
+`init` adds two templates: [Enterprise search](/docs/templates/enterprise-search), with finance, inventory, and support controllers behind the search transform, and [Code mode](/docs/templates/code-mode). Both include widgets built with Next.js.
+
+### Improvements
+
+- **Transports.** HTTP clients that don't accept `text/event-stream` get plain JSON responses.
+- **Health checks.** The health resource includes transform pipeline and spillover metrics.
+- **Pipeline.** Tools and decorators accept interceptor instances that are already configured.
+- **Tools.** Synthetic tools accept arguments sent as a serialized JSON string.
+- **Templates.** The new templates pin `@modelcontextprotocol/ext-apps` and `zod`, so installs stay on Zod 3.
+
+### Fixes
+
+- **Transforms.** A `CallToolResult` is no longer wrapped twice, and a `tools/call` that arrives before indexing finishes is handled.
+- **Search.** Regex matching has a longer worker timeout and no longer leaks worker slots under load.
+
+</Release>
+
+<Release date="1 Oct 2026" packages={[{ name: 'nitrostack', version: '0.4.0', lang: 'py' }]}>
+
+## Python: a vendored SDK and a landing page
+
+Projects created by `nitrostack-py init` now include their own copy of the SDK in `vendor/nitrostack`, added at `init` and refreshed by `pack`, so a deployed project carries exactly the SDK it was built with. `install` keeps using `uv sync` for everything else.
+
+A Python server now answers `GET /` with a page that describes its MCP endpoint, like the TypeScript SDK.
+
+### Fixes
+
+- **HTTP.** A `GET /mcp` request that carries a session ID is rejected before an SSE stream opens.
+
+</Release>
+
+<Release date="24 Sep 2026" packages={[{ name: 'core', version: '1.0.17', lang: 'ts' }, { name: 'cli', version: '1.0.17', lang: 'ts' }]}>
+
+## Dependency updates
+
+### Improvements
+
+- **Core.** `zod` is updated to 3.25, and `@modelcontextprotocol/ext-apps` is no longer a peer dependency.
+- **Templates.** Templates pin `@modelcontextprotocol/ext-apps` to 1.x, so new projects install the Zod 3 build.
+
+</Release>
+
+<Release date="10 Sep 2026" packages={[{ name: 'nitrostack', version: '0.3.5', lang: 'py' }]}>
+
+## Python SDK, rebuilt on its own MCP server
+
+0.3.5 is the largest Python release so far. The SDK no longer builds on FastMCP: it runs its own low-level MCP server, which brings it level with the TypeScript SDK.
+
+### MCP 2026-07-28
+
+Python servers support the stateless 2026-07-28 revision of MCP. One `/mcp` endpoint serves both 2025 and 2026 clients, and the protocol era defaults to `auto`. In stateless mode, requests must carry the `Mcp-Method` header, and `tools/call` must also carry `Mcp-Name`; both must match the JSON-RPC body.
+
+### What's new
+
+- **Transports.** Streamable HTTP and legacy SSE, alongside STDIO.
+- **Tasks.** The MCP tasks protocol, with a pluggable task store and per-tenant task authorization.
+- **Auth.** OAuth 2.1, including Client ID Metadata Document resolution with SSRF protection.
+- **Widgets.** Interactive widgets that talk to the host through bridge RPCs.
+- **CLI.** `init` installs agent skills and creates the project's `.venv`, and templates use `uv`.
+
+### Improvements
+
+- **HTTP.** Servers bind to `127.0.0.1` by default, and trust a forwarded host only from trusted proxies.
+- **Tools.** Tool schemas must use JSON Schema 2020-12; other drafts are rejected when the tool is registered.
+
+</Release>
+
+<Release date="7 Sep 2026" packages={[{ name: 'core', version: '1.0.16', lang: 'ts' }, { name: 'cli', version: '1.0.16', lang: 'ts' }]}>
+
+## MCP 2026-07-28 and tasks
+
+NitroStack servers support the stateless 2026-07-28 revision of MCP, and keep serving clients on the earlier revision. The default protocol era is `auto`.
+
+### Tasks
+
+Long-running tool calls can run as [tasks](/docs/sdk/tasks). Task storage is pluggable through a `TaskStore`, with an in-memory store by default. Tasks are authorized per tenant, cancelled tasks can't be updated, and only finished tasks expire. Status updates reach clients over SSE, the modern transport, or STDIO.
+
+### Improvements
+
+- **Auth.** A standard `OAuthGuard`, and stricter Client ID Metadata Document resolution: HTTPS only, no redirects, a 5 KiB response limit, a timeout, and protection against private network addresses.
+- **Tools.** Input schemas allow additional properties, so contextual parameters don't fail validation.
+- **Server.** Start options are configurable, and `PORT` takes priority when the HTTP port is resolved.
+
+### Fixes
+
+- **Transports.** The modern adapter answers `ping`, and passes an already parsed request body through, so Express JSON middleware works.
+- **Widgets.** Widget metadata is kept when tools are registered, custom widget resource URIs work, and bundled widget files resolve by their clean filename.
+
+</Release>
+
+<Release date="25 Aug 2026" packages={[{ name: 'core', version: '1.0.15', lang: 'ts' }]}>
+
+## Request details in the execution context
+
+### Fixes
+
+- **Context.** The HTTP `Authorization` header and `params._meta` are passed into the tool's `ExecutionContext`.
+- **Transports.** Session context is passed through transport registrations.
+
+</Release>
+
+<Release date="24 Jul 2026" packages={[{ name: 'core', version: '1.0.14', lang: 'ts' }, { name: 'cli', version: '1.0.15', lang: 'ts' }]}>
+
+## Package your project with `pack`
+
+[`nitrostack-cli pack`](/docs/cli/build-and-ship#pack) creates a zip of your project, ready to deploy. It follows your `.gitignore` and handles symlinks safely.
+
+</Release>
+
+<Release date="22 Jul 2026" packages={[{ name: 'nitrostack', version: '0.3.4', lang: 'py' }, { name: 'nitrostack', version: '0.3.3', lang: 'py' }]}>
+
+## Python templates match TypeScript
+
+The Python templates and widgets now match the TypeScript ones.
+
+</Release>
+
+<Release date="14 Jul 2026" packages={[{ name: 'core', version: '1.0.13', lang: 'ts' }, { name: 'cli', version: '1.0.14', lang: 'ts' }]}>
+
+## Agent skills, controllers, and lifecycle hooks
+
+`init` now installs NitroStack agent skills for the coding agents it finds on your machine, in the project or globally, and `upgrade` keeps them current. Coding agents then know how NitroStack works.
+
+### What's new
+
+- **Controllers.** The `@Controller` decorator registers a class and prefixes its tool names. See [Controllers](/docs/sdk/tools/controllers).
+- **Lifecycle hooks.** Modules and services can run code when the server starts and stops. See [Server lifecycle](/docs/getting-started/core-concepts/server-lifecycle).
+- **Core.** `getInitialToolMetadata` is exported.
+
+</Release>
+
+<Release date="10 Jul 2026" packages={[{ name: 'core', version: '1.0.12', lang: 'ts' }, { name: 'cli', version: '1.0.13', lang: 'ts' }]}>
+
+## Cursor support and a new server landing page
+
+### What's new
+
+- **CLI.** A `cursor` command configures Cursor to use your server.
+- **CLI.** `upgrade` fetches the latest version of each package from npm.
+- **Transports.** Each Streamable HTTP session can get its own server instance, and Cursor can connect through `GET /mcp` with a legacy SSE fallback.
+- **Auth.** OAuth supports dynamic client registration and JWKS.
+- **Landing page.** The page a server shows at its HTTP address is redesigned, with light and dark modes.
+
+### Fixes
+
+- **Transports.** Sessions that never finish initializing no longer leak memory.
+
+</Release>
+
+<Release date="1 Jul 2026" packages={[{ name: 'core', version: '1.0.11', lang: 'ts' }, { name: 'core', version: '1.0.10', lang: 'ts' }]}>
+
+## Dual transport by default
+
+Servers serve STDIO and HTTP at the same time by default. See [Dual transport](/docs/guides/dual-transport).
+
+</Release>
+
+<Release date="24–25 Jun 2026" packages={[{ name: 'nitrostack', version: '0.3.2', lang: 'py' }, { name: 'nitrostack', version: '0.3.1', lang: 'py' }, { name: 'nitrostack', version: '0.3.0', lang: 'py' }]}>
+
+## Python: interactive project setup
+
+`nitrostack-py init` asks for your project's details interactively, and the CLI can generate an OAuth setup guide for your project. Text encoding on Windows is fixed.
+
+</Release>
+
+<Release date="18 Jun 2026" packages={[{ name: 'core', version: '1.0.9', lang: 'ts' }]}>
+
+## OAuth and prompt fixes
+
+### Fixes
+
+- **Auth.** JWKS token validation is stricter.
+- **Server.** Dependency injection registration is fixed, and a transport set in configuration is kept.
+- **Prompts.** A prompt that returns a single message is handled as a list of one.
+
+</Release>
+
+<Release date="17 Jun 2026" packages={[{ name: 'nitrostack', version: '0.1.0', lang: 'py' }]}>
+
+## The Python SDK
+
+The first release of `nitrostack` for Python, followed by 0.2.0 and 0.2.1 on 23 Jun. See the [Python quick start](/python/sdk/quick-start).
+
+</Release>
+
+<Release date="8 Apr 2026" packages={[{ name: 'core', version: '1.0.8', lang: 'ts' }, { name: 'core', version: '1.0.7', lang: 'ts' }, { name: 'cli', version: '1.0.12', lang: 'ts' }]}>
+
+## App modes for Claude and ChatGPT
+
+`APP_MODE` chooses how widgets are delivered: for ChatGPT, for Claude, or for both at once. (6 Apr)
+
+### Fixes
+
+- **Widgets.** Widgets render over HTTP, and a race condition while rendering is fixed. (6 and 8 Apr)
+
+</Release>
+
+<Release date="5 Apr 2026" packages={[{ name: 'core', version: '1.0.6', lang: 'ts' }, { name: 'cli', version: '1.0.11', lang: 'ts' }]}>
+
+## Widgets in ChatGPT
+
+### What's new
+
+- **Transports.** A legacy `/sse` endpoint for clients that need it.
+- **Widgets.** Widget CSP settings for OpenAI apps. See [Configure widget CSP](/docs/guides/widget-csp).
+
+### Fixes
+
+- **CLI.** Middleware created by `generate` logs with `context.logger`, which doesn't interfere with STDIO.
+
+</Release>
+
+</Changelog>
+
+## Earlier releases
+
+Releases before April 2026 have no notes on this page. Their versions and dates are listed under [All releases](#all-releases).
+
+## Upgrade
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+From your project folder, preview the changes, then apply them:
+
+```bash
+npx nitrostack-cli upgrade --dry-run
+npx nitrostack-cli upgrade
+```
+
+`upgrade` updates the `@nitrostack/*` packages in your project and refreshes the agent skills. See [Manage Dependencies](/docs/cli/manage-dependencies#upgrade) for every option. To update a global install of the CLI, run `npm install -g @nitrostack/cli`.
+
+</Tab>
+<Tab value="Python">
+
+```bash
+pip install -U nitrostack
+nitrostack-py upgrade --dry-run
+nitrostack-py upgrade
+```
+
+In a project created by `init`, `upgrade` replaces the vendored copy of the SDK in `vendor/nitrostack` with the target release, downloading the wheel from PyPI and checking it against its published sha256. In other projects it updates the `nitrostack` entry in `pyproject.toml`, and `requirements.txt` when it already pins it; run `nitrostack-py install` afterwards. Use `--version X` to pick a release. A target older than the current version is rejected unless you pass `--allow-downgrade`. See [Manage Dependencies](/docs/cli/manage-dependencies#upgrade).
+
+</Tab>
+</Tabs>
+
+## All releases
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+| Released | `@nitrostack/core` | `@nitrostack/cli` |
+|---|---|---|
+| 17 Oct 2026 | `1.1.2` | `1.1.2` |
+| 15 Oct 2026 | `1.1.1` | `1.1.1` |
+| 8 Oct 2026 | `1.1.0` | `1.1.0` |
+| 24 Sep 2026 | `1.0.17` | `1.0.17` |
+| 7 Sep 2026 | `1.0.16` | `1.0.16` |
+| 25 Aug 2026 | `1.0.15` | |
+| 24 Jul 2026 | `1.0.14` | `1.0.15` |
+| 14 Jul 2026 | `1.0.13` | `1.0.14` |
+| 10 Jul 2026 | `1.0.12` | `1.0.13` |
+| 1 Jul 2026 | `1.0.11` | |
+| 30 Jun 2026 | `1.0.10` | |
+| 18 Jun 2026 | `1.0.9` | |
+| 8 Apr 2026 | `1.0.8` | |
+| 6 Apr 2026 | `1.0.7` | `1.0.12` |
+| 5 Apr 2026 | `1.0.6` | `1.0.11` |
+| 2 Mar 2026 | | `1.0.10` |
+| 25 Feb 2026 | `1.0.3` | `1.0.9` |
+| 23 Feb 2026 | `1.0.2` | `1.0.7`, `1.0.8` |
+| 2 Feb 2026 | `1.0.1` | `1.0.6` |
+| 31 Jan 2026 | `1.0.0` | |
+| 12 Jan 2026 | | `1.0.4` |
+| 11 Jan 2026 | | `1.0.0`, `1.0.1`, `1.0.3` |
+
+</Tab>
+<Tab value="Python">
+
+| Released | `nitrostack` |
+|---|---|
+| 16 Oct 2026 | `0.4.1`, `0.4.2` |
+| 1 Oct 2026 | `0.4.0` |
+| 10 Sep 2026 | `0.3.5` |
+| 22 Jul 2026 | `0.3.3`, `0.3.4` |
+| 25 Jun 2026 | `0.3.2` |
+| 24 Jun 2026 | `0.3.0`, `0.3.1` |
+| 23 Jun 2026 | `0.2.0`, `0.2.1` |
+| 17 Jun 2026 | `0.1.0` |
+
+</Tab>
+</Tabs>

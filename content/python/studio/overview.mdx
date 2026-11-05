@@ -1,0 +1,15 @@
+---
+title: "Studio Overview"
+description: "Test Python MCP servers in NitroStudio or MCP Inspector"
+---
+
+Open your project folder directly in **[NitroStudio](https://nitrostack.ai/)**. It recognises a Python NitroStack project by `main.py` plus `nitrostack` in `requirements.txt` or `pyproject.toml`, starts the server, and lets you call tools, preview widgets, chat with it, and run OAuth. Studio passes the port it selects through `PORT`, which wins over `.env`, allowing multiple projects to run side by side.
+
+You can also test with:
+
+1. **MCP Inspector** over Streamable HTTP: `MCP_TRANSPORT_TYPE=http MCP_STATELESS=true nitrostack-py dev`, then connect to `http://localhost:3000/mcp` (no trailing slash).
+2. **Claude Desktop** via `nitrostack-py register`.
+
+Turn Authentication **off** in Inspector for the starter and pizzaz templates. Widget live preview: `http://localhost:3000/widgets/preview`.
+
+See [Widgets](/python/sdk/widgets) and [Verify Transport](/docs/guides/verify-transport).

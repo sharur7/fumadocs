@@ -1,0 +1,37 @@
+---
+title: "Heroku"
+description: "Deploy the server as a container with git push"
+---
+
+import { Cloud, Container } from 'lucide-react';
+
+Heroku can build and run your Dockerfile when the app uses the container stack. You deploy with `git push`, and the app gets HTTPS on a `*.herokuapp.com` address. Clients connect to `https://<your-app>.herokuapp.com/mcp`.
+
+## Deploy
+
+Create the app, switch it to the container stack, set your configuration, and push:
+
+```bash
+heroku create my-mcp-server
+heroku stack:set container
+heroku config:set MCP_TRANSPORT_TYPE=http HOST=0.0.0.0 JWT_SECRET=...
+git push heroku main
+heroku ps:scale web=1
+```
+
+Add a `heroku.yml` at the project root so Heroku knows which Dockerfile to build:
+
+```yaml title="heroku.yml"
+build:
+  docker:
+    web: Dockerfile
+```
+
+Heroku assigns the port through `PORT`, and `nitrostack-py start` reads it from the environment. Don't pass a fixed `--port` in the Dockerfile's `CMD` when you deploy here.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Container />} title="Docker" href="/python/deployment/docker" description="The Dockerfile and runtime settings." />
+  <Card icon={<Cloud />} title="Cloud Platforms" href="/python/deployment/cloud" description="Compare the other platforms." />
+</Cards>

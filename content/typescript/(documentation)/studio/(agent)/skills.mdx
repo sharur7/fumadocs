@@ -1,0 +1,32 @@
+---
+title: Skills
+description: Step-by-step instructions that guide the model through your workflows.
+---
+
+import { Sparkles, MessageSquare, Wrench } from 'lucide-react';
+
+A skill is a set of instructions, written in Markdown, that tells the model how to carry out a particular job with your tools: which tools to use, in which order, and what to check along the way. Without one, the model works out a multi-step workflow on its own each time. With one, it follows the same steps every time.
+
+For example, a booking skill might say: search for hotels first, confirm the dates with the user, then book, and never book without a hotel ID from the search.
+
+<Screenshot src="/images/studio/skills.webp" alt="The Skills page in NitroStudio with no skills yet, and Upload and Create buttons" caption="A project with no skills yet. Upload a skill folder, or create one in Studio." />
+
+## Add a skill
+
+Skills belong to a project. On the Skills page, choose **Upload** to add an existing skill folder, or **Create** to write a new one in Studio. Select a skill in the list to read or edit it.
+
+<Screenshot src="/images/studio/skill-create.webp" alt="The Create Skill dialog in NitroStudio, with Name, Description and Skill instructions (Markdown) fields" caption="Create Skill: a name, a one-line description, and the instructions in Markdown." />
+
+A good skill is short and specific. Name the tools it uses exactly as they're registered, and state the order and the conditions in plain sentences. The model reads every word, so leave out anything that isn't an instruction.
+
+## Use a skill
+
+The [AI Chat](/docs/studio/chat) model uses a project's skills when a request matches what they describe. In [Compose](/docs/studio/compose), you can also point the agent at one directly by typing `@` and the skill's name.
+
+## Related
+
+<Cards>
+  <Card icon={<Sparkles />} title="Compose" href="/docs/studio/compose" description="Mention a skill with @." />
+  <Card icon={<MessageSquare />} title="AI Chat" href="/docs/studio/chat" description="Where skills guide the model." />
+  <Card icon={<Wrench />} title="Tools" href="/docs/studio/tools" description="The tools a skill tells the model to use." />
+</Cards>

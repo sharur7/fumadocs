@@ -1,0 +1,178 @@
+---
+title: "Pipes"
+description: "Pipe interfaces and decorators for TypeScript and Python"
+icon: Funnel
+---
+
+import { AtSign, CheckCheck, Funnel } from 'lucide-react';
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+Pipes in NitroStack are inspired by NestJS and operate on the arguments passed to tool handlers. They perform two primary roles before the tool handler method executes:
+1. **Transformation:** Transforming input data into a desired structure or primitive type.
+2. **Validation:** Evaluating input data and throwing exceptions if it fails contract requirements.
+
+## Interfaces & Types
+
+A pipe implements `transform()`, which receives a value and returns the value the handler should see.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { PipeInterface, ArgumentMetadata, PipeConstructor } from '@nitrostack/core';
+
+/**
+ * Interface implemented by custom pipe classes.
+ */
+export interface PipeInterface<T = unknown, R = unknown> {
+  transform(value: T, metadata: ArgumentMetadata): R | Promise<R>;
+}
+
+/**
+ * Metadata describing the argument passed to the pipe.
+ */
+export interface ArgumentMetadata {
+  /** Source location of the argument */
+  type: 'body' | 'param' | 'query' | 'custom';
+
+  /** Target constructor metatype if available */
+  metatype?: new (...args: unknown[]) => unknown;
+
+  /** Property key or parameter identifier */
+  data?: string;
+}
+
+/**
+ * Constructor type for classes implementing PipeInterface.
+ */
+export type PipeConstructor = new (...args: unknown[]) => PipeInterface;
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+async def transform(self, value, metadata: PipeMetadata)
+```
+
+```python
+from nitrostack import use_pipes
+
+@use_pipes(StripPipe)
+async def handler(...):
+    ...
+```
+
+Scaffold: `nitrostack-py generate pipe Validation`.
+
+</Tab>
+</Tabs>
+
+## Decorators Reference
+
+Decorators for declaring pipes and attaching them:
+
+| Decorator | Target | Description |
+|:---|:---|:---|
+| `@Pipe()` | Class | Marks a class as a NitroStack pipe implementing `PipeInterface`. |
+| `@UsePipes(...pipes: PipeConstructor[])` | Method / Class | Binds one or more pipes to a tool handler or entire controller. |
+| `@Body(...pipes: PipeConstructor[])` | Parameter | Injects and pipes the entire input payload. |
+| `@Validated()` | Parameter | Automatically validates the argument against its schema. |
+
+## Usage Examples
+
+Two pipes that clean up input, and how to attach them.
+
+### Synchronous Sanitization Pipe
+
+Trims whitespace from a string value.
+
+```typescript
+import { Pipe, PipeInterface, ArgumentMetadata } from '@nitrostack/core';
+
+@Pipe()
+export class TrimStringPipe implements PipeInterface<string, string> {
+  transform(value: string, metadata: ArgumentMetadata): string {
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+    return value;
+  }
+}
+```
+
+### Deep Object Sanitization Pipe
+
+Strips HTML tags from every string in an object, however deeply nested.
+
+```typescript
+import { Pipe, PipeInterface, ArgumentMetadata } from '@nitrostack/core';
+
+@Pipe()
+export class SanitizeHtmlPipe implements PipeInterface<Record<string, unknown>, Record<string, unknown>> {
+  transform(value: Record<string, unknown>, metadata: ArgumentMetadata): Record<string, unknown> {
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value)) {
+      if (typeof val === 'string') {
+        sanitized[key] = val.replace(/<[^>]*>?/gm, ''); // Strip HTML tags
+      } else {
+        sanitized[key] = val;
+      }
+    }
+    return sanitized;
+  }
+}
+```
+
+### Asynchronous Validation Pipe
+
+Pipes support asynchronous execution and can throw descriptive errors that are caught and formatted by the MCP error pipeline:
+
+```typescript
+import { Pipe, PipeInterface, ArgumentMetadata } from '@nitrostack/core';
+
+@Pipe()
+export class PositiveNumberPipe implements PipeInterface<number, number> {
+  async transform(value: number, metadata: ArgumentMetadata): Promise<number> {
+    if (typeof value === 'number' && value <= 0) {
+      throw new Error(`Argument '${metadata.data ?? 'value'}' must be a positive number greater than 0.`);
+    }
+    return value;
+  }
+}
+```
+
+### Binding Pipes with `@UsePipes`
+
+Attach the pipe to a tool, and its input is cleaned before the handler runs.
+
+```typescript
+import { ToolDecorator as Tool, UsePipes, ExecutionContext, z } from '@nitrostack/core';
+import { SanitizeHtmlPipe } from './sanitize-html.pipe.js';
+
+export class MessageTools {
+  @Tool({
+    name: 'send_message',
+    description: 'Post a sanitized chat message',
+    inputSchema: z.object({ content: z.string(), recipientId: z.string() }),
+  })
+  @UsePipes(SanitizeHtmlPipe)
+  async sendMessage(input: { content: string; recipientId: string }, ctx: ExecutionContext) {
+    ctx.logger.info(`Sending message to ${input.recipientId}`);
+    return { success: true, deliveredContent: input.content };
+  }
+}
+```
+
+## Related
+
+<Cards>
+  <Card icon={<Funnel />} title="Pipes Guide" href="/docs/sdk/pipes" />
+  <Card icon={<AtSign />} title="Decorators API Reference" href="/docs/api-reference/decorators" />
+  <Card icon={<CheckCheck />} title="Validation Guide" href="/docs/sdk/validation" />
+</Cards>

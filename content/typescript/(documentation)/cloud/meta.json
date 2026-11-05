@@ -1,0 +1,15 @@
+{
+  "title": "NitroStack Cloud",
+  "pages": [
+    "overview",
+    "dashboard",
+    "apps",
+    "api-keys",
+    "team",
+    "integrations",
+    "studio-management",
+    "billing",
+    "usage",
+    "settings"
+  ]
+}

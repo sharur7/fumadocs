@@ -1,0 +1,509 @@
+---
+title: "Migrate to useWidgetSDK"
+description: "Migrate widget SDK versions"
+---
+
+import { AppWindow } from 'lucide-react';
+
+This guide helps you migrate from the legacy `withToolData` HOC pattern to the modern `useWidgetSDK` hook-based approach. The new SDK provides better type safety, more flexibility, and cleaner code.
+
+## Why Migrate?
+
+`withToolData` still works, but the hooks are simpler and give widgets more to work with.
+
+### What changes
+
+`useWidgetSDK` is a hook, so your component no longer needs the `withToolData` wrapper. It gives you typed access to the tool output through generics, direct access to every SDK method, and the host's context, such as the theme and display mode.
+
+### Backward Compatibility
+
+<Callout type="info" title="Note">
+
+`withToolData` is still supported and will continue to work. This migration is optional but recommended for new [widgets](/docs/getting-started/core-concepts/widgets).
+
+</Callout>
+
+## Quick Migration
+
+The same widget before and after.
+
+### Before (withToolData)
+
+The wrapper passes the tool's output in as props:
+
+```typescript
+'use client';
+
+import { withToolData } from '@nitrostack/widgets';
+
+interface ProductData {
+  id: string;
+  name: string;
+  price: number;
+}
+
+function ProductWidget({ data }: { data: ProductData }) {
+  return (
+    <div>
+      <h2>{data.name}</h2>
+      <p>${data.price}</p>
+    </div>
+  );
+}
+
+export default withToolData(ProductWidget);
+```
+
+### After (useWidgetSDK)
+
+The hook reads the output inside the component:
+
+```typescript
+'use client';
+
+import { useWidgetSDK } from '@nitrostack/widgets';
+
+interface ProductData {
+  id: string;
+  name: string;
+  price: number;
+}
+
+export default function ProductWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  
+  if (!isReady) {
+    return <div>Loading...</div>;
+  }
+  
+  const data = getToolOutput<ProductData>();
+  
+  return (
+    <div>
+      <h2>{data.name}</h2>
+      <p>${data.price}</p>
+    </div>
+  );
+}
+```
+
+## Step-by-Step Migration
+
+Migrate one widget at a time with these steps.
+
+### Remove withToolData
+
+**Before:**
+```typescript
+import { withToolData } from '@nitrostack/widgets';
+
+function MyWidget({ data }) {
+  return <div>{data.title}</div>;
+}
+
+export default withToolData(MyWidget);
+```
+
+**After:**
+```typescript
+import { useWidgetSDK } from '@nitrostack/widgets';
+
+export default function MyWidget() {
+  const { getToolOutput } = useWidgetSDK();
+  const data = getToolOutput();
+  
+  return <div>{data.title}</div>;
+}
+```
+
+### Add Loading State
+
+The HOC handled loading automatically. With hooks, you control it:
+
+```typescript
+export default function MyWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  
+  // Add loading state
+  if (!isReady) {
+    return <div>Loading...</div>;
+  }
+  
+  const data = getToolOutput();
+  
+  return <div>{data.title}</div>;
+}
+```
+
+### Add Type Safety
+
+Use TypeScript generics for better type checking:
+
+```typescript
+interface MyData {
+  title: string;
+  count: number;
+}
+
+export default function MyWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  
+  if (!isReady) {
+    return <div>Loading...</div>;
+  }
+  
+  // Type-safe data access
+  const data = getToolOutput<MyData>();
+  
+  return (
+    <div>
+      <h1>{data.title}</h1>
+      <p>Count: {data.count}</p>
+    </div>
+  );
+}
+```
+
+## Common Patterns
+
+How typical widgets change.
+
+### Pattern 1: Simple Data Display
+
+**Before:**
+```typescript
+import { withToolData } from '@nitrostack/widgets';
+
+function UserProfile({ data }) {
+  return (
+    <div>
+      <h2>{data.name}</h2>
+      <p>{data.email}</p>
+    </div>
+  );
+}
+
+export default withToolData(UserProfile);
+```
+
+**After:**
+```typescript
+import { useWidgetSDK } from '@nitrostack/widgets';
+
+interface UserData {
+  name: string;
+  email: string;
+}
+
+export default function UserProfile() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput<UserData>();
+  
+  return (
+    <div>
+      <h2>{data.name}</h2>
+      <p>{data.email}</p>
+    </div>
+  );
+}
+```
+
+### Pattern 2: Interactive Widget
+
+**Before:**
+```typescript
+import { withToolData } from '@nitrostack/widgets';
+
+function ProductCard({ data }) {
+  const handleClick = () => {
+    // Limited access to SDK
+    console.log('Clicked', data.id);
+  };
+  
+  return (
+    <div onClick={handleClick}>
+      <h2>{data.name}</h2>
+    </div>
+  );
+}
+
+export default withToolData(ProductCard);
+```
+
+**After:**
+```typescript
+import { useWidgetSDK } from '@nitrostack/widgets';
+
+interface ProductData {
+  id: string;
+  name: string;
+}
+
+export default function ProductCard() {
+  const { isReady, getToolOutput, callTool, sendFollowUpMessage } = useWidgetSDK();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput<ProductData>();
+  
+  const handleClick = async () => {
+    // Full SDK access
+    await callTool('view_product', { id: data.id });
+    await sendFollowUpMessage(`Tell me more about ${data.name}`);
+  };
+  
+  return (
+    <div onClick={handleClick}>
+      <h2>{data.name}</h2>
+    </div>
+  );
+}
+```
+
+### Pattern 3: Theme-Aware Widget
+
+**Before:**
+```typescript
+import { withToolData } from '@nitrostack/widgets';
+
+function ThemedWidget({ data }) {
+  // No easy access to theme
+  return (
+    <div style={{ background: '#000', color: '#fff' }}>
+      {data.content}
+    </div>
+  );
+}
+
+export default withToolData(ThemedWidget);
+```
+
+**After:**
+```typescript
+import { useWidgetSDK, useTheme } from '@nitrostack/widgets';
+
+export default function ThemedWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  const theme = useTheme();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  const styles = {
+    background: theme === 'dark' ? '#000' : '#fff',
+    color: theme === 'dark' ? '#fff' : '#000'
+  };
+  
+  return (
+    <div style={styles}>
+      {data.content}
+    </div>
+  );
+}
+```
+
+### Pattern 4: Responsive Widget
+
+**Before:**
+```typescript
+import { withToolData } from '@nitrostack/widgets';
+
+function ResponsiveWidget({ data }) {
+  // No access to display mode
+  return <div>{data.content}</div>;
+}
+
+export default withToolData(ResponsiveWidget);
+```
+
+**After:**
+```typescript
+import { useWidgetSDK, useDisplayMode } from '@nitrostack/widgets';
+
+export default function ResponsiveWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  const displayMode = useDisplayMode();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  const padding = displayMode === 'fullscreen' ? '48px' : '16px';
+  const fontSize = displayMode === 'fullscreen' ? '24px' : '16px';
+  
+  return (
+    <div style={{ padding, fontSize }}>
+      {data.content}
+    </div>
+  );
+}
+```
+
+## Advanced Migration
+
+Widgets that used several props move to several hooks.
+
+### Accessing Multiple SDK Features
+
+Read the theme, display mode, and available height alongside the data:
+
+```typescript
+import { useWidgetSDK, useTheme, useDisplayMode, useMaxHeight } from '@nitrostack/widgets';
+
+export default function AdvancedWidget() {
+  const { 
+    isReady, 
+    getToolOutput, 
+    callTool, 
+    requestFullscreen,
+    setState,
+    getState 
+  } = useWidgetSDK();
+  
+  const theme = useTheme();
+  const displayMode = useDisplayMode();
+  const maxHeight = useMaxHeight();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  // Use all features together
+  const styles = {
+    background: theme === 'dark' ? '#000' : '#fff',
+    padding: displayMode === 'fullscreen' ? '48px' : '16px',
+    maxHeight: maxHeight ? `${maxHeight}px` : 'none',
+    overflow: 'auto'
+  };
+  
+  return (
+    <div style={styles}>
+      <button onClick={requestFullscreen}>Fullscreen</button>
+      {data.content}
+    </div>
+  );
+}
+```
+
+### State Management
+
+**Before:**
+```typescript
+import { withToolData } from '@nitrostack/widgets';
+import { useState } from 'react';
+
+function StatefulWidget({ data }) {
+  const [count, setCount] = useState(0);
+  // State not persisted
+  
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+    </div>
+  );
+}
+
+export default withToolData(StatefulWidget);
+```
+
+**After:**
+```typescript
+import { useWidgetSDK, useWidgetState } from '@nitrostack/widgets';
+
+interface WidgetState {
+  count: number;
+}
+
+export default function StatefulWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  const { state, setState } = useWidgetState<WidgetState>();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  const count = state?.count || 0;
+  
+  const increment = async () => {
+    await setState({ count: count + 1 });
+    // State persisted automatically
+  };
+  
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={increment}>Increment</button>
+    </div>
+  );
+}
+```
+
+## Troubleshooting
+
+Problems you may see right after migrating.
+
+### Widget Shows "Loading..." Forever
+
+**Problem:** `isReady` never becomes true
+
+**Solution:** Ensure widget is being rendered in proper context (Studio or ChatGPT)
+
+```typescript
+// Add debugging
+const { isReady } = useWidgetSDK();
+
+useEffect(() => {
+  console.log('SDK ready:', isReady);
+}, [isReady]);
+```
+
+### Data is Null
+
+**Problem:** `getToolOutput()` returns null
+
+**Solution:** Check that tool is returning data correctly
+
+```typescript
+const data = getToolOutput();
+
+if (!data) {
+  return <div>No data available</div>;
+}
+```
+
+### TypeScript Errors
+
+**Problem:** Type errors with `getToolOutput()`
+
+**Solution:** Provide explicit type parameter
+
+```typescript
+// Before (error)
+const data = getToolOutput();
+data.name; // TypeScript error
+
+// After (fixed)
+interface MyData {
+  name: string;
+}
+const data = getToolOutput<MyData>();
+data.name; // TypeScript knows the type
+```
+
+## Performance Considerations
+
+`useWidgetSDK()` returns a single shared SDK instance, so calling it in several components doesn't create new ones. `useTheme()` and `useDisplayMode()` re-render your component only when the theme or the display mode changes, and `useWidgetState()` batches state updates.
+
+A component wrapped in `withToolData` re-renders whenever any of its props change. With the hooks you decide what triggers a render, and you can add `React.memo` where a complex widget needs it.
+
+## See also
+
+<Cards>
+  <Card icon={<AppWindow />} title="Widget SDK API Reference" href="/docs/sdk/ui/widget-sdk" />
+  <Card icon={<AppWindow />} title="UI Widgets Guide" href="/docs/sdk/ui/widgets" />
+  <Card icon={<AppWindow />} title="Widget Examples Guide" href="/docs/sdk/ui/widgets" />
+</Cards>

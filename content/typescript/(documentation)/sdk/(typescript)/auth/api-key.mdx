@@ -1,0 +1,161 @@
+---
+title: "API Keys"
+description: "Authenticate services and integrations with API keys"
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { ShieldCheck, Fingerprint, Lock } from 'lucide-react';
+
+An API key is a long, random secret that a caller sends with every request. Keys suit services and integrations: another backend, an internal tool, a script. They don't identify a person and don't expire on their own, so for apps where people sign in, use [JWT](/docs/sdk/auth/jwt) or [OAuth 2.1](/docs/sdk/auth/oauth) instead.
+
+NitroStack's `ApiKeyModule` loads your valid keys and checks a key against them. You write a small guard that reads the key from the request and asks the module whether it's valid, then add that guard to the tools you want to protect.
+
+## Set it up
+
+<Steps>
+<Step>
+
+### Add your keys to .env
+
+Generate a key for each integration and store it in an environment variable. Every variable that starts with your prefix is loaded.
+
+```bash title=".env"
+API_KEY_1=sk_live_...
+API_KEY_2=sk_live_...
+```
+
+</Step>
+<Step>
+
+### Configure ApiKeyModule
+
+Import the module in your root module. `keysEnvPrefix: 'API_KEY'` loads `API_KEY_1`, `API_KEY_2`, and so on.
+
+```typescript title="src/app.module.ts"
+import { Module, ApiKeyModule } from '@nitrostack/core';
+
+@Module({
+  name: 'app',
+  imports: [
+    ApiKeyModule.forRoot({
+      keysEnvPrefix: 'API_KEY',
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+</Step>
+<Step>
+
+### Write the guard
+
+The guard reads the key from the request metadata, validates it with `ApiKeyModule.validate()`, and records who is calling on `context.auth`.
+
+```typescript title="src/guards/apikey.guard.ts"
+import { Guard, ExecutionContext, ApiKeyModule } from '@nitrostack/core';
+
+export class ApiKeyGuard implements Guard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const apiKey = context.metadata?.apiKey || context.metadata?.['x-api-key'];
+    if (!apiKey) {
+      throw new Error('API key required');
+    }
+
+    const isValid = await ApiKeyModule.validate(apiKey as string);
+    if (!isValid) {
+      throw new Error('Invalid API key');
+    }
+
+    context.auth = {
+      subject: `apikey_${(apiKey as string).substring(0, 12)}`,
+      scopes: ['*'],
+    };
+    return true;
+  }
+}
+```
+
+</Step>
+<Step>
+
+### Protect a tool
+
+Tools without the guard stay public.
+
+```typescript
+import { ToolDecorator as Tool, UseGuards, ExecutionContext } from '@nitrostack/core';
+import { ApiKeyGuard } from './guards/apikey.guard.js';
+
+export class DataTools {
+  @Tool({ name: 'get_public_info', description: 'Public information' })
+  async getPublicInfo() {
+    return { data: 'public' };
+  }
+
+  @Tool({ name: 'get_protected_data', description: 'Protected data (requires an API key)' })
+  @UseGuards(ApiKeyGuard)
+  async getProtectedData(input: {}, ctx: ExecutionContext) {
+    return { data: 'protected', accessedBy: ctx.auth?.subject };
+  }
+}
+```
+
+</Step>
+</Steps>
+
+## Options
+
+`ApiKeyModule.forRoot()` accepts these options. Use `keysEnvPrefix` or `keys` to supply the valid keys.
+
+| Option | Default | Description |
+| :-- | :-- | :-- |
+| `keysEnvPrefix` | | Loads every environment variable named `<prefix>_1`, `<prefix>_2`, and so on |
+| `keys` | | Keys listed directly. Avoid this outside local development |
+| `hashed` | `false` | The stored keys are SHA-256 hashes; incoming keys are hashed before comparison |
+| `headerName` | `'x-api-key'` | HTTP header that carries the key |
+| `metadataField` | `'apiKey'` | Field in the request's `_meta` that carries the key |
+| `customValidation` | | `(key) => boolean`, an extra check, for example a database lookup |
+
+## How clients send keys
+
+Over HTTP, clients send the key in a header:
+
+```http
+X-API-Key: sk_live_...
+```
+
+Clients can also put it in the request's `_meta`, which works over STDIO too:
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "get_protected_data",
+    "arguments": { "_meta": { "apiKey": "sk_live_..." } }
+  }
+}
+```
+
+In [NitroStudio](/docs/studio/authentication), open **Authentication**, expand the project, and enter the key. Studio sends it with every call to that project.
+
+## Generate and store keys
+
+`ApiKeyModule.generateKey()` creates a cryptographically random key with the prefix you choose. To keep plain keys out of your configuration, store their SHA-256 hashes and set `hashed: true`.
+
+```typescript
+import { ApiKeyModule } from '@nitrostack/core';
+
+const apiKey = ApiKeyModule.generateKey('sk');   // give this to the integration
+const stored = ApiKeyModule.hashKey(apiKey);     // put this in API_KEY_1
+```
+
+In production, load keys from your platform's secret store into environment variables, as described in each [cloud platform guide](/docs/deployment/cloud), rather than committing them anywhere.
+
+## Next steps
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Access control" href="/docs/sdk/auth/access-control" description="Combine API keys with JWTs, roles, and scopes." />
+  <Card icon={<Fingerprint />} title="JWT" href="/docs/sdk/auth/jwt" description="Authenticate users you sign in yourself." />
+  <Card icon={<Lock />} title="Studio authentication" href="/docs/studio/authentication" description="Send a key from Studio." />
+</Cards>

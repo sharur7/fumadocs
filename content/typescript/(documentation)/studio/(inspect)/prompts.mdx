@@ -1,0 +1,26 @@
+---
+title: Prompts
+description: Fill in a prompt's arguments and see the messages it produces.
+---
+
+import { Code, MessageSquare, Network } from 'lucide-react';
+
+Prompts are reusable instructions your server offers to the user, such as a booking checklist or a debugging routine. A client usually shows them in a menu, and the user picks one. The Prompts page lets you run each one and read exactly what it would send to the model.
+
+<Screenshot src="/images/studio/prompts.webp" alt="The Prompts page in NitroStudio: the booking-help prompt open with its location, check-in and check-out arguments filled in, and the Run Prompt button below them" caption="booking-help with its three arguments filled in, ready to run. The results appear on the right once a prompt has run." />
+
+## Run a prompt
+
+The list shows each prompt's name and its number of arguments, and search filters it. Select a prompt and its **Configuration** section opens in place, with one field for each argument, here `location`, `checkIn`, and `checkOut`. Fill them in, then choose **Run Prompt**.
+
+The result opens on the right under **Execution Results**, with a **Copy** button. Studio shows the messages the prompt returns: the text, with your arguments filled in, that a client would place in the conversation. Read it the way the model will. If an instruction is ambiguous here, it will be ambiguous in chat.
+
+If the prompt fails, the error appears in the result pane instead of messages. For example, *Invalid prompt message role: 'undefined'. Must be 'user', 'assistant', or 'system'* means a message the prompt returned has no role set. Fix it in the prompt's code, save, and run it again.
+
+## Related
+
+<Cards>
+  <Card icon={<Code />} title="Write a prompt" href="/docs/sdk/prompts" description="Define prompts with @Prompt." />
+  <Card icon={<MessageSquare />} title="AI Chat" href="/docs/studio/chat" description="Use prompts in a conversation." />
+  <Card icon={<Network />} title="App Canvas" href="/docs/studio/app-canvas" description="See prompts next to your tools." />
+</Cards>

@@ -1,0 +1,167 @@
+---
+title: Quickstart
+description: Go from an empty folder to a running MCP server, and your first tool call, in about five minutes.
+icon: Rocket
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { GraduationCap, Layers, Plug, Terminal } from 'lucide-react';
+
+In this guide you create a project from the Starter [template](/docs/templates), run it, call a tool from an AI client, and then add a tool of your own. You don't need to install anything globally; `npx` downloads the NitroStack CLI on demand.
+
+## Prerequisites
+
+- **Node.js 20.x or later** (LTS recommended). Run `node -v` to check.
+- **npm 9.x or later**. Run `npm -v` to check.
+
+## Build your first server
+
+<Steps>
+<Step>
+
+### Create a project
+
+Run the CLI's `init` command. The `--template` flag picks the Starter template, a small calculator server built for learning.
+
+```bash
+npx @nitrostack/cli init my-server --template typescript-starter
+cd my-server
+```
+
+The CLI asks for an optional description and author, copies the template, and installs dependencies. If you leave out `--template`, you can choose from all templates interactively.
+
+</Step>
+<Step>
+
+### Start the server
+
+Run the project's `start` script:
+
+```bash
+npm start
+```
+
+It builds your TypeScript and starts your MCP server over HTTP at `http://localhost:3000/mcp`. When the server is ready, leave this terminal running.
+
+</Step>
+<Step>
+
+### Call your first tool
+
+The Starter template ships with a `calculate` tool. Pick one way to call it.
+
+<Tabs items={['HTTP (curl)', 'NitroStudio', 'Cursor']}>
+<Tab value="HTTP (curl)">
+
+In another terminal, call the tool:
+
+```bash
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"calculate","arguments":{"a":15,"b":3,"operation":"add"}}}'
+```
+
+The response includes `"expression": "15 + 3 = 18"`.
+
+</Tab>
+<Tab value="NitroStudio">
+
+[NitroStudio](/docs/studio/overview) is a desktop app for testing MCP servers, and it shows [widgets](/docs/getting-started/core-concepts/widgets) as well as raw output.
+
+1. [Download NitroStudio](https://nitrostack.ai/studio) and open it.
+2. Click **Select Project**, choose your `my-server` folder, and click **Connect**.
+3. Open the `calculate` tool, enter `a: 15`, `b: 3`, `operation: add`, and run it.
+
+You get `15 + 3 = 18`, along with the calculator widget.
+
+</Tab>
+<Tab value="Cursor">
+
+In a second terminal, from the `my-server` folder, run:
+
+```bash
+npx @nitrostack/cli cursor
+```
+
+Choose **Project-level** and **Command (Stdio)**. The CLI writes `.cursor/mcp.json`, which tells Cursor to start your server. Open the folder in Cursor, then ask the agent:
+
+> Use the calculate tool to add 15 and 3.
+
+</Tab>
+</Tabs>
+
+</Step>
+<Step>
+
+### Add your own tool (optional)
+
+Now add a tool of your own: `say_hello`, which takes a name and returns a greeting. In NitroStack, a tool is a method on a class, marked with the `@Tool` decorator. The Starter template keeps its tools in the `CalculatorTools` class, so that's where the new method goes.
+
+Open `src/modules/calculator/calculator.tools.ts` and add the `sayHello` method inside the `CalculatorTools` class, below the existing `calculate` method:
+
+```typescript title="src/modules/calculator/calculator.tools.ts"
+import { ToolDecorator as Tool, Widget, ExecutionContext, z } from '@nitrostack/core';
+
+export class CalculatorTools {
+  // ...the existing calculate tool stays as it is
+
+  @Tool({
+    name: 'say_hello',
+    description: 'Greet someone by name',
+    inputSchema: z.object({
+      name: z.string().describe('Who to greet'),
+    }),
+  })
+  async sayHello(input: { name: string }, ctx: ExecutionContext) {
+    return { message: `Hello, ${input.name}!` };
+  }
+}
+```
+
+Here is what each part does:
+
+- **`@Tool({ ... })`** registers the method as an MCP tool. Clients see it under `name` (`say_hello`), and the AI model reads `description` to decide when to call it.
+- **`inputSchema`** describes the arguments with [Zod](https://zod.dev): one string called `name`. NitroStack checks every call against this schema, so invalid input never reaches your method. The `.describe()` text tells the model what to pass.
+- **`async sayHello(input, ctx)`** is the handler. `input` holds the validated arguments, and `ctx` is the [execution context](/docs/getting-started/core-concepts/request-lifecycle#the-execution-context) with a logger and request details.
+- **The return value** is sent back to the client as the tool's result: here, an object with a `message`.
+
+Save the file, then stop the server and run `npm start` again. `say_hello` appears in the tool list next to `calculate`. Call it with `{ "name": "Ada" }` and you get back `Hello, Ada!`.
+
+<Callout type="warn" title="Import the decorator, not the class">
+  Use `ToolDecorator as Tool` as shown. `@nitrostack/core` also exports a class named `Tool`, which can't be used as a decorator.
+</Callout>
+
+</Step>
+</Steps>
+
+## What you just built
+
+Your project follows the structure every NitroStack server uses:
+
+```text
+my-server/
+├── src/
+│   ├── index.ts                  # Starts the server
+│   ├── app.module.ts             # Root module: server name, imports
+│   ├── modules/
+│   │   └── calculator/
+│   │       ├── calculator.module.ts     # Groups the feature
+│   │       ├── calculator.tools.ts      # Tools (where you added say_hello)
+│   │       ├── calculator.resources.ts  # Read-only data
+│   │       └── calculator.prompts.ts    # Prompt templates
+│   └── widgets/                  # React UI shown by tools
+└── package.json
+```
+
+[Project Structure](/docs/getting-started/core-concepts/project-structure) explains each file and what happens when the server starts.
+
+## Next steps
+
+<Cards>
+  <Card icon={<GraduationCap />} title="MCP Basics" href="/docs/getting-started/core-concepts/mcp-basics" description="Learn when to use a tool, a resource, or a prompt." />
+  <Card icon={<Layers />} title="Core Concepts" href="/docs/getting-started/core-concepts" description="Modules, dependency injection, and the request lifecycle." />
+  <Card icon={<Plug />} title="Connect to Clients" href="/docs/guides/connect-to-clients" description="Set up Claude Desktop, VS Code, and ChatGPT." />
+  <Card icon={<Terminal />} title="CLI Reference" href="/docs/cli/overview" description="Every command, from init to pack." />
+</Cards>

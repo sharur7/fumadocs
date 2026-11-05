@@ -1,0 +1,68 @@
+---
+title: Support
+description: Where to get help with NitroStack, and how to ask so you get an answer quickly.
+icon: MessageCircleQuestionMark
+---
+
+Most questions already have an answer in these docs. When they don't, pick the route below that matches what you need: a known fix, a conversation, a bug report, or help with your NitroCloud account.
+
+<SupportChannels />
+
+## Start with a known fix
+
+[Troubleshooting](/docs/troubleshooting) collects the problems people hit most, grouped by symptom: installing the CLI, running the server, connecting clients, widgets, Docker, and file uploads. Each fix links to the page that explains it in full.
+
+If the problem appeared after an upgrade, or you're on an older release, check the [Changelog](/docs/changelog). It lists every release of the TypeScript SDK, the CLI, and the Python SDK, and shows how to upgrade.
+
+## Ask the community
+
+The NitroStack [Discord](https://discord.com/invite/vb5n9rjtBR) is where developers ask questions, share what they've built, and discuss ideas with each other and with the team. It's the right place when you're not sure whether something is a bug, or you want advice on how to structure a server.
+
+You'll get a faster answer if your first message says which SDK and version you use, what you're trying to do, and what happened instead.
+
+## Report a bug
+
+If you can reproduce a problem in the SDK or the CLI, open an issue in the repository for the language you use. Search the open issues first, since someone may already have reported it.
+
+| You use | Open an issue at |
+|---------|------------------|
+| TypeScript SDK or CLI (`@nitrostack/core`, `@nitrostack/cli`) | [github.com/nitrocloudofficial/nitrostack](https://github.com/nitrocloudofficial/nitrostack/issues) |
+| Python SDK and CLI (`nitrostack`, `nitrostack-py`) | [github.com/nitrocloudofficial/nitrostack-python-sdk](https://github.com/nitrocloudofficial/nitrostack-python-sdk/issues) |
+
+### What to put in the issue
+
+A maintainer needs to see the problem happen before they can fix it. Copy this outline into the issue and fill it in:
+
+```md title="Bug report"
+**Versions**
+@nitrostack/core or nitrostack: x.y.z
+CLI: x.y.z (output of `nitrostack-cli --version`, or `pip show nitrostack`)
+Node.js or Python: x.y.z
+OS:
+
+**What I ran**
+The command, request, or tool call that failed.
+
+**What I expected**
+
+**What happened**
+The exact error message and stack trace, as text rather than a screenshot.
+
+**Smallest project that shows it**
+A link to a repository, or the shortest code that reproduces it.
+```
+
+Remove API keys, tokens, and connection strings from logs before you paste them.
+
+## NitroCloud account and billing
+
+For anything about your NitroCloud organization, such as an app that won't deploy, a domain, your plan, or an invoice, use **Support** in the top bar of the [NitroCloud dashboard](/docs/cloud/dashboard). It reaches the NitroStack team directly, and they can see your organization's setup.
+
+Two Cloud requests have their own flow and don't need a support message:
+
+- **More apps.** When your organization reaches its app limit, **Create App** opens **Request more Apps**. See [Request more apps](/docs/cloud/apps#request-more-apps).
+- **Requests from your team.** Access and usage requests from members appear under **Requests**, where you approve or reject them. See [Team requests](/docs/cloud/team#requests).
+
+## Follow what's shipping
+
+New releases are listed in the [Changelog](/docs/changelog), and product news is posted on [X](https://x.com/nitrostackai).

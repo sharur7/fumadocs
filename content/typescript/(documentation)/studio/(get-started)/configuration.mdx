@@ -1,0 +1,51 @@
+---
+title: Configuration
+description: Settings for each project, for the AI chat, and for the app itself.
+---
+
+import { FolderOpen, MessageSquare, Lock, FlaskConical } from 'lucide-react';
+
+Studio keeps settings at three levels. Project settings belong to one connected server. Chat settings change how the [AI Chat](/docs/studio/chat) behaves. App settings, such as the theme, apply everywhere.
+
+## Project settings
+
+The project card at the top of the sidebar shows the connected project and how Studio reaches it.
+
+**Transport** is how Studio talks to the server. A local project is normally `STDIO`: Studio starts the server as a child process and exchanges messages over its standard input and output. See [Transports](/docs/getting-started/core-concepts/transports) for how STDIO and HTTP differ.
+
+**Watch** reloads the server when you save a file. Leave it on while you develop, so new tools and changed descriptions appear without a manual restart. Turn it off when you want a stable server, for example while a long test run is in progress.
+
+**Add / Manage Projects** adds, removes, and switches between projects. Credentials for servers that require sign-in are kept per project on the [Authentication](/docs/studio/authentication) page.
+
+## Chat settings
+
+Open the **Customize** panel on the right of the AI Chat.
+
+| Setting | What it does |
+| :-- | :-- |
+| View Mode | The width widgets are previewed at, such as Desktop |
+| Operation Flow | The tool calls the model made, in order, with timings |
+| Time zone | The local time the model assumes |
+| Language | The language the model replies in |
+| Clear Chat | Removes the current conversation |
+
+The panel also holds **AI Behavior**, **Render**, **Strict Mode**, and **Cursor**, which tune how the model responds and how its results are displayed.
+
+The same panel links to **Usage & Billing**, **Chat History**, **Logs**, and the **Console** for the chat session.
+
+## Models
+
+Pick the model in the selector under the message box. Models are marked as free or Pro, and the [Test Cases](/docs/studio/test-cases) page lets you filter by the same tiers. The ring next to the selector shows how much of the model's context window the conversation is using.
+
+## App settings
+
+The icons at the bottom of the sidebar open help, Studio's settings, and the light and dark theme switch. The switch at the bottom right of the window moves between **Studio**, for inspecting and testing, and **Composer**, where [Compose](/docs/studio/compose) builds your app.
+
+## Related
+
+<Cards>
+  <Card icon={<FolderOpen />} title="Add an MCP server" href="/docs/studio/add-mcp-server" description="Open a project in Studio." />
+  <Card icon={<MessageSquare />} title="AI Chat" href="/docs/studio/chat" description="Chat with a model that uses your tools." />
+  <Card icon={<Lock />} title="Authentication" href="/docs/studio/authentication" description="Per-project credentials." />
+  <Card icon={<FlaskConical />} title="Test Cases" href="/docs/studio/test-cases" description="Run tests against a chosen model." />
+</Cards>

@@ -1,0 +1,109 @@
+---
+title: MCP Basics
+description: The three building blocks every MCP server exposes, and how a request reaches your code.
+---
+
+import { Layers, Workflow, ArrowLeftRight, Rocket } from 'lucide-react';
+
+The Model Context Protocol (MCP) is an open standard for connecting AI assistants to external software. An MCP **client** ([Claude Desktop](/docs/guides/connect-to-clients), Cursor, ChatGPT, VS Code) connects to an MCP **server**, asks what it can do, and then uses those capabilities during a conversation. NitroStack is how you build the server.
+
+## The three primitives
+
+Everything a server offers falls into one of three types. The difference between them is who decides when they are used.
+
+| Primitive | Who triggers it | Use it for |
+| :-- | :-- | :-- |
+| **Tool** | The model, when it decides an action is needed | Running code with an effect: queries, API calls, calculations, writes |
+| **Resource** | The application, to give the model context | Read-only data: files, records, schemas, logs |
+| **Prompt** | The user, usually by picking it from a menu | Reusable instructions: a code review checklist, a debugging workflow |
+
+If you aren't sure which one you need, start with a tool. Most servers are mostly tools.
+
+### Tools
+
+A tool is a method the model can call with structured input. The schema tells the model what arguments to send, and NitroStack rejects invalid input before your method runs.
+
+```typescript
+import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
+
+export class WeatherTools {
+  @Tool({
+    name: 'get_weather',
+    description: 'Get the current weather for a city',
+    inputSchema: z.object({ city: z.string() }),
+  })
+  async getWeather(input: { city: string }, ctx: ExecutionContext) {
+    return { city: input.city, conditions: 'sunny', temperatureC: 24 };
+  }
+}
+```
+
+### Resources
+
+A resource is data addressed by a URI. Clients read it to give the model context, and reading it never changes anything.
+
+```typescript
+import { ResourceDecorator as Resource, ExecutionContext } from '@nitrostack/core';
+
+export class DocsResources {
+  @Resource({ uri: 'docs://style-guide', name: 'Style guide', mimeType: 'text/markdown' })
+  async styleGuide(uri: string, ctx: ExecutionContext) {
+    return { contents: [{ uri, mimeType: 'text/markdown', text: '# Write short sentences.' }] };
+  }
+}
+```
+
+### Prompts
+
+A prompt is a message [template](/docs/templates) the user can invoke, optionally with arguments.
+
+```typescript
+import { PromptDecorator as Prompt, ExecutionContext } from '@nitrostack/core';
+
+export class ReviewPrompts {
+  @Prompt({ name: 'review_code', description: 'Ask for a focused code review' })
+  async reviewCode(args: { language: string }, ctx: ExecutionContext) {
+    return [
+      { role: 'user' as const, content: { type: 'text' as const, text: `Review this ${args.language} code for bugs.` } },
+    ];
+  }
+}
+```
+
+## How a request reaches your code
+
+Clients and servers exchange [JSON-RPC 2.0](https://www.jsonrpc.org/specification) messages. When the model calls `get_weather`, the client sends:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": { "name": "get_weather", "arguments": { "city": "Pune" } }
+}
+```
+
+NitroStack finds the method registered as `get_weather`, validates `arguments` against its schema, runs it, and sends the return value back as the result. You never handle JSON-RPC directly.
+
+Messages travel over a **transport**. STDIO is used when the client starts your server as a local process, and HTTP when the server runs on its own, locally or remotely. The same code works over both; [Transports](/docs/getting-started/core-concepts/transports) explains when to use each.
+
+## Why a framework on top of MCP
+
+The official MCP SDK gives you protocol handlers. NitroStack adds the application structure you would otherwise build yourself.
+
+| You need | With the raw MCP SDK | With NitroStack |
+| :-- | :-- | :-- |
+| Organize a growing server | Your own conventions | [Modules](/docs/getting-started/core-concepts/modules) |
+| Share services between tools | Wire them up manually | [Dependency injection](/docs/getting-started/core-concepts/dependency-injection) |
+| Validate input | Write checks by hand | Zod schemas, checked automatically |
+| Auth, logging, caching | Custom code per tool | [Guards, middleware, interceptors](/docs/getting-started/core-concepts/request-lifecycle) |
+| Rich UI in the client | Not included | [Widgets](/docs/getting-started/core-concepts/widgets) built with React |
+
+## Next steps
+
+<Cards>
+  <Card icon={<Rocket />} title="Quickstart" href="/docs/getting-started/quickstart" description="Put this into practice with a running server." />
+  <Card icon={<Layers />} title="Core Concepts" href="/docs/getting-started/core-concepts" description="See how NitroStack structures a server." />
+  <Card icon={<Workflow />} title="Request Lifecycle" href="/docs/getting-started/core-concepts/request-lifecycle" description="What runs before and after your handler." />
+  <Card icon={<ArrowLeftRight />} title="Transports" href="/docs/getting-started/core-concepts/transports" description="STDIO, HTTP, and when to use each." />
+</Cards>

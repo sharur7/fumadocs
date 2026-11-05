@@ -1,0 +1,651 @@
+---
+title: "SDK Quick Reference"
+description: "The syntax you reach for most, ready to copy"
+icon: FileCodeCorner
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+The syntax you reach for most, ready to copy, for both languages. Pick TypeScript or Python in any section and the rest of the page follows. Each card links to its full guide.
+
+TypeScript snippets assume `import { ... } from '@nitrostack/core'`, and Python snippets assume `from nitrostack import ...`. Install with `npm install @nitrostack/core` or `pip install nitrostack`. A Python server is configured with a `.env` file and `ServerConfig`; there is no `nitro.yaml`.
+
+## Server
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+<div className="nx-cheat">
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Start the server <a href="/docs/getting-started/core-concepts/project-structure">Guide</a></p>
+
+```ts title="src/index.ts"
+const server = await McpApplicationFactory.create(AppModule);
+await server.start();
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Root module <a href="/docs/api-reference/decorators/controllers-and-modules">Reference</a></p>
+
+```ts title="src/app.module.ts"
+@McpApp({
+  module: AppModule,
+  server: { name: 'my-server', version: '1.0.0' },
+})
+@Module({
+  name: 'app',
+  imports: [ConfigModule.forRoot(), ProductsModule],
+})
+export class AppModule {}
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Feature module <a href="/docs/getting-started/core-concepts/modules">Guide</a></p>
+
+```ts
+@Module({
+  name: 'products',
+  controllers: [ProductsTools],
+  providers: [ProductService],
+  exports: [ProductService],
+})
+export class ProductsModule {}
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Service <a href="/docs/getting-started/core-concepts/dependency-injection">Guide</a></p>
+
+```ts
+@Injectable()
+export class ProductService {
+  async findById(id: string) { /* ... */ }
+}
+
+// Ask for it in a constructor
+constructor(private products: ProductService) {}
+```
+
+</div>
+</div>
+
+</Tab>
+<Tab value="Python">
+
+<div className="nx-cheat">
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Start the server <a href="/python/sdk/quick-start">Guide</a></p>
+
+```python
+from nitrostack import McpApplicationFactory
+
+app = await McpApplicationFactory.create(AppModule)
+await app.start()
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Root module <a href="/docs/getting-started/core-concepts/server-concepts">Guide</a></p>
+
+```python
+@module(
+    name="app",
+    imports=[ConfigModule.for_root(env_file_path=".env")],
+    controllers=[ProductTools],
+)
+class AppModule: ...
+
+# Optional: name the server
+# @mcp_app(module=AppModule, server=ServerConfig(name="my-server", version="1.0.0"))
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Feature module <a href="/docs/getting-started/core-concepts/modules">Guide</a></p>
+
+```python
+@module(
+    name="products",
+    controllers=[ProductTools],
+    providers=[ProductService],
+    exports=[ProductService],
+)
+class ProductsModule: ...
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Service <a href="/python/sdk/dependency-injection">Guide</a></p>
+
+```python
+@injectable(deps=[Database])  # constructor args must match deps
+class ProductService:
+    def __init__(self, db: Database):
+        self.db = db
+```
+
+</div>
+</div>
+
+</Tab>
+</Tabs>
+
+## Tools, resources, prompts
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+<div className="nx-cheat">
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Tool <a href="/docs/api-reference/decorators/mcp-primitives">Reference</a></p>
+
+```ts
+import { ToolDecorator as Tool, z } from '@nitrostack/core';
+
+@Tool({
+  name: 'get_product',
+  description: 'Look up a product by ID',
+  inputSchema: z.object({ id: z.string() }),
+})
+async getProduct(input: { id: string }, ctx: ExecutionContext) {
+  return this.products.findById(input.id);
+}
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Resource <a href="/docs/api-reference/decorators/mcp-primitives">Reference</a></p>
+
+```ts
+import { ResourceDecorator as Resource } from '@nitrostack/core';
+
+@Resource({ uri: 'docs://guide', name: 'Guide', mimeType: 'text/markdown' })
+async guide(uri: string, ctx: ExecutionContext) {
+  return { contents: [{ uri, mimeType: 'text/markdown', text: '# Hi' }] };
+}
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Prompt <a href="/docs/api-reference/decorators/mcp-primitives">Reference</a></p>
+
+```ts
+import { PromptDecorator as Prompt } from '@nitrostack/core';
+
+@Prompt({ name: 'review_code', description: 'Ask for a code review' })
+async review(args: { language: string }, ctx: ExecutionContext) {
+  return [{ role: 'user' as const,
+    content: { type: 'text' as const, text: `Review this ${args.language} code` } }];
+}
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Widget on a tool <a href="/docs/getting-started/core-concepts/widgets">Guide</a></p>
+
+```ts
+@Tool({ name: 'show_product', description: 'Show a product' })
+@Widget('product-card') // src/widgets/app/product-card/page.tsx
+async showProduct(input: { id: string }, ctx: ExecutionContext) {
+  return this.products.findById(input.id);
+}
+```
+
+</div>
+</div>
+
+</Tab>
+<Tab value="Python">
+
+<div className="nx-cheat">
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Tool <a href="/python/sdk/tools">Guide</a></p>
+
+```python
+from nitrostack import tool, ExecutionContext
+
+@tool(
+    name="get_product",
+    description="Look up a product by ID",
+    input_schema=GetProductInput,
+)
+async def get_product(self, input: GetProductInput, context: ExecutionContext) -> dict:
+    ...
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Resource <a href="/python/sdk/resources">Guide</a></p>
+
+```python
+from nitrostack import resource
+
+@resource(
+    uri="docs://guide",
+    name="Guide",
+    description="The product guide",
+    mime_type="text/markdown",
+)
+async def guide(self, uri: str, context: ExecutionContext) -> dict:
+    ...
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Prompt <a href="/python/sdk/prompts">Guide</a></p>
+
+```python
+from nitrostack import prompt, PromptArgument
+
+@prompt(
+    name="review_code",
+    description="Ask for a code review",
+    arguments=[PromptArgument(name="language", description="Programming language", required=True)],
+)
+async def review(self, args: dict, context: ExecutionContext):
+    ...  # return a list of messages
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Widget on a tool <a href="/python/sdk/widgets">Guide</a></p>
+
+```python
+@tool(name="show_product", description="Show a product", input_schema=ShowInput)
+@widget("product-card")  # HTML at widgets/out/product-card.html
+async def show_product(self, input: ShowInput, context: ExecutionContext) -> dict:
+    ...
+```
+
+</div>
+</div>
+
+</Tab>
+</Tabs>
+
+## Request pipeline
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+<div className="nx-cheat">
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Guard <a href="/docs/api-reference/guards">Reference</a></p>
+
+```ts
+@Injectable()
+export class AdminGuard implements Guard {
+  canActivate(ctx: ExecutionContext) {
+    return ctx.auth?.scopes?.includes('admin') ?? false;
+  }
+}
+
+@UseGuards(AdminGuard)
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Middleware <a href="/docs/api-reference/middleware">Reference</a></p>
+
+```ts
+@Middleware()
+export class Timing implements MiddlewareInterface {
+  async use(ctx: ExecutionContext, next: () => Promise<any>) {
+    const start = Date.now();
+    const result = await next();
+    ctx.logger.info('done', { ms: Date.now() - start });
+    return result;
+  }
+}
+
+@UseMiddleware(Timing)
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Interceptor <a href="/docs/api-reference/interceptors">Reference</a></p>
+
+```ts
+@Interceptor()
+export class Wrap implements InterceptorInterface {
+  async intercept(ctx: ExecutionContext, next: () => Promise<any>) {
+    return { data: await next() };
+  }
+}
+
+@UseInterceptors(Wrap)
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Pipe <a href="/docs/api-reference/pipes">Reference</a></p>
+
+```ts
+@Pipe()
+export class Trim implements PipeInterface {
+  transform(value: any, metadata: ArgumentMetadata) {
+    return typeof value === 'string' ? value.trim() : value;
+  }
+}
+
+@UsePipes(Trim)
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Exception filter <a href="/docs/api-reference/filters">Reference</a></p>
+
+```ts
+@ExceptionFilter()
+export class Errors implements ExceptionFilterInterface {
+  catch(exception: unknown, ctx: ExecutionContext) {
+    return { error: String(exception) };
+  }
+}
+
+@UseFilters(Errors)
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Execution context <a href="/docs/api-reference/execution-context">Reference</a></p>
+
+```ts
+ctx.logger.info('message', { key: 'value' });
+ctx.requestId;      // trace a request
+ctx.toolName;       // current tool
+ctx.auth?.subject;  // set by guards
+```
+
+</div>
+</div>
+
+</Tab>
+<Tab value="Python">
+
+<div className="nx-cheat">
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Guard <a href="/python/sdk/guards">Guide</a></p>
+
+```python
+class AdminGuard:
+    async def can_activate(self, context: ExecutionContext) -> bool:
+        return "admin" in (context.auth.scopes or [])
+
+@use_guards(AdminGuard)  # built in: ApiKeyGuard, JwtGuard, OAuthGuard
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Middleware <a href="/python/sdk/middleware">Guide</a></p>
+
+```python
+class Timing:
+    async def use(self, context: ExecutionContext, next_fn):
+        result = await next_fn()
+        context.logger.info("done")
+        return result
+
+@use_middleware(Timing)
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Interceptor <a href="/python/sdk/interceptors">Guide</a></p>
+
+```python
+class Wrap:
+    async def intercept(self, context: ExecutionContext, next_fn):
+        return {"data": await next_fn()}
+
+@use_interceptors(Wrap)
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Pipe <a href="/python/sdk/pipes">Guide</a></p>
+
+```python
+class Trim:
+    def transform(self, value, metadata):
+        return value.strip() if isinstance(value, str) else value
+
+@use_pipes(Trim)
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Exception filter <a href="/python/sdk/error-handling">Guide</a></p>
+
+```python
+class Errors:
+    def catch(self, exception, context: ExecutionContext):
+        return {"error": str(exception)}
+
+@use_filters(Errors)
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Execution context <a href="/python/api-reference/execution-context">Guide</a></p>
+
+```python
+context.logger.info("message")
+context.request_id   # trace a request
+context.metadata     # headers, authorization
+context.auth         # set by guards
+```
+
+</div>
+</div>
+
+</Tab>
+</Tabs>
+
+## Runtime
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+<div className="nx-cheat">
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Cache a result <a href="/docs/api-reference/decorators/caching-and-rate-limiting">Reference</a></p>
+
+```ts
+@Cache({ ttl: 600, key: (input) => `search:${input.query}` })
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Rate limit <a href="/docs/api-reference/decorators/caching-and-rate-limiting">Reference</a></p>
+
+```ts
+@RateLimit({ requests: 100, window: '1h' })
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Health check <a href="/docs/api-reference/decorators/widgets-health-events">Reference</a></p>
+
+```ts
+@HealthCheck({ name: 'database' })
+export class DbHealth implements HealthCheckInterface {
+  async check() {
+    return { status: 'up', message: 'Database connected' };
+  }
+}
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Events <a href="/docs/sdk/events">Guide</a></p>
+
+```ts
+emitEvent('order.created', { orderId });
+
+@OnEvent('order.created')
+async onOrder(data: { orderId: string }) { /* ... */ }
+```
+
+</div>
+</div>
+
+</Tab>
+<Tab value="Python">
+
+<div className="nx-cheat">
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Cache a result <a href="/python/sdk/caching">Guide</a></p>
+
+```python
+@cache(ttl=600)
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Rate limit <a href="/python/sdk/rate-limiting">Guide</a></p>
+
+```python
+@rate_limit(max=100, window=3600)  # window in seconds
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Health check <a href="/python/sdk/health-checks">Guide</a></p>
+
+```python
+@health_check(name="database")
+async def check_database(self):
+    ...
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Events <a href="/python/sdk/events">Guide</a></p>
+
+```python
+@on_event("order.created")
+async def on_order(self, data):
+    ...
+```
+
+</div>
+</div>
+
+</Tab>
+</Tabs>
+
+## Auth and scopes
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+TypeScript covers this in [its own guide](/docs/sdk/auth/overview).
+
+</Tab>
+<Tab value="Python">
+
+<div className="nx-cheat">
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Auth modules <a href="/python/sdk/auth/overview">Guide</a></p>
+
+```python
+ApiKeyModule.for_root(...)
+JWTModule.for_root(...)
+OAuthModule.for_root(...)
+```
+
+</div>
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Scopes <a href="/python/sdk/auth/access-control">Guide</a></p>
+
+```python
+from nitrostack import has_scope, has_any_scope, has_all_scopes, require_scopes
+
+# context.auth.aud is a list
+```
+
+</div>
+</div>
+
+</Tab>
+</Tabs>
+
+## Tasks
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+TypeScript covers this in [its own guide](/docs/sdk/tasks).
+
+</Tab>
+<Tab value="Python">
+
+<div className="nx-cheat">
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Long-running tools <a href="/python/sdk/tasks">Guide</a></p>
+
+```python
+@tool(name="export", description="...", input_schema=ExportInput, task_support="optional")
+async def export(self, input: ExportInput, context: ExecutionContext) -> dict:
+    context.task.update_progress(...)
+    ...
+```
+
+</div>
+</div>
+
+</Tab>
+</Tabs>
+
+## Testing
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+TypeScript covers this in [its own guide](/docs/sdk/testing).
+
+</Tab>
+<Tab value="Python">
+
+<div className="nx-cheat">
+<div className="nx-cheat-card">
+<p className="nx-cheat-title">Call your server in process <a href="/python/sdk/testing">Guide</a></p>
+
+```python
+from nitrostack.testing import NitroTestingModule
+
+h = await NitroTestingModule.create(AppModule)
+await h.call_tool("add", {"a": 5, "b": 10})
+await h.read_resource("calc://info")
+await h.get_prompt("name", {})
+```
+
+</div>
+</div>
+
+</Tab>
+</Tabs>
+
+## Errors
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+TypeScript covers this in [Error Handling](/docs/sdk/error-handling).
+
+</Tab>
+<Tab value="Python">
+
+Raise these from handlers or let the framework raise them: `ToolExecutionError`, `ValidationError`, `ResourceNotFoundError`, `PromptNotFoundError`, `ConfigurationError`, `DependencyResolutionError`, `OAuthError`, `TokenInactiveError`, `AudienceMismatchError`, and the task errors. See [Error Handling](/python/sdk/error-handling).
+
+</Tab>
+</Tabs>
+
+<Callout title="Using a coding agent?">
+
+Point it at the [full SDK reference for coding agents](/docs/sdk/sdk-reference-full), which covers every API on one page.
+
+</Callout>

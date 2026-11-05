@@ -1,0 +1,107 @@
+---
+title: Quick start
+description: Add the NitroStack SDK to a TypeScript project and serve your first tool.
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Wrench, Layers, Server } from 'lucide-react';
+
+This page adds the SDK to a project you already have. If you're starting from scratch, the [Quickstart](/docs/getting-started/quickstart) creates a complete project from a template in one command.
+
+<Steps>
+<Step>
+
+### Install the packages
+
+NitroStack relies on TypeScript decorator metadata, so it needs `reflect-metadata` alongside the core package and Zod.
+
+```bash
+npm install @nitrostack/core reflect-metadata zod
+```
+
+</Step>
+<Step>
+
+### Turn on decorator metadata
+
+Add these compiler options to `tsconfig.json`:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022"
+  }
+}
+```
+
+</Step>
+<Step>
+
+### Write a tool
+
+A tool is a method on a class, marked with the `@Tool` decorator.
+
+```typescript title="src/hello.tools.ts"
+import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
+
+export class HelloTools {
+  @Tool({
+    name: 'say_hello',
+    description: 'Greet someone by name',
+    inputSchema: z.object({
+      name: z.string().describe('Who to greet'),
+    }),
+  })
+  async sayHello(input: { name: string }, ctx: ExecutionContext) {
+    return { message: `Hello, ${input.name}!` };
+  }
+}
+```
+
+</Step>
+<Step>
+
+### Group it in a module and start the server
+
+The root module lists the controllers it owns, and `@McpApp` tells NitroStack which module to start from.
+
+```typescript title="src/app.module.ts"
+import { McpApp, Module } from '@nitrostack/core';
+import { HelloTools } from './hello.tools.js';
+
+@McpApp({
+  module: AppModule,
+  server: { name: 'hello-server', version: '1.0.0' },
+})
+@Module({
+  name: 'app',
+  controllers: [HelloTools],
+})
+export class AppModule {}
+```
+
+```typescript title="src/index.ts"
+import 'reflect-metadata'; // Must be first
+import { McpApplicationFactory } from '@nitrostack/core';
+import { AppModule } from './app.module.js';
+
+const server = await McpApplicationFactory.create(AppModule);
+await server.start();
+```
+
+Build and run the entry file with your usual TypeScript setup. The server starts with the defaults from `@McpApp`; the [Bootstrap](/docs/getting-started/core-concepts/bootstrap) page lists every option `start()` accepts.
+
+</Step>
+</Steps>
+
+## Next steps
+
+<Cards>
+  <Card icon={<Wrench />} title="Tools" href="/docs/sdk/tools" description="Options, input and output, and widgets." />
+  <Card icon={<Layers />} title="Modules" href="/docs/getting-started/core-concepts/modules" description="Controllers, providers, imports, and exports." />
+  <Card icon={<Server />} title="Server Concepts" href="/docs/getting-started/core-concepts/server-concepts" description="How the pieces fit together." />
+</Cards>

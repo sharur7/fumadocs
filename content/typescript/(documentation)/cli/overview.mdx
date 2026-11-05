@@ -1,0 +1,82 @@
+---
+title: "CLI Overview"
+description: "What the NitroStack CLI does, and the commands you will use."
+icon: Terminal
+---
+
+import { CircleArrowUp, Download, Hammer, MousePointer2, Package, Play, Power, Sparkles, WandSparkles } from 'lucide-react';
+
+The NitroStack CLI creates, runs, builds, and packages NitroStack MCP servers. Every project starts from an official [template](/docs/templates), and the same CLI then takes it from your first edit to a deployable build. For every command and option in one place, see [CLI Commands](/docs/cli/cli-commands).
+
+## One CLI per language
+
+Each SDK has its own command line. TypeScript projects use `nitrostack-cli` from the `@nitrostack/cli` package, and Python projects use `nitrostack-py`, which is installed with the `nitrostack` package. The commands have the same names wherever they do the same job, so the code samples on these pages have a tab for each language.
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli --help
+# or, without installing:
+npx @nitrostack/cli --help
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py --help
+# or, if the script isn't on your PATH:
+python -m nitrostack.cli.main --help
+```
+
+## Commands
+
+Each command is described on one of the pages under **Commands** in the sidebar. `build`, `start`, and `pack` share [Build and Ship](/docs/cli/build-and-ship), and `install` and `upgrade` share [Manage Dependencies](/docs/cli/manage-dependencies).
+
+<Cards className="nx-cards-3">
+  <Card icon={<Sparkles />} title="init" href="/docs/cli/init" description="Create a new NitroStack project." />
+  <Card icon={<Play />} title="dev" href="/docs/cli/dev" description="Start development server with hot reload." />
+  <Card icon={<Hammer />} title="build" href="/docs/cli/build-and-ship#build" description="Build project for production." />
+  <Card icon={<Power />} title="start" href="/docs/cli/build-and-ship#start" description="Start production MCP server." />
+  <Card icon={<WandSparkles />} title="generate" href="/docs/cli/generate" description="Generate modules, tools, guards, health checks, and types." />
+  <Card icon={<CircleArrowUp />} title="upgrade" href="/docs/cli/manage-dependencies#upgrade" description="Upgrade NitroStack packages and refresh agent skills." />
+  <Card icon={<Download />} title="install" href="/docs/cli/manage-dependencies#install" description="Install the project's dependencies." />
+  <Card icon={<MousePointer2 />} title="cursor" href="/docs/guides/connect-to-clients#cursor" description="Connect Cursor to your server." />
+  <Card icon={<Package />} title="pack" href="/docs/cli/build-and-ship#pack" description="Create a production bundle that excludes secrets." />
+</Cards>
+
+A few commands exist in only one CLI. `build` and `cursor` are TypeScript only; a Python project has no compile step, and runs straight from its source. `validate`, which checks a project before you deploy it, and `register`, which adds the server to Claude Desktop, are Python only.
+
+## The development loop
+
+A typical project moves through the commands in this order:
+
+1. Run `init` to create the project.
+2. Run `dev` to start the server with hot reload, and connect [NitroStudio](/docs/studio/overview) to it.
+3. Run `generate` to add modules, tools, and other components as the server grows.
+4. Test your changes in Studio.
+5. Package the project for production and run it.
+
+```bash tab="TypeScript" tab-group="language"
+npx @nitrostack/cli init my-server
+cd my-server
+npm run dev
+nitrostack-cli generate module payments
+npm run build
+npm start
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py init my-server --template python-starter
+cd my-server
+nitrostack-py dev
+nitrostack-py validate
+nitrostack-py pack
+nitrostack-py start
+```
+
+Stuck? See [Troubleshooting](/docs/troubleshooting).
+
+## Next steps
+
+<Cards>
+  <Card icon={<Download />} title="Installation" href="/docs/cli/installation" description="Install the CLI, or run it without installing." />
+  <Card icon={<Sparkles />} title="Init" href="/docs/cli/init" description="Create your first project." />
+  <Card icon={<Play />} title="Dev" href="/docs/cli/dev" description="Run it with hot reload." />
+  <Card icon={<WandSparkles />} title="Generate" href="/docs/cli/generate" description="Add code to a project." />
+</Cards>

@@ -1,0 +1,59 @@
+---
+title: "Database"
+description: "Store the chat's history in a MongoDB database you run"
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { FileUp, MessagesSquare } from 'lucide-react';
+
+**Database**, in the Chat menu, stores the chat's history in a MongoDB database that you run, so conversations live in infrastructure you own. Leave it empty and the chat keeps using the default store. Only owners and admins can change it.
+
+<Screenshot src="/images/cloud/chat-database.png" alt="The chat Database page: a MongoDB configuration card with MongoDB URI and Database Name fields, a Test connection button, and a disabled Save changes button" />
+
+## Connect MongoDB
+
+<Steps>
+<Step>
+
+### Paste the connection string
+
+Under **MongoDB configuration**, paste the **MongoDB URI**: the full connection string, including the user name and password, such as `mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true&w=majority`. The field is masked.
+
+</Step>
+<Step>
+
+### Name the database
+
+Set **Database Name**; the placeholder is `nitrochat`. A database used only by this chat keeps its data separate from anything else on the cluster.
+
+</Step>
+<Step>
+
+### Test the connection
+
+Click **Test connection**. **Save changes** stays disabled until a test succeeds, so a mistyped connection string can't be saved. If the test fails, the previous configuration stays in place.
+
+</Step>
+<Step>
+
+### Save
+
+Click **Save changes**. New messages go to that database from then on.
+
+</Step>
+</Steps>
+
+If your MongoDB host only accepts connections from listed IP addresses, allow NitroCloud to connect before you test.
+
+## Keep the connection working
+
+The URI is a secret. It isn't an MCP environment variable, and it isn't shown again in full after you leave the page.
+
+When you rotate the database user's password, update the URI here, test the connection again, and save.
+
+## Next steps
+
+<Cards>
+  <Card icon={<MessagesSquare />} title="Threads" href="/docs/cloud/apps/chat/threads" description="Read the stored conversations." />
+  <Card icon={<FileUp />} title="Files" href="/docs/cloud/apps/chat/files" description="Let people upload files." />
+</Cards>

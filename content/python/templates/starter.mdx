@@ -1,0 +1,18 @@
+---
+title: "Starter Template"
+description: "python-starter calculator + widget"
+---
+
+```bash
+nitrostack-py init my-server --template python-starter
+```
+
+Calculator server with `@widget("calculator-result")`, `ConfigModule`, and a health check. Layout:
+
+- `main.py` — `McpApplicationFactory.create(AppModule)`
+- `app_module.py` — root `@module`
+- `modules/calculator/` — controller + service
+- `widgets/out/calculator-result.html`
+- `health/system_health.py`
+
+No OAuth. Inspector: HTTP + stateless, auth off, `http://localhost:3000/mcp`.

@@ -1,0 +1,228 @@
+---
+title: "Widget Examples"
+description: "Complete widgets you can adapt: lists, dashboards, and forms"
+---
+
+import { AppWindow, FlaskConical, Monitor, WandSparkles, Wrench } from 'lucide-react';
+
+These widgets show common layouts end to end.
+
+## Product Grid
+
+A responsive grid of product cards that follows the host's theme.
+
+```typescript
+import { useWidgetSDK, useTheme } from '@nitrostack/widgets';
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  image_url: string;
+}
+
+interface ProductGridData {
+  products: Product[];
+  pagination: {
+    page: number;
+    totalPages: number;
+  };
+}
+
+export default function ProductsGrid() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  const theme = useTheme();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput<ProductGridData>();
+  
+  const containerStyle = {
+    background: theme === 'dark' ? '#000' : '#fff',
+    color: theme === 'dark' ? '#fff' : '#000',
+    padding: '24px',
+    borderRadius: '12px'
+  };
+  
+  const gridStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+    gap: '16px',
+    marginTop: '16px'
+  };
+  
+  const cardStyle = {
+    background: theme === 'dark' ? '#1a1a1a' : '#f5f5f5',
+    borderRadius: '8px',
+    padding: '16px',
+    border: `1px solid ${theme === 'dark' ? '#333' : '#ddd'}`
+  };
+  
+  return (
+    <div style={containerStyle}>
+      <h2>Products (Page {data.pagination.page} of {data.pagination.totalPages})</h2>
+      
+      <div style={gridStyle}>
+        {data.products.map((product) => (
+          <div key={product.id} style={cardStyle}>
+            <img
+              src={product.image_url}
+              alt={product.name}
+              style={{
+                width: '100%',
+                height: '150px',
+                objectFit: 'cover',
+                borderRadius: '4px',
+                marginBottom: '12px'
+              }}
+            />
+            <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>
+              {product.name}
+            </h3>
+            <p style={{ fontSize: '20px', fontWeight: 'bold' }}>
+              ${product.price.toFixed(2)}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## Dashboard Widget
+
+A metrics dashboard that adapts its layout to the display mode.
+
+```typescript
+import { useWidgetSDK, useTheme, useDisplayMode } from '@nitrostack/widgets';
+
+interface DashboardData {
+  user: {
+    name: string;
+    email: string;
+    avatar?: string;
+  };
+  stats: {
+    orders: number;
+    spent: number;
+    points: number;
+  };
+  recentOrders: Array<{
+    id: string;
+    total: number;
+    date: string;
+  }>;
+}
+
+export default function UserDashboard() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  const theme = useTheme();
+  const displayMode = useDisplayMode();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput<DashboardData>();
+  
+  const isFullscreen = displayMode === 'fullscreen';
+  
+  const containerStyle = {
+    background: theme === 'dark' ? '#000' : '#fff',
+    color: theme === 'dark' ? '#fff' : '#000',
+    padding: isFullscreen ? '48px' : '24px',
+    borderRadius: '12px',
+    maxWidth: isFullscreen ? '1200px' : '800px'
+  };
+  
+  return (
+    <div style={containerStyle}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
+        {data.user.avatar && (
+          <img
+            src={data.user.avatar}
+            alt={data.user.name}
+            style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              marginRight: '16px'
+            }}
+          />
+        )}
+        <div>
+          <h2 style={{ marginBottom: '4px' }}>{data.user.name}</h2>
+          <p style={{ color: theme === 'dark' ? '#999' : '#666' }}>
+            {data.user.email}
+          </p>
+        </div>
+      </div>
+      
+      {/* Stats */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: '16px',
+        marginBottom: '24px'
+      }}>
+        <StatCard label="Orders" value={data.stats.orders} theme={theme} />
+        <StatCard label="Total Spent" value={`$${data.stats.spent}`} theme={theme} />
+        <StatCard label="Points" value={data.stats.points} theme={theme} />
+      </div>
+      
+      {/* Recent Orders */}
+      <h3 style={{ marginBottom: '16px' }}>Recent Orders</h3>
+      {data.recentOrders.map((order) => (
+        <div
+          key={order.id}
+          style={{
+            background: theme === 'dark' ? '#1a1a1a' : '#f5f5f5',
+            padding: '16px',
+            borderRadius: '8px',
+            marginBottom: '12px',
+            display: 'flex',
+            justifyContent: 'space-between'
+          }}
+        >
+          <span>Order #{order.id}</span>
+          <span>${order.total.toFixed(2)}</span>
+          <span style={{ color: theme === 'dark' ? '#999' : '#666' }}>
+            {order.date}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StatCard({ label, value, theme }: { 
+  label: string; 
+  value: string | number;
+  theme: 'light' | 'dark' | null;
+}) {
+  return (
+    <div style={{
+      background: theme === 'dark' ? '#1a1a1a' : '#f5f5f5',
+      padding: '20px',
+      borderRadius: '8px',
+      textAlign: 'center'
+    }}>
+      <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
+        {value}
+      </div>
+      <div style={{ 
+        color: theme === 'dark' ? '#999' : '#666', 
+        marginTop: '8px' 
+      }}>
+        {label}
+      </div>
+    </div>
+  );
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<AppWindow />} title="Interactive widgets" href="/docs/sdk/ui/widgets/interactive" description="Calling tools from a widget." />
+</Cards>

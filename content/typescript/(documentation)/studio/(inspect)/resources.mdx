@@ -1,0 +1,35 @@
+---
+title: Resources
+description: Read any resource your server exposes and copy its contents.
+---
+
+import { Wrench, HeartPulse, AppWindow, Code } from 'lucide-react';
+
+Resources are data your server makes available for a client to read, such as a document, a configuration, or a widget's HTML. The Resources page lists them all and shows what each one returns when it's read.
+
+<Screenshot src="/images/studio/resources.webp" alt="The Resources page in NitroStudio, with six resources listed and the Hotel Cards resource open on the right" caption="Opening the Hotel Cards resource: its HTML source appears on the right, ready to copy." />
+
+## Browse
+
+Each row shows the resource's name, the number of arguments it takes, and its content type: **JSON**, **HTML**, or another format. Search filters the list by name, and refresh reloads it after a change. HTML resources are usually [widgets](/docs/getting-started/core-concepts/widgets); their URIs start with `/widgets/`.
+
+## Read
+
+Select a resource to read it. The content appears on the right with line numbers, and **Copy** puts it on your clipboard. The URI is shown under the name, so you can check the exact address a client would request.
+
+## Built-in resources
+
+Every NitroStack server registers two resources of its own, and they're useful while you develop.
+
+**Health Checks & Pipeline Telemetry** (`health://checks`) returns the overall status, each [health check](/docs/sdk/health-checks) with its details, the active transforms, and the state of [data spillover](/docs/sdk/data-spillover). The [Health](/docs/studio/health) page shows the same information as cards.
+
+**Widget Examples** (`widget://examples`) returns every widget's sample data. See [Define widget examples](/docs/guides/widget-examples).
+
+## Related
+
+<Cards>
+  <Card icon={<Code />} title="Write a resource" href="/docs/sdk/resources" description="Define resources with @Resource." />
+  <Card icon={<HeartPulse />} title="Health" href="/docs/studio/health" description="Health checks, shown as cards." />
+  <Card icon={<AppWindow />} title="Widget examples" href="/docs/guides/widget-examples" description="Sample data for widgets." />
+  <Card icon={<Wrench />} title="Tools" href="/docs/studio/tools" description="Run your tools." />
+</Cards>

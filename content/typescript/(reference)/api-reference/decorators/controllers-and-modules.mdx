@@ -1,0 +1,177 @@
+---
+title: "Controllers and Modules"
+description: "Group features and configure the server"
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+These decorators organize a server: `@Controller` groups primitives under a prefix, `@Module` groups a feature's classes, and `@McpApp` configures the server itself.
+
+## @Controller
+
+Marks a class as a controller, auto-registers it as a singleton in the dependency injection container, and optionally prefixes all of its tool, resource, and prompt names.
+
+```typescript
+import { Controller } from '@nitrostack/core';
+
+@Controller(prefixOrOptions?: string | ControllerOptions)
+```
+
+**Options:**
+
+| Property | Type | Required | Description |
+|:---|:---|:---|:---|
+| `prefix` | `string` | No | Optional prefix applied to every `@Tool`, `@Resource`, and `@Prompt` name defined in this controller (e.g. `'orders'` turns `'create'` into `'orders_create'`). Can also be passed directly as a string argument (`@Controller('orders')`). |
+
+**Behavior:**
+* **Tool Namespacing:** Automatically prepends the prefix followed by an underscore `_` to all `@Tool` names in the class.
+* **DI Registration:** Automatically registers the decorated class in the NitroStack `DIContainer`. You do not need to add the `@Injectable()` decorator separately.
+* **Lifecycle Support:** Because the controller is registered in the DI container, it participates fully in application lifecycle hooks (`OnModuleInit`, `OnApplicationBootstrap`, `BeforeApplicationShutdown`, `OnModuleDestroy`, `OnApplicationShutdown`).
+
+**Example:**
+
+```typescript
+import { Controller, ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
+import { OrderService } from './order.service.js';
+
+@Controller('orders') // All tools prefixed with 'orders_'
+export class OrdersController {
+  constructor(private readonly orderService: OrderService) {}
+
+  // Registered as 'orders_create'
+  @Tool({
+    name: 'create',
+    description: 'Create a new customer order',
+    inputSchema: z.object({
+      customerId: z.string(),
+      items: z.array(z.string()),
+    }),
+  })
+  async createOrder(input: { customerId: string; items: string[] }, ctx: ExecutionContext) {
+    return await this.orderService.create(input);
+  }
+
+  // Registered as 'orders_get_status'
+  @Tool({
+    name: 'get_status',
+    description: 'Retrieve order tracking status',
+    inputSchema: z.object({ orderId: z.string() }),
+  })
+  async getStatus(input: { orderId: string }, ctx: ExecutionContext) {
+    return await this.orderService.findStatus(input.orderId);
+  }
+}
+```
+
+## @Module
+
+Defines a module that groups related functionality.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { Module } from '@nitrostack/core';
+
+@Module(options: ModuleOptions)
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@module(name=..., controllers=..., providers=..., imports=..., exports=...)
+```
+
+</Tab>
+</Tabs>
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string` | Yes | Unique module identifier |
+| `description` | `string` | No | Module description |
+| `controllers` | `Class[]` | No | Tool, resource, and prompt classes |
+| `providers` | `Class[]` | No | Services for dependency injection |
+| `imports` | `Module[]` | No | Modules to import |
+| `exports` | `Class[]` | No | Providers to export |
+| `global` | `boolean` | No | If true, providers are available globally |
+
+**Example:**
+
+```typescript
+@Module({
+  name: 'users',
+  description: 'User management module',
+  controllers: [UserTools, UserResources],
+  providers: [UserService, UserRepository],
+  imports: [DatabaseModule],
+  exports: [UserService]
+})
+export class UsersModule {}
+```
+
+## @McpApp
+
+Marks the root application module with server configuration.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { McpApp, Module } from '@nitrostack/core';
+
+@McpApp(options: McpAppOptions)
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@mcp_app(module=AppModule, server=ServerConfig(...))
+```
+
+</Tab>
+</Tabs>
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `module` | `ClassConstructor` | Yes | Reference to the root module class |
+| `server` | `object` | No | Server metadata (`name`, `version`, `protocolVersion`, `extensions`) |
+| `logging` | `object` | No | Logging configuration (`level`: `'debug'` \| `'info'` \| `'warn'` \| `'error'`) |
+| `transport` | `object` | No | Transport configuration (`type`: `'stdio'` \| `'http'` \| `'dual'`, `http`: `{ port, host, basePath }`) |
+| `shutdownHooks` | `boolean` | No | Register OS signal handlers (`SIGTERM`, `SIGINT`) for graceful shutdown (default: `true`) |
+| `transforms` | `McpTransform[]` | No | Catalog transform pipeline (e.g. `BM25SearchTransform`, `CodeModeTransform`) |
+
+**Example:**
+
+```typescript
+import { McpApp, Module, ConfigModule, BM25SearchTransform } from '@nitrostack/core';
+import { UsersModule } from './modules/users/users.module.js';
+
+@McpApp({
+  module: AppModule,
+  server: {
+    name: 'my-mcp-server',
+    version: '1.0.0',
+    protocolVersion: 'auto',
+  },
+  logging: {
+    level: 'info',
+  },
+  shutdownHooks: true,
+  transforms: [
+    new BM25SearchTransform({
+      defaultLimit: 5,
+      alwaysVisible: ['users_get_profile'],
+    }),
+  ],
+})
+@Module({
+  imports: [ConfigModule.forRoot(), UsersModule],
+})
+export class AppModule {}
+```

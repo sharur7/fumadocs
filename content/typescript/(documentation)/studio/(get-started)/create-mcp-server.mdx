@@ -1,0 +1,65 @@
+---
+title: Create an MCP server
+description: Start a new server in Studio, from an API you already have or from a template.
+---
+
+import { FolderOpen, Sparkles, Terminal, Wrench } from 'lucide-react';
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+There are three ways to start a new server with Studio. If you already have a REST API, Studio can turn its description into an MCP server for you. If you'd rather describe the app in plain words, [Compose](/docs/studio/compose) builds it from a conversation. And if you want to start from code, create a project with the CLI and open it in Studio.
+
+All three produce an ordinary NitroStack project on your disk. You own the code, and you can keep working on it in your editor.
+
+## Generate a server from a REST API
+
+Studio's app generator reads an API description and writes the server for you. It accepts a Swagger or OpenAPI document, by URL, or a Postman collection in format v2.0 or v2.1. It finds the endpoints, writes a typed tool for each one, and scaffolds a NitroStack project you can run straight away.
+
+<Steps>
+<Step>
+
+### Open the project menu
+
+In the project card at the top of the sidebar, choose **Add / Manage Projects**, then choose to generate a new app.
+
+</Step>
+<Step>
+
+### Point Studio at your API
+
+Paste the URL of the OpenAPI or Swagger document, or import the Postman collection file.
+
+</Step>
+<Step>
+
+### Review the generated tools
+
+Studio opens the new project. Check the generated tools on the [Tools](/docs/studio/tools) page, and give each a clear description: the AI model decides when to call a tool from its description alone.
+
+</Step>
+</Steps>
+
+## Build it by describing it
+
+[Compose](/docs/studio/compose) is an agent inside Studio that writes the server with you. Describe the app you want, its tools, and the widgets that show their results, and Compose builds the project, runs it, and tests it in a live chat as it goes.
+
+## Start from a template
+
+Create the project with the CLI, then open it in Studio:
+
+```bash
+npx @nitrostack/cli init my-server --template typescript-starter
+cd my-server
+npm run dev
+```
+
+The [Quickstart](/docs/getting-started/quickstart) walks through this in full. To open the folder in Studio, see [Add an MCP server](/docs/studio/add-mcp-server).
+
+## Next steps
+
+<Cards>
+  <Card icon={<FolderOpen />} title="Add an MCP server" href="/docs/studio/add-mcp-server" description="Open a project folder in Studio." />
+  <Card icon={<Sparkles />} title="Compose" href="/docs/studio/compose" description="Build an app from a conversation." />
+  <Card icon={<Wrench />} title="Tools" href="/docs/studio/tools" description="Run the tools you just created." />
+  <Card icon={<Terminal />} title="CLI: init" href="/docs/cli/init" description="Every option for creating a project." />
+</Cards>

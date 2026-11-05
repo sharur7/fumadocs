@@ -1,0 +1,23 @@
+---
+title: "Danger zone"
+description: "Delete the chat"
+---
+
+import { Server, Settings } from 'lucide-react';
+
+**Danger Zone**, in the Chat menu, has one action: **Delete Chat**.
+
+<Screenshot src="/images/cloud/chat-danger-zone.png" alt="The chat Danger zone with Delete Chat, which removes the chat, its threads, and its settings while the MCP keeps running" />
+
+Deleting the chat removes it with its threads and its settings. Your MCP server isn't touched and keeps running.
+
+Confirm in the dialog. You can't undo it, so if you only want to change how the chat looks or behaves, use [Settings](/docs/cloud/apps/chat/settings) instead.
+
+Only the chat's owners can delete it; admins can't.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Settings />} title="Settings" href="/docs/cloud/apps/chat/settings" description="Change the chat instead." />
+  <Card icon={<Server />} title="MCP settings" href="/docs/cloud/apps/mcp/settings" description="Delete the server instead." />
+</Cards>

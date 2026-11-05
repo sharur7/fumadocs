@@ -1,0 +1,65 @@
+---
+title: "Prompts"
+description: "@prompt with PromptArgument"
+---
+
+import { FlaskConical, Wrench } from 'lucide-react';
+
+<Callout type="info" title="Agent skill">
+
+`nitrostack-python-tools-resources-prompts`
+
+</Callout>
+
+Prompts are reusable instructions your server offers to users, such as a booking checklist. A client lists them, the user picks one and fills in its arguments, and the prompt's text goes into the conversation.
+
+```python
+from nitrostack import injectable, prompt, PromptArgument, PromptMessage, ExecutionContext
+
+@injectable()
+class FlightPrompts:
+    @prompt(
+        name="flight_search_assistant",
+        description="Help users search for flights and book holds.",
+        arguments=[
+            PromptArgument(name="origin", description="IATA origin", required=False),
+        ],
+    )
+    async def flight_search_assistant(self, args: dict, context: ExecutionContext) -> list:
+        return [PromptMessage(role="user", content="Use search_flights and search_airports, then create an order hold.")]
+```
+
+Put the class on the feature module's `controllers`.
+
+## `@prompt` options
+
+| Option | Default | Description |
+|---|---|---|
+| `name` | required | The name clients list the prompt under |
+| `description` | required | What the prompt is for |
+| `arguments` | `[]` | A list of `PromptArgument(name=..., description=..., required=False)` the user fills in |
+
+Your method receives the filled-in arguments as a dict, plus the execution context.
+
+## What a prompt returns
+
+Return a list of `PromptMessage` objects, each with a `role` and the `content` text. A dict with `role` and `content` keys works too. The messages go into the conversation in order.
+
+```python
+from nitrostack import prompt, PromptMessage
+
+@prompt(name="booking_help", description="Walk through booking a hotel")
+async def booking_help(self, args: dict, context) -> list:
+    return [
+        PromptMessage(role="user", content="Search for hotels first, then confirm the dates before booking."),
+    ]
+```
+
+The MCP protocol gives prompt messages two roles, `user` and `assistant`. Return a message, not a bare string: NitroStack reads `role` and `content` from each item, so a plain string isn't turned into a message for you.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Wrench />} title="Tools" href="/python/sdk/tools" description="Actions the model can call." />
+  <Card icon={<FlaskConical />} title="Testing" href="/python/sdk/testing" description="Test tools in process." />
+</Cards>

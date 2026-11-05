@@ -1,0 +1,35 @@
+---
+title: App Canvas
+description: Your whole MCP server on one screen, as a connected map.
+---
+
+import { Wrench, Boxes, FileText, Rocket } from 'lucide-react';
+
+App Canvas draws everything your server exposes as one map. The agent sits in the middle, and every tool, resource, and prompt it can use is connected to it. It's the fastest way to see the shape of a server: what it can do, what it reads, and what it asks the model to follow.
+
+<Screenshot src="/images/studio/app-canvas.webp" alt="App Canvas in NitroStudio: an agent node in the center, connected to two prompts, six resources, and four tools" caption="App Canvas for a travel planner: two prompts, six resources, and four tools around the agent." />
+
+## Read the map
+
+Each card is one capability, labeled by type.
+
+**Tools** show the tool's name, its description, and the names of its input fields, such as `location`, `checkIn`, and `checkOut`. **Resources** show the resource's name, its URI, such as `booking://example` or `/widgets/hotel-cards`, and its content type. A `text/html` resource is a widget. **Prompts** show the prompt's name and description.
+
+The lines show what the agent can reach. A card with a weak or missing description stands out here; the travel planner above has two prompts still marked `TODO: Add description`. The model chooses what to call from those descriptions, so fix them before you test in chat.
+
+## Filter the view
+
+The bar above the canvas counts every item and filters the map by type: **All**, **Tools**, **Tasks**, **Resources**, or **Prompts**. Filtering helps on a large server, where showing only the tools makes the map readable again.
+
+## Deploy from the canvas
+
+When the project is linked to a [NitroCloud](/docs/cloud/overview) app, the app's name appears at the top right, next to **Deploy**. Deploy sends the current build to that app; [Deployments](/docs/studio/deployments) keeps the history. The refresh button reloads the server's capabilities after a change, if Watch is off.
+
+## Related
+
+<Cards>
+  <Card icon={<Wrench />} title="Tools" href="/docs/studio/tools" description="Run any tool on the canvas." />
+  <Card icon={<Boxes />} title="Resources" href="/docs/studio/resources" description="Read a resource's contents." />
+  <Card icon={<FileText />} title="Prompts" href="/docs/studio/prompts" description="Run a prompt with arguments." />
+  <Card icon={<Rocket />} title="Deployments" href="/docs/studio/deployments" description="Deploy and see the history." />
+</Cards>

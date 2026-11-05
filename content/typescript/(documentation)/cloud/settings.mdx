@@ -1,0 +1,41 @@
+---
+title: "Settings"
+description: "Your organization's name, description, and security settings"
+icon: Settings
+---
+
+
+import { KeyRound, Users } from 'lucide-react';
+
+**Settings** holds your organization's name and its security options.
+
+<Screenshot src="/images/cloud/settings.png" alt="Organization settings with General fields and the Security & access section" />
+
+## General
+
+- **Display name** is the name shown across NitroCloud.
+- **Handle / slug** identifies the organization in URLs.
+- **Description** says what the organization is for.
+
+Click **Save changes** after editing.
+
+## Security and access
+
+<Screenshot src="/images/cloud/settings-security.png" alt="The Security & access section: API access tokens with a Manage button, and Single sign-on (SSO) marked Enterprise" />
+
+### API access tokens
+
+**API access tokens** are for CI pipelines and other programs that call the NitroCloud API. Click **Manage** to open the list of tokens and create one. You see a token's value once, when you create it, so store it in your CI's secret store straight away.
+
+These aren't the keys that sign in NitroStudio; those are created on [API keys](/docs/cloud/api-keys). Treat both as secrets.
+
+### Single sign-on (SSO)
+
+**Single sign-on (SSO)** is marked **Enterprise**, and can't be configured on the Free or Pro plans. When it's on for an Enterprise organization, members must sign in with SAML or Google Workspace. There's no setup form on this page.
+
+## Next steps
+
+<Cards>
+  <Card icon={<KeyRound />} title="API keys" href="/docs/cloud/api-keys" description="Keys for NitroStudio." />
+  <Card icon={<Users />} title="Team" href="/docs/cloud/team" description="Members and invitations." />
+</Cards>

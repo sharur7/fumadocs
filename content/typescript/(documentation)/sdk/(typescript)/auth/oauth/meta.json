@@ -1,0 +1,10 @@
+{
+  "title": "OAuth 2.1",
+  "pages": [
+    "index",
+    "protecting-tools",
+    "how-it-works",
+    "configuration",
+    "testing-and-production"
+  ]
+}

@@ -1,0 +1,93 @@
+---
+title: Server Concepts
+description: How a NitroStack server is built in TypeScript and in Python, from the entry point to the modules it loads.
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Syringe, Settings, HeartPulse } from 'lucide-react';
+
+A NitroStack server is a set of classes that the framework wires together at startup. You describe the server, mark the classes that group features, the services they use, and the tools, resources, and prompts clients can call, and NitroStack builds the dependency graph, registers everything, and runs every request through the same pipeline.
+
+<ArchitectureDiagram />
+
+The two SDKs follow the same shape: an entry point creates the application from a root module, the root module imports feature modules, and each module lists the controllers and providers it owns. Only the spelling differs.
+
+<Tabs items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+Decorators describe the server: `@McpApp` sets server-wide settings, `@Module` groups features, `@Injectable` marks services, and `@Tool`, `@Resource`, and `@Prompt` mark what clients can call. The entry point in `src/index.ts` creates the application and starts it.
+
+```typescript title="src/index.ts"
+import 'reflect-metadata'; // Must be first
+import { McpApplicationFactory } from '@nitrostack/core';
+import { AppModule } from './app.module.js';
+
+const server = await McpApplicationFactory.create(AppModule);
+await server.start();
+```
+
+The pages that follow cover each part in depth: [Bootstrap](/docs/getting-started/core-concepts/bootstrap), [Modules](/docs/getting-started/core-concepts/modules), the [Server Lifecycle](/docs/getting-started/core-concepts/server-lifecycle), and the [Execution Context](/docs/getting-started/core-concepts/execution-context).
+
+</Tab>
+<Tab value="Python">
+
+A Python server is modules, dependency injection, and a factory that bootstraps them. `@module` groups features, `@injectable` marks services, and `@tool`, `@resource`, and `@prompt` mark what clients can call. `main.py` creates the application from your root module and starts it.
+
+```python title="main.py"
+import asyncio
+from nitrostack import McpApplicationFactory
+from app_module import AppModule
+
+async def main():
+    app = await McpApplicationFactory.create(AppModule)
+    await app.start()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+You can also put the root module and the server's name and version on one class with `@mcp_app`:
+
+```python
+from nitrostack import mcp_app, ServerConfig
+
+@mcp_app(module=AppModule, server=ServerConfig(name="math-server", version="1.0.0"))
+class App:
+    pass
+
+app = await McpApplicationFactory.create(App)
+```
+
+The factory initializes logging, the `DIContainer`, the imported modules, and your tools, resources, and prompts, then starts the transport.
+
+`@module(...)` takes `name`, `controllers`, `providers`, `imports`, and `exports`. Controllers are the classes that hold `@tool`, `@resource`, and `@prompt` methods, providers are injectable services, imports are other modules such as `ConfigModule` or `OAuthModule`, and exports are the providers other modules may inject.
+
+```python title="app_module.py"
+from nitrostack import module, ConfigModule
+from modules.calculator.calculator_module import CalculatorModule
+from health.system_health import SystemHealthCheck
+
+@module(
+    name="app",
+    imports=[
+        ConfigModule.for_root(env_file_path=".env", defaults={"PORT": "3000"}),
+        CalculatorModule,
+    ],
+    providers=[SystemHealthCheck],
+)
+class AppModule:
+    pass
+```
+
+Every handler receives an `ExecutionContext` with the request ID, a logger, metadata, and the authenticated user. See [Execution Context](/docs/getting-started/core-concepts/execution-context) for what it carries, and [Execution Context](/python/api-reference/execution-context) in the Python reference for its fields.
+
+</Tab>
+</Tabs>
+
+## Related
+
+<Cards>
+  <Card icon={<Syringe />} title="Dependency Injection" href="/docs/getting-started/core-concepts/dependency-injection" description="How providers are created and handed to the classes that need them." />
+  <Card icon={<Settings />} title="Configuration" href="/docs/sdk/configuration" description="ConfigModule, ConfigService, and .env files." />
+  <Card icon={<HeartPulse />} title="Health Checks" href="/python/sdk/health-checks" description="Report whether a dependency is working." />
+</Cards>

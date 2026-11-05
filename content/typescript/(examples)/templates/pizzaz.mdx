@@ -1,0 +1,90 @@
+---
+title: "Pizzaz"
+description: "A pizza shop finder that shows off the Widget SDK"
+icon: Pizza
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Map as MapIcon, List, Store, Palette, BookOpen, AppWindow, Calculator } from 'lucide-react';
+
+The Pizzaz template is a pizza shop finder built to demonstrate widgets: an interactive map, a filterable list, and a shop detail view that adapt to theme, display mode, and available height. There's no authentication, so you can focus on the UI.
+
+## What's included
+
+<Cards className="nx-cards-3">
+  <Card icon={<MapIcon />} title="Map widget" description="show_pizza_map shows every shop on a Mapbox map." />
+  <Card icon={<List />} title="List widget" description="show_pizza_list shows a grid or list with sorting and filters." />
+  <Card icon={<Store />} title="Shop widget" description="show_pizza_shop shows one shop's details and actions." />
+</Cards>
+
+## Create the project
+
+Scaffold the template in your language:
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```bash
+npx @nitrostack/cli init my-pizzaz --template typescript-pizzaz
+cd my-pizzaz
+npm run dev
+```
+
+To use your own Mapbox account, set `NEXT_PUBLIC_MAPBOX_TOKEN` in `.env`.
+
+</Tab>
+<Tab value="Python">
+
+```bash
+nitrostack-py init pizzaz --template python-pizzaz
+```
+
+Pizza shop finder with list/map/shop widgets under `widgets/out/`. For open shops only, call `show_pizza_list` with `{"openNow": true}` or `show_pizza_map` with `{"filter": "open_now"}`; omitting those fields returns every shop, including closed ones.
+
+To test in MCP Inspector, use HTTP + stateless with auth **off** and `NITROSTACK_APP_MODE=universal`.
+
+</Tab>
+</Tabs>
+
+## Widget SDK features it uses
+
+<Cards>
+  <Card icon={<Palette />} title="Theme and layout" href="/docs/sdk/ui/widget-sdk" description="useTheme, useMaxHeight, and useDisplayMode adapt the UI to the client." />
+  <Card icon={<AppWindow />} title="State and links" href="/docs/sdk/ui/widget-sdk" description="useWidgetState keeps favorites across reloads; openExternal opens links." />
+</Cards>
+
+## Project structure
+
+The files that matter:
+
+```text
+src/
+├── modules/pizzaz/
+│   ├── pizzaz.tools.ts      # show_pizza_map, show_pizza_list, show_pizza_shop
+│   ├── pizzaz.service.ts    # Filtering and lookup
+│   └── pizzaz.data.ts       # Shop data: edit to add shops
+└── widgets/app/
+    ├── pizza-map/
+    ├── pizza-list/
+    └── pizza-shop/
+```
+
+## Try it
+
+Ask your AI client things like these:
+
+| Ask | What happens |
+| :-- | :-- |
+| "Show me pizza shops on a map" | `show_pizza_map` opens the map widget. |
+| "List all pizza shops" | `show_pizza_list` opens the list with sorting and filters. |
+| "Show me details for Tony's Pizza" | `show_pizza_shop` opens the shop widget. |
+
+Widgets build to HTML files in `src/widgets/out/` and work the same in ChatGPT.
+
+## Next steps
+
+<Cards>
+  <Card icon={<BookOpen />} title="Widget SDK reference" href="/docs/sdk/ui/widget-sdk" description="Every hook the template uses." />
+  <Card icon={<AppWindow />} title="Widgets guide" href="/docs/sdk/ui/widgets" description="Build and style widgets." />
+  <Card icon={<Calculator />} title="Starter template" href="/docs/templates/starter" description="A smaller project to start from." />
+</Cards>

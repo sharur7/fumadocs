@@ -1,0 +1,151 @@
+---
+title: "Validation"
+description: "Zod schemas and runtime validation"
+---
+
+import { Funnel, ShieldAlert, Wrench } from 'lucide-react';
+
+In the Model Context Protocol (MCP), input schemas serve a dual role:
+1. **Model Understanding**: AI clients convert tool schemas into function definitions for LLMs. Field names, types, descriptions, and defaults directly influence model behavior.
+2. **Runtime Security**: Before tool handlers execute, NitroStack validates incoming request arguments against the Zod schema, ensuring invalid payloads are rejected before reaching business logic.
+
+## Schema Definition with Zod
+
+NitroStack bundles [Zod](https://zod.dev) out of the box via `@nitrostack/core`:
+
+```typescript
+import { ToolDecorator as Tool, z, ExecutionContext } from '@nitrostack/core';
+
+// 1. Define the schema
+export const AddBookSchema = z.object({
+  title: z.string().min(1).max(200).describe('Title of the book'),
+  author: z.string().min(1).max(100).describe('Primary author name'),
+  isbn: z.string().regex(/^(97(8|9))?\d{9}(\d|X)$/, 'Invalid ISBN-10 or ISBN-13 format')
+    .describe('Standard ISBN identifier'),
+  genre: z.enum(['fiction', 'non-fiction', 'science', 'history', 'biography'])
+    .describe('Book category'),
+  copiesAvailable: z.number().int().min(1).default(1)
+    .describe('Number of physical copies in inventory'),
+  tags: z.array(z.string()).default([]).describe('Search tags and keywords'),
+});
+
+// 2. Infer the TypeScript type
+export type AddBookInput = z.infer<typeof AddBookSchema>;
+
+export class BookTools {
+  @Tool({
+    name: 'add_book',
+    description: 'Add a new book to the library catalog',
+    inputSchema: AddBookSchema,
+  })
+  async addBook(input: AddBookInput, ctx: ExecutionContext) {
+    ctx.logger.info('Adding validated book', { isbn: input.isbn });
+    // input is strongly typed and runtime validated
+    return { success: true, book: input };
+  }
+}
+```
+
+## Advanced Validation Patterns
+
+Zod can express rules that involve several fields or outside data.
+
+### Custom Refinements with `.refine()`
+Use `.refine()` to enforce multi-field dependencies or external rules:
+
+```typescript
+export const DateRangeSchema = z.object({
+  startDate: z.string().datetime().describe('Start date (ISO-8601)'),
+  endDate: z.string().datetime().describe('End date (ISO-8601)'),
+}).refine(
+  (data) => new Date(data.endDate) > new Date(data.startDate),
+  { message: 'endDate must occur after startDate', path: ['endDate'] }
+);
+```
+
+### Transformations with `.transform()`
+Transform input data during the validation step:
+
+```typescript
+export const SearchSchema = z.object({
+  query: z.string()
+    .trim()
+    .toLowerCase()
+    .describe('Search query string (automatically normalized)'),
+});
+```
+
+## Combining Validation with NitroStack Pipes
+
+While Zod validates raw types, **Pipes** (`UsePipes`) normalize or augment input before reaching the handler:
+
+```typescript
+import { PipeInterface, ArgumentMetadata, Injectable } from '@nitrostack/core';
+
+@Injectable()
+export class IsbnNormalizePipe implements PipeInterface {
+  transform(value: unknown, _metadata: ArgumentMetadata) {
+    if (value && typeof value === 'object' && 'isbn' in value) {
+      const record = value as { isbn: string };
+      // Strip hyphens and spaces
+      record.isbn = record.isbn.replace(/[-\s]/g, '');
+    }
+    return value;
+  }
+}
+```
+
+Apply the pipe alongside the schema:
+
+```typescript
+import { ToolDecorator as Tool, UsePipes, ExecutionContext, z } from '@nitrostack/core';
+import { IsbnNormalizePipe } from './pipes/isbn-normalize.pipe.js';
+
+export class LibraryTools {
+  @UsePipes(IsbnNormalizePipe)
+  @Tool({
+    name: 'lookup_isbn',
+    description: 'Lookup book metadata by ISBN',
+    inputSchema: z.object({ isbn: z.string().describe('ISBN-10 or ISBN-13') }),
+  })
+  async lookupIsbn(input: { isbn: string }, ctx: ExecutionContext) {
+    // input.isbn is already normalized
+    return this.catalogService.findByIsbn(input.isbn);
+  }
+}
+```
+
+## Error Handling & Exception Mapping
+
+When validation fails, NitroStack catches the error and rejects the request. Using an **Exception Filter** (`@UseFilters`), you can map `ZodError` into structured client responses:
+
+```typescript
+import { ExceptionFilter, ExceptionFilterInterface, ExecutionContext } from '@nitrostack/core';
+import { ZodError } from 'zod';
+
+@ExceptionFilter()
+export class ValidationExceptionFilter implements ExceptionFilterInterface {
+  catch(exception: unknown, context: ExecutionContext) {
+    if (exception instanceof ZodError) {
+      context.logger.warn('Validation error encountered', { issues: exception.issues });
+      return {
+        isError: true,
+        error: 'Validation failed',
+        details: exception.issues.map((i) => ({
+          field: i.path.join('.'),
+          message: i.message,
+        })),
+      };
+    }
+    throw exception;
+  }
+}
+```
+
+## Related
+
+<Cards>
+  <Card icon={<Wrench />} title="Tools Guide" href="/docs/sdk/tools" description="Tool definition and configuration options." />
+  <Card icon={<Funnel />} title="Pipes Guide" href="/docs/sdk/pipes" description="Transforming input data in the pipeline." />
+  <Card icon={<ShieldAlert />} title="Error Handling Guide" href="/docs/sdk/error-handling" description="Exception filters and error mapping." />
+</Cards>

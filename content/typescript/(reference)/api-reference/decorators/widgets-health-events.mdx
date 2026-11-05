@@ -1,0 +1,193 @@
+---
+title: "Widgets and Observability"
+description: "Attach UI to tools, report health, and react to events"
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+`@Widget` attaches UI to a tool, `@HealthCheck` reports on a dependency, and `@OnEvent` runs a method when an event is emitted.
+
+## @Widget
+
+Attaches an interactive UI widget to an MCP tool. The widget is a Next.js page component that renders the tool's output.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { Widget, WidgetRouteMetadata } from '@nitrostack/core';
+
+// Signature 1: String route shorthand
+@Widget(routePath: string)
+
+// Signature 2: Object metadata configuration
+@Widget(metadata: WidgetRouteMetadata)
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@widget("route")  # or WidgetOptions(...)
+```
+
+</Tab>
+</Tabs>
+
+**Parameters & Options:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `route` | `string` | Yes (in object form) | Route path matching `src/widgets/app/{route}/page.tsx` |
+| `csp` | `WidgetCspOptions` | No | Content Security Policy allowlist for external network domains and frames |
+| `domain` | `string` | No | Widget origin domain (HTTPS) for OpenAI ChatGPT sandbox mapping |
+| `prefersBorder` | `boolean` | No | Whether the client UI should render a decorative container border |
+
+**1. Basic Route Example:**
+
+```typescript
+@Tool({ name: 'get_chart_data' })
+@Widget('chart-visualization')
+async getChartData(input: ChartInput, ctx: ExecutionContext) {
+  return this.chartService.getData(input);
+  // Widget at src/widgets/app/chart-visualization/page.tsx renders result
+}
+```
+
+**2. Object Metadata Example with CSP:**
+
+```typescript
+@Tool({ name: 'interactive_map' })
+@Widget({
+  route: 'map-view',
+  csp: {
+    connectDomains: ['https://api.mapbox.com'],
+    resourceDomains: ['https://tiles.mapbox.com'],
+    frameDomains: [],
+  },
+  domain: 'https://myapp.nitrostack.ai',
+  prefersBorder: true,
+})
+async getMap(input: { location: string }, ctx: ExecutionContext) {
+  return { coordinates: [40.7128, -74.006] };
+}
+```
+
+**Complete Example with Invocation Messages:**
+
+```typescript
+@Tool({
+  name: 'get_dashboard',
+  title: 'User Dashboard',
+  description: 'Get user dashboard with stats',
+  inputSchema: z.object({ userId: z.string() }),
+  // Status messages shown during execution
+  invocation: {
+    invoking: 'Loading dashboard...',
+    invoked: 'Dashboard ready'
+  },
+  // Example data for widget preview (IMPORTANT!)
+  examples: {
+    request: { userId: 'user-123' },
+    response: {
+      user: { name: 'John', email: 'john@example.com' },
+      stats: { orders: 42, totalSpent: 1234.56 }
+    }
+  }
+})
+@Widget('user-dashboard')
+async getDashboard(input: { userId: string }, ctx: ExecutionContext) {
+  return { user: {...}, stats: {...} };
+}
+```
+
+<Callout type="info" title="Note">
+
+The `examples.response` data is used by clients to render widget previews. Always provide realistic example data matching your response structure.
+
+</Callout>
+
+## @HealthCheck
+
+Defines a health check for system monitoring.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { HealthCheck, HealthCheckInterface } from '@nitrostack/core';
+
+@HealthCheck(options: HealthCheckOptions)
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@health_check(name="system")
+```
+
+</Tab>
+</Tabs>
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string` | Yes | Health check identifier |
+| `description` | `string` | No | Description of what is checked |
+| `interval` | `number` | No | Check interval in seconds |
+
+**Example:**
+
+```typescript
+@HealthCheck({
+  name: 'database',
+  description: 'Database connectivity check',
+  interval: 30
+})
+export class DatabaseHealthCheck implements HealthCheckInterface {
+  async check(): Promise<HealthCheckResult> {
+    const isHealthy = await this.db.ping();
+    return {
+      status: isHealthy ? 'up' : 'down',
+      message: isHealthy ? 'Database connected' : 'Database unreachable'
+    };
+  }
+}
+```
+
+## @OnEvent
+
+Subscribes to events.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { OnEvent } from '@nitrostack/core';
+
+@OnEvent(eventName: string)
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@on_event("name")
+```
+
+</Tab>
+</Tabs>
+
+**Example:**
+
+```typescript
+@Injectable()
+export class NotificationService {
+  @OnEvent('order.created')
+  async handleOrderCreated(data: OrderCreatedEvent): Promise<void> {
+    await this.emailService.sendOrderConfirmation(data.userId, data.orderId);
+  }
+}
+```

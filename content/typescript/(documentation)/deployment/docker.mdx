@@ -1,0 +1,172 @@
+---
+title: "Deploy with Docker"
+description: "Package your MCP server as a container image and run it anywhere"
+icon: Container
+---
+
+import { Cloud, HeartPulse, ArrowLeftRight } from 'lucide-react';
+
+A container image packages your compiled server, its production dependencies, and its built widgets into one artifact. The same image runs on your laptop, on your own servers, and on every [cloud platform](/docs/deployment/cloud), so what you test locally is exactly what you ship.
+
+Inside a container, your server runs the way `npm start` runs it: over [Streamable HTTP](/docs/guides/streamable-http) at `/mcp`, on port 3000 by default. Clients connect to `http://<host>:3000/mcp`.
+
+## Write the Dockerfile
+
+This multi-stage Dockerfile builds the project in one stage and copies only what the server needs at runtime into a smaller final image. `npm run build` compiles your TypeScript to `dist/` and, if the project has widgets, bundles them into `src/widgets/out`.
+
+```dockerfile title="Dockerfile"
+# Build stage: install everything and compile
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# Runtime stage: production dependencies and build output only
+FROM node:20-alpine
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=3000 \
+    MCP_TRANSPORT_TYPE=http
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/widgets/out ./src/widgets/out
+
+USER node
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
+  CMD wget -qO- http://localhost:3000/mcp/health || exit 1
+
+CMD ["node", "dist/index.js"]
+```
+
+The four environment variables in the runtime stage matter:
+
+- `HOST=0.0.0.0` makes the server accept connections from outside the container. Without it the server listens on `localhost` only, and the published port appears closed.
+- `PORT` sets the HTTP port. Keep it in step with `EXPOSE` and your port mapping.
+- `NODE_ENV=production` turns on production behavior, such as HTTPS checks in the authentication middleware.
+- `MCP_TRANSPORT_TYPE=http` runs HTTP only. Without it, production mode runs both STDIO and HTTP, and a container has no client on its standard input.
+
+<Callout title="No widgets?">
+  If your project has no `src/widgets` folder, delete the line that copies `src/widgets/out`. Otherwise the build fails because the folder doesn't exist.
+</Callout>
+
+Add a `.dockerignore` so local build output and secrets never enter the build context:
+
+```text title=".dockerignore"
+node_modules
+dist
+src/widgets/node_modules
+src/widgets/out
+.git
+.env
+.env.*
+*.log
+```
+
+## Build and run the image
+
+Build the image, then start a container from it:
+
+```bash
+docker build -t my-mcp-server .
+docker run -d --name mcp-server -p 3000:3000 my-mcp-server
+```
+
+Check that the server is up by calling its health endpoint. It responds with JSON like this (abbreviated):
+
+```bash
+curl http://localhost:3000/mcp/health
+```
+
+```json
+{ "status": "ok", "transport": "streamable-http", "sessions": 0, "uptime": 4.2 }
+```
+
+To call tools from a client, point it at `http://localhost:3000/mcp`. [Connect to clients](/docs/guides/connect-to-clients) shows the configuration for each client, and [Verify and debug transports](/docs/guides/verify-transport) shows how to test the endpoint with `curl`.
+
+## Pass configuration and secrets
+
+Bake only non-sensitive defaults into the image. Pass API keys, JWT secrets, and database URLs when the container starts, either one at a time with `-e` or from a file:
+
+```bash
+docker run -d -p 3000:3000 --env-file .env.production my-mcp-server
+```
+
+These variables are read by `@nitrostack/core` itself. Your own code can read any others through [ConfigModule](/docs/sdk/configuration).
+
+| Variable | Default | What it controls |
+| :-- | :-- | :-- |
+| `PORT` | `3000` | HTTP port the server listens on |
+| `HOST` | `localhost` | Network interface to bind; use `0.0.0.0` in containers |
+| `NODE_ENV` | unset | `production` enables production behavior |
+| `MCP_TRANSPORT_TYPE` | from `NODE_ENV` | `stdio`, `http`, or `dual` |
+| `ENABLE_CORS` | enabled | Set to `false` to turn off CORS headers |
+| `MCP_MAX_SESSIONS` | no limit | Maximum concurrent Streamable HTTP sessions |
+| `MCP_SESSION_TIMEOUT_MS` | built-in | Idle time before a session is closed |
+
+## Run with Docker Compose
+
+Compose is convenient when your server depends on other services, such as a database or a cache. This file runs the server next to PostgreSQL and restarts both if they stop:
+
+```yaml title="docker-compose.yml"
+services:
+  mcp-server:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file: .env.production
+    depends_on:
+      - database
+    restart: unless-stopped
+
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: myapp
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+volumes:
+  db-data:
+```
+
+```bash
+docker compose up -d
+```
+
+Inside the Compose network, the server reaches the database at the host name `database`, so your connection string uses `postgres://app:...@database:5432/myapp`.
+
+## Stop the container cleanly
+
+`docker stop` sends `SIGTERM`. A server created with `@McpApp` listens for `SIGTERM` and `SIGINT`, runs your `onModuleDestroy`, `beforeApplicationShutdown`, and `onApplicationShutdown` hooks, and closes its transports before it exits. Use these hooks to flush queues and close database connections; see [Lifecycle](/docs/getting-started/core-concepts/server-lifecycle).
+
+## Troubleshooting
+
+**The port is published but connections are refused.** The server is listening on `localhost` inside the container. Set `HOST=0.0.0.0`.
+
+**Widgets don't render.** The image is missing `src/widgets/out`. Confirm that `npm run build` ran in the build stage and that the Dockerfile copies the folder.
+
+**The container exits right away.** Read its output with `docker logs mcp-server`. A missing environment variable or a failed dependency resolution at startup is the usual cause.
+
+**Port 3000 is already in use on your machine.** Map a different host port: `docker run -p 3001:3000 my-mcp-server`. The server inside the container still listens on 3000.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Cloud />} title="Cloud Platforms" href="/docs/deployment/cloud" description="Run this image on AWS, Google Cloud, Azure, DigitalOcean, or Heroku." />
+  <Card icon={<Cloud />} title="NitroStack Cloud" href="/docs/cloud/overview" description="Deploy from your repository without managing containers." />
+  <Card icon={<HeartPulse />} title="Health checks" href="/docs/sdk/health-checks" description="Report the health of your own dependencies." />
+  <Card icon={<ArrowLeftRight />} title="Transports" href="/docs/getting-started/core-concepts/transports" description="How STDIO and HTTP differ." />
+</Cards>

@@ -1,0 +1,14 @@
+---
+title: "Chat Interface"
+description: "Chat against a Python MCP HTTP server"
+---
+
+Point chat clients at the Python HTTP transport:
+
+```bash
+MCP_TRANSPORT_TYPE=http MCP_STATELESS=true nitrostack-py start --port 3000
+```
+
+Endpoint: `http://localhost:3000/mcp`. OAuth template requires a real token and `OAUTH_REQUIRED` semantics; starter/pizzaz should run with Inspector auth off.
+
+For Claude Desktop stdio, use `nitrostack-py register` instead of HTTP.

@@ -1,0 +1,60 @@
+---
+title: "Authentication"
+description: "Require people to sign in with your OAuth provider before they use the chat"
+---
+
+import { Database, LayoutDashboard } from 'lucide-react';
+
+**Auth**, in the Chat menu, turns on OAuth 2.0 sign-in for the chat. By default anyone with the chat's address can use it, and their conversations appear on [Threads](/docs/cloud/apps/chat/threads) as **Anonymous**. With authentication on, the chat sends visitors to your identity provider to sign in first.
+
+This protects who can use the chat. Your MCP server's own authentication is separate; see [Authentication](/docs/sdk/auth/overview) in the SDK docs. Only owners and admins can change these settings.
+
+<Screenshot src="/images/cloud/chat-auth.png" alt="The chat Authentication page with an OAuth configuration card and an Enable authentication switch, turned off" />
+
+## Turn on sign-in
+
+Under **OAuth configuration**, turn on **Enable authentication**. The OAuth fields appear:
+
+| Field | What to enter |
+|-------|---------------|
+| **Client ID** | The ID of the OAuth application you created at your provider. |
+| **Client Secret** | The matching secret. The field is masked. |
+| **Authorization endpoint** | Your provider's authorize URL. |
+| **Token endpoint** | Your provider's token URL. |
+| **Redirect URI** | Read-only. NitroCloud builds it from the chat's URL. Copy it into your provider's allowed callback URLs. |
+| **Audience** | The API audience, if your provider needs one. Auth0 does; enter it as the provider documents it. |
+
+### Quick import
+
+If you already have the values in a `.env` file, click **Show import** and paste them:
+
+```bash title=".env"
+OAUTH_CLIENT_ID=
+OAUTH_CLIENT_SECRET=
+OAUTH_AUTHORIZATION_ENDPOINT=
+OAUTH_TOKEN_ENDPOINT=
+OAUTH_AUDIENCE=
+```
+
+Lines that start with `#` are ignored, and the import doesn't change the redirect URI.
+
+## Register the chat with your provider
+
+The page lists the exact URLs your provider needs. Add every one of them to your OAuth application:
+
+| Provider setting | What to add |
+|------------------|-------------|
+| **Allowed callback URLs** | Two values: the chat's own URL, and the URL ending in `/oauth/callback`, which is used when the chat is embedded on a website. |
+| **Allowed web origins** | The chat's origin, so the browser can complete the sign-in. |
+| **Allowed logout URLs** | Where the provider sends people after they sign out. |
+
+Then click **Save changes** in NitroCloud. To check it, open the chat's URL in a private browser window: you should be sent to your provider's sign-in page.
+
+To make the chat public again, turn **Enable authentication** off and save.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Database />} title="Database" href="/docs/cloud/apps/chat/database" description="Keep chat history in MongoDB." />
+  <Card icon={<LayoutDashboard />} title="General" href="/docs/cloud/apps/chat" description="The chat's address and embed code." />
+</Cards>

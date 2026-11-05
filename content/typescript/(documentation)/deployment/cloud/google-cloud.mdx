@@ -1,0 +1,161 @@
+---
+title: "Google Cloud"
+description: "Run your MCP server on Cloud Run or Google Kubernetes Engine"
+---
+
+import { Server, Container, HeartPulse } from 'lucide-react';
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+Google Cloud offers two good homes for a container. [Cloud Run](https://cloud.google.com/run) is the simpler one: you give it an image, and it serves it over HTTPS, scales the number of instances with traffic, and bills only while requests are running. [GKE](https://cloud.google.com/kubernetes-engine) is managed Kubernetes, for teams that already run their services on a cluster.
+
+Either way, clients connect to `https://<your-service-url>/mcp`.
+
+<Callout title="Before you start">
+  Build the image from [Deploy with Docker](/docs/deployment/docker) and test it locally. You also need the `gcloud` CLI, signed in, with a project selected.
+</Callout>
+
+## Deploy
+
+Choose Cloud Run for a managed service, or GKE if you already run Kubernetes.
+
+<Tabs items={['Cloud Run', 'GKE (Kubernetes)']}>
+<Tab value="Cloud Run">
+
+<Steps>
+<Step>
+
+### Build the image in the cloud
+
+Cloud Build builds the image from your Dockerfile and stores it in Artifact Registry, so you don't need Docker running locally.
+
+```bash
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+
+gcloud artifacts repositories create mcp --repository-format=docker --location=us-central1
+
+gcloud builds submit --tag us-central1-docker.pkg.dev/PROJECT_ID/mcp/mcp-server
+```
+
+</Step>
+<Step>
+
+### Deploy the service
+
+Deploy the image as a Cloud Run service, with the environment variables the server needs:
+
+```bash
+gcloud run deploy mcp-server \
+  --image us-central1-docker.pkg.dev/PROJECT_ID/mcp/mcp-server \
+  --region us-central1 \
+  --port 3000 \
+  --memory 512Mi \
+  --set-env-vars NODE_ENV=production,HOST=0.0.0.0,MCP_TRANSPORT_TYPE=http \
+  --allow-unauthenticated
+```
+
+The command prints the service URL. Your MCP endpoint is that URL followed by `/mcp`.
+
+</Step>
+</Steps>
+
+`--allow-unauthenticated` lets any client reach the service, which is what public MCP clients need. Protect your tools with [authentication](/docs/sdk/auth/overview) in the server itself. If only your own services should call it, leave the flag out and Cloud Run requires a Google identity token on every request.
+
+</Tab>
+<Tab value="GKE (Kubernetes)">
+
+Build and push the image as in the Cloud Run tab, then apply this manifest with `kubectl apply -f deployment.yaml`. It runs three copies of the server, checks their health, and exposes them through a load balancer on port 80.
+
+```yaml title="deployment.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mcp-server
+  template:
+    metadata:
+      labels:
+        app: mcp-server
+    spec:
+      containers:
+        - name: mcp-server
+          image: us-central1-docker.pkg.dev/PROJECT_ID/mcp/mcp-server
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: MCP_TRANSPORT_TYPE
+              value: "http"
+          readinessProbe:
+            httpGet:
+              path: /mcp/health
+              port: 3000
+          livenessProbe:
+            httpGet:
+              path: /mcp/health
+              port: 3000
+            initialDelaySeconds: 10
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 3000
+  selector:
+    app: mcp-server
+```
+
+</Tab>
+</Tabs>
+
+## Secrets
+
+Store credentials in Secret Manager and let the platform inject them as environment variables at startup. Your code keeps reading `process.env`.
+
+```bash
+printf "your-secret-value" | gcloud secrets create jwt-secret --data-file=-
+
+gcloud run services update mcp-server --region us-central1 \
+  --set-secrets JWT_SECRET=jwt-secret:latest
+```
+
+The Cloud Run service account needs the **Secret Manager Secret Accessor** role on the secret. On GKE, create a Kubernetes Secret, or use the Secret Manager add-on, and reference it with `valueFrom.secretKeyRef` in the manifest.
+
+## Health checks
+
+The Kubernetes manifest above uses the built-in `/mcp/health` endpoint for both probes: a pod receives traffic only after the readiness probe passes, and is restarted if the liveness probe fails. On Cloud Run, you can add the same path as a startup or liveness probe in the service's container settings.
+
+## Logs
+
+Both Cloud Run and GKE send everything your server writes to standard output to Cloud Logging automatically. Read recent entries for a Cloud Run service from the terminal:
+
+```bash
+gcloud run services logs read mcp-server --region us-central1
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Container />} title="Deploy with Docker" href="/docs/deployment/docker" description="The image and environment variables this guide uses." />
+  <Card icon={<Server />} title="Microsoft Azure" href="/docs/deployment/cloud/azure" description="Deploy to Container Instances or AKS." />
+  <Card icon={<HeartPulse />} title="Health checks" href="/docs/sdk/health-checks" description="Report the health of your own dependencies." />
+</Cards>

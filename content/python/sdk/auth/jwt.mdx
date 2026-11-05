@@ -1,0 +1,88 @@
+---
+title: "JWT"
+description: "Issue and verify HS256 JSON Web Tokens with JWTModule and JwtGuard"
+---
+
+import { ShieldCheck, Gauge } from 'lucide-react';
+
+Use JWTs when you sign your users in yourself: your server issues a token after login, and the guard checks it on every call. For sign-in through an identity provider, use [OAuth 2.1](/python/sdk/auth/oauth) instead.
+
+## Set up JWTModule
+
+Import the module in your root module.
+
+```python title="app_module.py"
+from nitrostack import module, JWTModule
+
+@module(
+    name="app",
+    imports=[
+        JWTModule.for_root(
+            secret_env_var="JWT_SECRET",
+            expires_in="24h",
+            audience="my-server",
+            issuer="https://auth.example.com",
+        ),
+    ],
+)
+class AppModule:
+    pass
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `secret_env_var` | `"JWT_SECRET"` | The environment variable that holds the signing secret |
+| `expires_in` | `"24h"` | Token lifetime, as a number followed by `h`, `m`, or `s`, or plain seconds |
+| `audience` | none | If set, added to new tokens and required when verifying |
+| `issuer` | none | If set, added to new tokens and required when verifying |
+
+Tokens are signed with HS256.
+
+<Callout type="warn" title="Set JWT_SECRET">
+  If the environment variable isn't set, the module falls back to a built-in development secret so local runs don't fail. Anyone can sign a token with that secret, so always set `JWT_SECRET` outside development.
+</Callout>
+
+## Protect a tool
+
+Put `JwtGuard` on the tools that need a signed-in user. It reads `Authorization: Bearer <token>`, verifies the signature, expiry, audience, and issuer, and fills `context.auth`.
+
+```python
+from nitrostack import tool, use_guards, JwtGuard, ExecutionContext
+
+@tool(name="my_orders", description="List my orders", input_schema=EmptyInput)
+@use_guards(JwtGuard)
+async def my_orders(self, input: EmptyInput, context: ExecutionContext) -> dict:
+    user_id = context.auth.subject
+    ...
+```
+
+`context.auth.subject` comes from the token's `sub` claim, `scopes` from its `scopes` claim, and `claims` holds the whole payload. A call with a missing, malformed, expired, or wrongly signed token is rejected.
+
+## Issue tokens
+
+Inject `JWTService` into a login tool and call `create_token` with the claims you want.
+
+```python
+from nitrostack import injectable, tool
+from nitrostack.auth.jwt import JWTService
+
+@injectable(deps=[JWTService])
+class AuthController:
+    def __init__(self, jwt: JWTService):
+        self.jwt = jwt
+
+    @tool(name="login", description="Sign in", input_schema=LoginInput)
+    async def login(self, input: LoginInput, context) -> dict:
+        # check the credentials first
+        token = self.jwt.create_token({"sub": input.username, "scopes": ["orders:read"]})
+        return {"token": token}
+```
+
+`create_token` adds `iat` and `exp` for you, and `aud` and `iss` when you configured them. `verify_token(token)` returns the payload, or raises `ValueError` with the reason.
+
+## Next steps
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Guards" href="/python/sdk/guards" description="How guards allow or reject a call." />
+  <Card icon={<Gauge />} title="Access Control" href="/python/sdk/auth/access-control" description="Check scopes once a user is signed in." />
+</Cards>

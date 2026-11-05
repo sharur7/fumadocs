@@ -1,0 +1,139 @@
+---
+title: "CLI Commands"
+description: "Every command and option for nitrostack-cli and nitrostack-py."
+icon: ListChecks
+---
+
+import { Terminal } from 'lucide-react';
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+The one place to look up a command in either CLI. For what each command does, see its page in [NitroStack CLI](/docs/cli/overview).
+
+## Commands
+
+Every command in both CLIs, in one table per language.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+| Command | Purpose |
+|---------|---------|
+| `init <name>` | Create a project from a template |
+| `dev` | Development mode with hot reload |
+| `build` | Compile for production |
+| `start` | Start the production server |
+| `install` | Install root and widget dependencies |
+| `upgrade` | Upgrade NitroStack packages |
+| `generate <type> <name>` | Generate modules, tools, guards, and more |
+| `cursor` | Configure Cursor to use the server |
+| `pack` | Create a deployment zip |
+
+Install with `npm install -g @nitrostack/cli`, or run any command with `npx @nitrostack/cli`.
+
+</Tab>
+<Tab value="Python">
+
+Entry: `nitrostack-py` or `python -m nitrostack.cli.main`.
+
+| Command | Purpose |
+|---------|---------|
+| `init [name]` | Scaffold (`--template`, `--skip-install`, `--force`, `--port`, `--widget`) |
+| `dev` | Hot reload (`--port`, `--widget`) |
+| `start` | Production (`--port`, `--widget`) |
+| `pack` | Wheel (`--dry-run`, `--include-env`) |
+| `generate <type> <name>` | `tool` `module` `guard` `pipe` `interceptor` `filter` `service` |
+| `install` | Deps (`--production`) |
+| `upgrade` | Pin/bump (`--version`, `--dry-run`, `--allow-downgrade`) |
+| `validate` | Lint project |
+| `register` | Claude Desktop (`--name`, `--file`) |
+
+There is no `build` command.
+
+</Tab>
+</Tabs>
+
+## TypeScript options
+
+Each command's page explains what it does, with examples and every option's default. This table is the quick lookup.
+
+| Command | Options |
+|---------|---------|
+| [`init`](/docs/cli/init) | `--preset`, `--template`, `--description`, `--author`, `--skip-install`, `--force` |
+| [`dev`](/docs/cli/dev) | `--port` |
+| [`build`](/docs/cli/build-and-ship#build) | `--output` |
+| [`start`](/docs/cli/build-and-ship#start) | `--port` |
+| [`pack`](/docs/cli/build-and-ship#pack) | `-o, --output`, `--dry-run`, `--include-env`, `--no-sync-gitignore` |
+| [`install`](/docs/cli/manage-dependencies#install) | `--skip-widgets`, `--production` |
+| [`upgrade`](/docs/cli/manage-dependencies#upgrade) | `--dry-run` |
+| [`generate`](/docs/cli/generate) | `--module`, `--output`, `--force`, `--skip-related` |
+
+### cursor
+
+`cursor` configures Cursor to discover and connect to your MCP server.
+
+```bash
+nitrostack-cli cursor [options]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-g, --global` | Install to `~/.cursor/mcp.json` | `false` |
+| `-l, --local` | Install to `.cursor/mcp.json` | `true` |
+| `-t, --type <type>` | Connection type (`command`, `legacy-sse`, `streamable-http`) | `command` |
+| `-u, --url <url>` | Custom HTTP URL | Auto |
+| `-p, --port <port>` | Port for default HTTP URL | `3000` |
+| `--force` | Force overwrite existing configuration | `false` |
+
+## npm scripts
+
+Projects created with `init` include these scripts:
+
+```json
+{
+  "scripts": {
+    "dev": "nitrostack-cli dev",
+    "build": "nitrostack-cli build",
+    "start": "nitrostack-cli start",
+    "upgrade": "nitrostack-cli upgrade",
+    "install:all": "nitrostack-cli install"
+  }
+}
+```
+
+Run them with npm:
+
+```bash
+npm run dev          # Start development
+npm run build        # Build for production
+npm start            # Start production server
+npm run upgrade      # Upgrade packages
+npm run install:all  # Install all dependencies
+```
+
+## Exit codes
+
+Every command exits with one of these codes, so scripts can check the result:
+
+| Code | Description |
+|------|-------------|
+| `0` | Success |
+| `1` | General error |
+
+## Environment variables
+
+Variables the CLI and the server read:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NODE_ENV` | Environment mode | `development` |
+| `MCP_SERVER_PORT` | MCP server port | `3000` |
+| `WIDGET_PORT` | Widget server port | `3001` |
+| `LOG_LEVEL` | Logging level | `info` |
+
+## Related
+
+<Cards>
+  <Card icon={<Terminal />} title="CLI overview" href="/docs/cli/overview" description="What the CLI does and the development workflow." />
+  <Card icon={<Terminal />} title="Installation" href="/docs/cli/installation" description="Install either CLI." />
+</Cards>

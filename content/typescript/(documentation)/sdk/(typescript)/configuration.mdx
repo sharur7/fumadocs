@@ -1,0 +1,141 @@
+---
+title: "Configuration"
+description: "Type-safe configuration with ConfigModule and ConfigService"
+---
+
+import { Server, Syringe } from 'lucide-react';
+
+NitroStack provides a type-safe, centralized configuration module (`ConfigModule`) and service (`ConfigService`) for managing environment variables, API secrets, and server parameters.
+
+Using `ConfigModule` eliminates raw `process.env` calls scattered across your code, enables fail-fast validation on startup, and supports environment-specific `.env` overrides.
+
+## Setting Up ConfigModule
+
+Import `ConfigModule.forRoot()` into your root `AppModule`:
+
+```typescript
+// src/app.module.ts
+import { McpApp, Module, ConfigModule } from '@nitrostack/core';
+import { LibraryModule } from './modules/library/library.module.js';
+
+@McpApp({ module: AppModule })
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath: process.env.NODE_ENV === 'production' ? '.env.production' : '.env',
+      ignoreEnvFile: false, // Set true in container environments like Docker/Cloud Run
+      defaults: {
+        LOG_LEVEL: 'info',
+        PORT: '3000',
+        LIBRARY_NAME: 'Community Library',
+      },
+      validate: (config) => {
+        // Fail-fast assertion during bootstrap
+        if (!config.DATABASE_URL && process.env.NODE_ENV === 'production') {
+          throw new Error('Missing mandatory environment variable: DATABASE_URL');
+        }
+        return true;
+      },
+    }),
+    LibraryModule,
+  ],
+})
+export class AppModule {}
+```
+
+### Configuration Options
+
+`ConfigModule.forRoot()` accepts these options.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `envFilePath` | `string` | `'.env'` | Path to the local environment file. |
+| `ignoreEnvFile` | `boolean` | `false` | When `true`, relies solely on OS/container environment variables. |
+| `defaults` | `Record<string, string>` | `{}` | Fallback key-value string pairs used if not present in environment. |
+| `validate` | `(config: Record<string, any>) => boolean` | `undefined` | Startup callback to validate configuration before server launches. |
+
+## Injecting and Using `ConfigService`
+
+`ConfigService` is automatically made available to the dependency injection container:
+
+```typescript
+// src/modules/library/library.service.ts
+import { Injectable, ConfigService } from '@nitrostack/core';
+
+@Injectable({ deps: [ConfigService] })
+export class LibraryService {
+  private readonly libraryName: string;
+  private readonly apiKey: string;
+
+  constructor(private configService: ConfigService) {
+    // 1. get with fallback
+    this.libraryName = this.configService.get('LIBRARY_NAME', 'Default Library');
+
+    // 2. getOrThrow for critical secrets: fails fast if missing
+    this.apiKey = this.configService.getOrThrow<string>('LIBRARY_API_KEY');
+  }
+
+  getDetails() {
+    return {
+      name: this.libraryName,
+      hasKey: Boolean(this.apiKey),
+    };
+  }
+}
+```
+
+## `ConfigService` API Reference
+
+Inject `ConfigService` anywhere to read configuration values.
+
+```typescript
+export class ConfigService {
+  /**
+   * Retrieve an environment variable, returning undefined if not found.
+   */
+  get<T = string>(key: string): T | undefined;
+
+  /**
+   * Retrieve an environment variable with a default fallback value.
+   */
+  get<T = string>(key: string, defaultValue: T): T;
+
+  /**
+   * Retrieve a mandatory environment variable.
+   * Throws an error immediately if the variable is missing or empty.
+   */
+  getOrThrow<T = string>(key: string): T;
+
+  /**
+   * Retrieve all loaded configuration as a key-value dictionary.
+   */
+  getAll(): Record<string, string>;
+}
+```
+
+## Secrets Management & Security
+
+1. **Use `getOrThrow` for Required Secrets**:
+   Instead of checking for `undefined` inside runtime handlers, call `configService.getOrThrow('STRIPE_KEY')` in service constructors. This ensures your server fails to start immediately if critical secrets are absent.
+
+2. **Never Log Raw Secrets**:
+   Ensure secrets, auth tokens, and private keys are never passed into `ctx.logger.info()` or serialized into tool error responses.
+
+3. **Container Environment Priority**:
+   Container-injected environment variables (e.g. from Kubernetes Secrets or Google Cloud Run env vars) automatically take precedence over values declared in `.env` files.
+
+## CLI settings and runtime configuration
+
+Two kinds of configuration are easy to mix up. CLI settings control how the project is built and run; `ConfigModule` values are read by your code while it runs.
+
+<Compare columns={[
+  { title: 'CLI flags and package.json', sub: 'Configure the tooling', icon: 'Terminal', items: ['Build and transpilation targets', 'Dev server port and reload', 'Widget build paths'] },
+  { title: 'ConfigModule and .env', sub: 'Configure your application', icon: 'Settings', accent: true, items: ['Database connection strings', 'Third-party API credentials', 'Feature flags and auth tokens'] },
+]} caption="CLI settings change how your project is built and run. ConfigModule values are read by your code at runtime." />
+
+## Related
+
+<Cards>
+  <Card icon={<Server />} title="Server Concepts" href="/docs/getting-started/core-concepts/server-concepts" description="Application bootstrapping and modules." />
+  <Card icon={<Syringe />} title="Dependency Injection" href="/docs/sdk/dependency-injection" description="Service providers and injection." />
+</Cards>

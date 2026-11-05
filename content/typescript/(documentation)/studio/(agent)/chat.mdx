@@ -1,0 +1,39 @@
+---
+title: AI Chat
+description: Chat with a model that calls your tools and renders their widgets.
+---
+
+import { Sparkles, ListChecks, FlaskConical, Settings } from 'lucide-react';
+
+AI Chat is the closest thing to using your server the way your users will. You talk to a model, the model decides which of your tools to call and with what arguments, and the results come back into the conversation, with widgets rendered inline. If a tool is hard for the model to use, because its name, description, or schema is unclear, this is where you find out.
+
+<Screenshot src="/images/studio/ai-chat.webp" alt="AI Chat in NitroStudio: the welcome screen with the project's prompts and suggested questions, and the Customize panel on the right" caption="A new chat: the project's prompts and a few suggested questions, with the Customize panel on the right." />
+
+## Have a conversation
+
+Type in the message box and press Enter. Pick the model in the selector under the box; models are marked free or **Pro**. The ring beside the selector shows how much of the model's context window the conversation has used. You can attach files with the paperclip, or speak instead of typing with the microphone, which also reads replies aloud.
+
+Each conversation is a tab at the top of the page. Open another with **+** to try a different approach without losing the first one.
+
+## Watch the model use your tools
+
+When the model calls a tool, the call appears in the conversation with its arguments, followed by the result. Tools with a widget render it inline, the way ChatGPT and other clients that support MCP UI will. **Operation Flow**, in the Customize panel, shows every call the model made in a turn, in order, with how long each took, which is the quickest way to see why a reply was slow.
+
+Read the model's replies critically. A reply that picks the wrong tool, passes odd arguments, or says it can't do something your server should support points at a server problem, usually in a tool's name, description, or schema.
+
+## Branding
+
+When the project is linked to a [NitroCloud](/docs/cloud/overview) app, the chat shows the app's branding: its icon and name at the top of the conversation, with the project name, the number of tools, and the connection status beneath. This is how the app introduces itself to people who chat with it, so check that the name and icon are the ones you want before you deploy.
+
+## Customize the chat
+
+The **Customize** panel on the right holds the settings for this chat: the widget preview width, Operation Flow, the model's behavior, time zone, and language, plus **Clear Chat**. It also links to your usage, chat history, logs, and console. See [Configuration](/docs/studio/configuration#chat-settings).
+
+## Related
+
+<Cards>
+  <Card icon={<Sparkles />} title="Compose" href="/docs/studio/compose" description="Build the app in a conversation, too." />
+  <Card icon={<ListChecks />} title="Tasks" href="/docs/studio/tasks" description="Run long tool calls as tasks." />
+  <Card icon={<FlaskConical />} title="Test Cases" href="/docs/studio/test-cases" description="Turn conversations into repeatable tests." />
+  <Card icon={<Settings />} title="Configuration" href="/docs/studio/configuration" description="Every chat setting." />
+</Cards>

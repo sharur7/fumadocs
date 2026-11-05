@@ -1,0 +1,131 @@
+---
+title: "Testing and Production"
+description: "Test the sign-in flow, then deploy with a production provider and HTTPS"
+---
+
+import { Cloud, Container } from 'lucide-react';
+
+Test the whole flow locally before you ship: sign in from a client, call a protected tool, and check what happens without a token.
+
+## Test in NitroStudio
+
+1. Open the project in [NitroStudio](/docs/studio/overview) and go to **Authentication**.
+2. Expand the project and choose OAuth 2.1, then enter your provider's details.
+3. Sign in. Your provider redirects back to Studio through `nitrostudio://oauth/callback`.
+4. Call a protected tool from **Tools** and check that it runs as you.
+5. Sign out and call it again: with `OAUTH_REQUIRED=true` it should fail with `OAuth token required`.
+
+## Test in code
+
+In automated tests, call the guard directly with a context that carries a token, or none.
+
+```typescript
+// test/oauth.test.ts
+import { createMockContext } from '@nitrostack/core/testing';
+import { OAuthGuard, createScopeGuard, OAuthModule } from '@nitrostack/core';
+
+describe('OAuth Authentication', () => {
+  let guard: OAuthGuard;
+
+  beforeEach(() => {
+    // Configure OAuthModule with enforcement enabled
+    OAuthModule.forRoot({
+      required: true,
+      resourceUri: 'https://mcplocal',
+      authorizationServers: ['https://auth.example.com'],
+      allowInsecureTokenDecode: true, // Allow decoding test tokens without remote JWKS
+    });
+    guard = new OAuthGuard();
+  });
+
+  it('should reject requests without authorization header when auth is enforced', async () => {
+    const ctx = createMockContext();
+    await expect(guard.canActivate(ctx)).rejects.toThrow('OAuth token required');
+  });
+
+  it('should allow requests with valid OAuth bearer token and required scopes', async () => {
+    const ctx = createMockContext({
+      metadata: {
+        authorization: 'Bearer valid.jwt.token',
+      },
+    });
+    const ScopeGuardClass = createScopeGuard(['flights:book']);
+    const scopeGuard = new ScopeGuardClass();
+    ctx.auth = {
+      authenticated: true,
+      subject: 'user-123',
+      scopes: ['flights:read', 'flights:book'],
+    };
+    expect(await scopeGuard.canActivate(ctx)).toBe(true);
+  });
+
+  it('should reject requests with insufficient scopes by throwing an error', async () => {
+    const ctx = createMockContext();
+    const AdminScopeGuardClass = createScopeGuard(['admin:all']);
+    const scopeGuard = new AdminScopeGuardClass();
+    ctx.auth = {
+      authenticated: true,
+      subject: 'user-123',
+      scopes: ['flights:read'],
+    };
+    await expect(scopeGuard.canActivate(ctx)).rejects.toThrow('Insufficient scope');
+  });
+});
+```
+
+## Deploy to production
+
+Before you ship, switch to a production provider, serve the server over HTTPS, and keep an eye on token failures.
+
+### Use a production provider
+
+Point the module at your production tenant, and turn enforcement on.
+
+```bash
+# Production environment variables
+RESOURCE_URI=https://mcp.yourapp.com
+AUTH_SERVER_URL=https://auth.yourapp.com
+TOKEN_AUDIENCE=https://mcp.yourapp.com
+TOKEN_ISSUER=https://auth.yourapp.com/
+JWKS_URI=https://auth.yourapp.com/.well-known/jwks.json
+OAUTH_REQUIRED=true
+```
+
+### Serve over HTTPS
+
+Tokens travel in request headers, so production servers must use HTTPS. Terminate TLS at your platform or a reverse proxy:
+
+```typescript
+// Use reverse proxy (nginx, Cloudflare, etc.)
+// Or configure HTTPS directly:
+OAuthModule.forRoot({
+  required: true,
+  resourceUri: "https://mcp.yourapp.com", // HTTPS!
+  authorizationServers: [process.env.AUTH_SERVER_URL!],
+  jwksUri: process.env.JWKS_URI,
+});
+```
+
+### Watch token failures
+
+Log failed validations so you notice a misconfigured provider or an attack early.
+
+```typescript
+// Add custom validation / audit hooks
+OAuthModule.forRoot({
+  resourceUri: "https://mcp.yourapp.com",
+  authorizationServers: [process.env.AUTH_SERVER_URL!],
+  customValidation: async (token: any) => {
+    // Audit token validation event
+    console.log(`Validated token for subject: ${token.sub}`);
+    return true;
+  },
+});
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Container />} title="Deploy with Docker" href="/docs/deployment/docker" description="Run the server in a container." />
+  <Card icon={<Cloud />} title="NitroStack Cloud" href="/docs/cloud/overview" description="Deploy with HTTPS included." />
+</Cards>

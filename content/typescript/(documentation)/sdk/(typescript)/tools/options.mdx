@@ -1,0 +1,232 @@
+---
+title: "Options and Annotations"
+description: "Every @Tool option, and the hints that describe how a tool behaves"
+---
+
+import { AppWindow, CheckCheck } from 'lucide-react';
+
+`@Tool` takes a name, a description, and an input schema, plus optional settings for output, examples, visibility, and caching. Annotations add hints that tell clients how a tool behaves, such as whether it only reads data or can destroy it.
+
+## Options
+
+Every `@Tool` decorator needs a `name` and a `description`; the rest are optional.
+
+### Options Reference
+
+This interface lists every option `@Tool` accepts.
+
+```typescript
+interface ToolOptions {
+  /** Unique tool identifier (required) */
+  name: string;
+
+  /** Human-readable display name (optional) */
+  title?: string;
+
+  /** Clear description of what the tool does (required) */
+  description: string;
+
+  /** Zod schema for input validation */
+  inputSchema?: ZodObject;
+
+  /** Zod schema for output validation (optional) */
+  outputSchema?: ZodObject;
+
+  /** Behavioral hints for AI models and clients */
+  annotations?: ToolAnnotations;
+
+  /** UI status messages during tool execution (OpenAI Apps SDK) */
+  invocation?: {
+    invoking?: string;  // Shown while tool is running
+    invoked?: string;   // Shown when tool completes
+  };
+
+  /** Example request/response for AI model guidance and widget preview */
+  examples?: {
+    request?: Record<string, unknown>;
+    response?: Record<string, unknown>;
+  };
+
+  /** Long-running MCP Task execution mode ('forbidden' by default) */
+  taskSupport?: 'forbidden' | 'optional' | 'required';
+
+  /** Initial visibility in tool catalog ('visible' by default) */
+  visibility?: 'visible' | 'hidden';
+
+  /** Convenience boolean alias (defaultVisible: false maps to visibility: 'hidden') */
+  defaultVisible?: boolean;
+}
+```
+
+### Complete Example
+
+This tool sets most options at once: a title, a detailed description, input and output schemas, annotations, and an example.
+
+```typescript
+@Tool({
+  name: 'create_user',
+  title: 'Create User Account',
+  description: 'Create a new user account with the provided details. Returns the created user object with generated ID.',
+  inputSchema: z.object({
+    email: z.string().email().describe('Valid email address for the account'),
+    name: z.string().min(2).max(100).describe('Full name of the user'),
+    role: z.enum(['user', 'admin', 'moderator']).default('user')
+      .describe('User role determining access permissions'),
+    metadata: z.record(z.string()).optional()
+      .describe('Additional key-value pairs for custom attributes')
+  }),
+  outputSchema: z.object({
+    id: z.string().describe('Generated user ID'),
+    email: z.string(),
+    name: z.string(),
+    role: z.string(),
+    createdAt: z.string()
+  }),
+  annotations: {
+    destructiveHint: false,  // Creates new data, doesn't destroy
+    idempotentHint: false,   // Creates new user each time
+    readOnlyHint: false,     // Modifies system state
+    openWorldHint: false     // Closed system operation
+  },
+  examples: {
+    request: {
+      email: 'jane.doe@example.com',
+      name: 'Jane Doe',
+      role: 'user'
+    },
+    response: {
+      id: 'usr_abc123',
+      email: 'jane.doe@example.com',
+      name: 'Jane Doe',
+      role: 'user',
+      createdAt: '2024-01-15T10:30:00Z'
+    }
+  }
+})
+async createUser(input: CreateUserInput, ctx: ExecutionContext) {
+  return this.userService.create(input);
+}
+```
+
+## Tool Annotations
+
+Tool annotations provide behavioral hints to AI models and MCP clients about how a tool operates. These hints help clients make intelligent decisions about tool usage, such as whether to auto-approve certain operations or warn users about destructive actions.
+
+### Annotation Properties
+
+Annotations are hints. Clients may use them to decide when to ask the user for confirmation, but they don't change how NitroStack runs the tool.
+
+```typescript
+interface ToolAnnotations {
+  /** 
+   * If true, the tool may perform destructive updates (delete, overwrite).
+   * If false, the tool only performs additive operations.
+   * Default: true (assume destructive for safety)
+   */
+  destructiveHint?: boolean;
+
+  /**
+   * If true, calling the tool repeatedly with identical arguments
+   * produces the same result with no additional side effects.
+   * Default: false (assume not idempotent)
+   */
+  idempotentHint?: boolean;
+
+  /**
+   * If true, the tool does not modify any state - it only reads data.
+   * Default: false (assume modifies state)
+   */
+  readOnlyHint?: boolean;
+
+  /**
+   * If true, the tool may interact with external systems or "open world"
+   * entities beyond the local environment.
+   * Default: true (assume external interactions possible)
+   */
+  openWorldHint?: boolean;
+
+  /**
+   * If true, the tool remains directly visible in the tool catalog even when
+   * progressive search transforms or catalog collapsing pipelines are active.
+   * Default: false
+   */
+  alwaysVisible?: boolean;
+}
+```
+
+### Annotation Examples by Use Case
+
+**Read-Only Data Retrieval:**
+
+```typescript
+@Tool({
+  name: 'get_user',
+  title: 'Get User Profile',
+  description: 'Retrieve user profile by ID',
+  inputSchema: z.object({
+    userId: z.string().describe('User ID')
+  }),
+  annotations: {
+    readOnlyHint: true,      // No state modification
+    idempotentHint: true,    // Same input = same output
+    destructiveHint: false,  // No data destruction
+    openWorldHint: false     // Internal database only
+  }
+})
+async getUser(input: { userId: string }, ctx: ExecutionContext) {
+  return this.userService.findById(input.userId);
+}
+```
+
+**Destructive Operation:**
+
+```typescript
+@Tool({
+  name: 'delete_user',
+  title: 'Delete User Account',
+  description: 'Permanently delete a user account and all associated data',
+  inputSchema: z.object({
+    userId: z.string().describe('User ID to delete')
+  }),
+  annotations: {
+    destructiveHint: true,   // Permanently removes data
+    idempotentHint: true,    // Deleting twice has same effect
+    readOnlyHint: false,     // Modifies state
+    openWorldHint: false     // Internal operation
+  }
+})
+async deleteUser(input: { userId: string }, ctx: ExecutionContext) {
+  return this.userService.delete(input.userId);
+}
+```
+
+**External API Call:**
+
+```typescript
+@Tool({
+  name: 'send_email',
+  title: 'Send Email',
+  description: 'Send an email via external email service',
+  inputSchema: z.object({
+    to: z.string().email(),
+    subject: z.string(),
+    body: z.string()
+  }),
+  annotations: {
+    destructiveHint: false,  // Doesn't destroy data
+    idempotentHint: false,   // Each call sends a new email
+    readOnlyHint: false,     // Creates an email
+    openWorldHint: true      // Interacts with external service
+  }
+})
+async sendEmail(input: EmailInput, ctx: ExecutionContext) {
+  return this.emailService.send(input);
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<CheckCheck />} title="Input and output" href="/docs/sdk/tools/input-and-output" description="Validate what goes in and comes out." />
+  <Card icon={<AppWindow />} title="Widgets" href="/docs/sdk/tools/widgets" description="Attach UI to a tool." />
+</Cards>

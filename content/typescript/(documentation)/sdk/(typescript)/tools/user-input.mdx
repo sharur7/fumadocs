@@ -1,0 +1,104 @@
+---
+title: "Ask the User for Input"
+description: "Pause a tool to ask for confirmation or missing details (MRTR)"
+---
+
+import { ListChecks, ShieldCheck } from 'lucide-react';
+
+Some actions shouldn't run until a person agrees, such as deleting data or sending money. A tool can pause, ask the client for structured input, and continue when the answer arrives. NitroStack implements this with multi round-trip requests (MRTR, SEP-2322).
+
+It needs no WebSocket or side channel: the tool simply returns early with a request for input, and the client calls it again with the answer.
+
+<Sequence actors={['Client', 'Tool handler']} messages={[
+  { from: 0, to: 1, label: "Call drop_table" },
+  { at: 1, note: "Needs confirmation, returns inputRequired(...)" },
+  { from: 1, to: 0, label: "Input required", sub: "Form schema and requestState" },
+  { at: 0, note: "The user confirms" },
+  { from: 0, to: 1, label: "Call again with inputResponses", sub: "confirmed: true" },
+  { at: 1, note: "acceptedContent() reads the answer, then the table is dropped" },
+  { from: 1, to: 0, label: "Success" },
+]} caption="The tool returns before doing anything, and runs only when it's called again with the user's answer." />
+
+## Protocol Helpers
+
+NitroStack exports two primary helpers from `@nitrostack/core`:
+
+1. `inputRequired(spec)`: Returns a protocol marker signaling that the handler needs additional client input before continuing.
+   - `requests`: Array of input requests (e.g., input ID, prompt message, expected JSON schema, and kind `'form' | 'url'`).
+   - `requestState`: Opaque state preserved and echoed back by the client on re-invocation.
+   - `message`: Optional human-readable explanation displayed with the request.
+2. `acceptedContent<T>(inputResponses, id)`: Extracts and unwraps the client-supplied answer for request ID `id` from `ctx.inputResponses`. If no answer is present, returns `undefined`.
+
+## Interactive Confirmation Example
+
+This tool asks for confirmation before it drops a table. The first call returns `inputRequired` with a form; the client calls again with the user's answer, and `acceptedContent()` reads it.
+
+```typescript
+import {
+  Controller,
+  ToolDecorator as Tool,
+  ExecutionContext,
+  inputRequired,
+  acceptedContent,
+  z,
+} from '@nitrostack/core';
+
+@Controller('database')
+export class DatabaseController {
+  @Tool({
+    name: 'drop_table',
+    description: 'Permanently deletes an entire database table with explicit user confirmation',
+    inputSchema: z.object({
+      tableName: z.string().describe('Target database table name'),
+    }),
+  })
+  async dropTable(input: { tableName: string }, ctx: ExecutionContext) {
+    // 1. Check if client previously responded to the confirmation elicitation
+    const confirmed = acceptedContent<boolean>(
+      ctx.inputResponses,
+      'confirm_delete'
+    );
+
+    // 2. If confirmation has not been provided yet, return inputRequired marker
+    if (confirmed !== true) {
+      return inputRequired({
+        requests: [
+          {
+            id: 'confirm_delete',
+            message: `CRITICAL: Permanent deletion of table '${input.tableName}'. Proceed?`,
+            schema: { type: 'boolean' },
+            kind: 'form',
+          },
+        ],
+        requestState: { table: input.tableName },
+        message: 'Explicit user confirmation is mandatory before executing drop operation.',
+      });
+    }
+
+    // 3. User confirmed: execute destructive operation
+    ctx.logger.warn('Executing destructive table drop', {
+      table: input.tableName,
+      user: ctx.auth?.subject,
+    });
+
+    await this.executeDrop(input.tableName);
+
+    return {
+      success: true,
+      dropped: input.tableName,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private async executeDrop(table: string): Promise<void> {
+    // Database driver execution logic
+  }
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<ListChecks />} title="Tasks" href="/docs/sdk/tasks" description="Run long tools in the background." />
+  <Card icon={<ShieldCheck />} title="Guards" href="/docs/sdk/guards" description="Check permission before a tool runs." />
+</Cards>

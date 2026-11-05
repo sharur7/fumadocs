@@ -1,0 +1,54 @@
+---
+title: "Domains"
+description: "Serve the chat from a hostname you own"
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Globe, LayoutDashboard } from 'lucide-react';
+
+Every chat gets a NitroCloud address ending in `.app.nitrocloud.ai`, shown on [General](/docs/cloud/apps/chat). **Domains**, in the Chat menu, lets you serve the same chat from a hostname you own, such as `chat.example.com`. It works the same way as [MCP domains](/docs/cloud/apps/mcp/domains), for the chat's hostname only.
+
+<Screenshot src="/images/cloud/chat-domains.png" alt="The chat Domains page with a domain field showing chat.example.com, an Add button, and an empty state that says a CNAME record is required" />
+
+## Add a domain
+
+<Steps>
+<Step>
+
+### Enter the hostname
+
+Type the hostname, such as `chat.example.com`, and click **Add**. Use a subdomain rather than your root domain.
+
+</Step>
+<Step>
+
+### Add the CNAME record
+
+At your DNS host, create a `CNAME` record from that hostname to the target shown on the new row.
+
+</Step>
+<Step>
+
+### Wait for Valid
+
+NitroCloud checks the record on its own, or you can click verify on the row. DNS changes can take up to 48 hours to be seen everywhere.
+
+</Step>
+</Steps>
+
+The status on the row tells you where it stands: **Pending DNS** means the record isn't visible yet, **Verifying** means the certificate is being issued, **Valid** means the chat is live on the hostname, and **Error** means the record doesn't match the target. See [Domain status](/docs/cloud/apps/mcp/domains#domain-status) for what to do in each case.
+
+## Update your embeds
+
+The default chat URL keeps working after the custom domain is valid. Embed snippets that use the default URL don't switch over by themselves: if your website should load the chat from the new hostname, copy a fresh snippet from [General](/docs/cloud/apps/chat#embed-it-on-your-site).
+
+## Remove a domain
+
+Remove a domain from its row when you retire the hostname.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Globe />} title="MCP domains" href="/docs/cloud/apps/mcp/domains" description="The same for your server." />
+  <Card icon={<LayoutDashboard />} title="General" href="/docs/cloud/apps/chat" description="The chat's address and embed code." />
+</Cards>

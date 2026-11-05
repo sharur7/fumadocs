@@ -1,0 +1,207 @@
+---
+title: "Interactive Widgets"
+description: "Read tool output, call tools, and keep state from a widget"
+---
+
+import { Palette } from 'lucide-react';
+
+Widgets aren't just displays. With the Widget SDK they can read the tool's output, call other tools, open links, and remember state between renders.
+
+## Modern Widget SDK
+
+Every widget starts with `useWidgetSDK()`, which waits for the host and gives you its data and methods.
+
+### useWidgetSDK Hook
+
+The primary way to build widgets. Provides access to all SDK functionality.
+
+```typescript
+import { useWidgetSDK } from '@nitrostack/widgets';
+
+export default function MyWidget() {
+  const { 
+    isReady,           // SDK initialization status
+    getToolOutput,     // Get tool response data
+    callTool,          // Call other tools
+    requestFullscreen, // Display controls
+    setState,          // State management
+    getTheme          // Theme information
+  } = useWidgetSDK();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  return <div>{data.content}</div>;
+}
+```
+
+### Theme-Aware Widgets
+
+Use `useTheme()` to create widgets that adapt to light/dark mode.
+
+```typescript
+import { useWidgetSDK, useTheme } from '@nitrostack/widgets';
+
+export default function ThemedWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  const theme = useTheme();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  const styles = {
+    background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+    color: theme === 'dark' ? '#ffffff' : '#000000',
+    border: `1px solid ${theme === 'dark' ? '#333' : '#ddd'}`
+  };
+  
+  return (
+    <div style={styles}>
+      <h2>{data.title}</h2>
+      <p>{data.description}</p>
+    </div>
+  );
+}
+```
+
+### Responsive Widgets
+
+Use `useDisplayMode()` to adapt to different display modes.
+
+```typescript
+import { useWidgetSDK, useDisplayMode } from '@nitrostack/widgets';
+
+export default function ResponsiveWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  const displayMode = useDisplayMode();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  const padding = displayMode === 'fullscreen' ? '48px' : '16px';
+  const fontSize = displayMode === 'fullscreen' ? '24px' : '16px';
+  
+  return (
+    <div style={{ padding, fontSize }}>
+      <h1>{data.title}</h1>
+      {displayMode === 'fullscreen' && (
+        <div>Additional details shown in fullscreen</div>
+      )}
+    </div>
+  );
+}
+```
+
+## Interactive Widgets
+
+A widget can act, not just display.
+
+### Calling Tools from Widgets
+
+`callTool()` runs any tool on your server and returns its result, so a button in the widget can fetch more data or make a change.
+
+```typescript
+import { useWidgetSDK } from '@nitrostack/widgets';
+
+export default function InteractiveWidget() {
+  const { isReady, getToolOutput, callTool, sendFollowUpMessage } = useWidgetSDK();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  const handleAction = async () => {
+    const result = await callTool('process_item', { id: data.id });
+    console.log('Result:', result);
+  };
+  
+  const askQuestion = async () => {
+    await sendFollowUpMessage('Tell me more about this item');
+  };
+  
+  return (
+    <div>
+      <h2>{data.title}</h2>
+      <button onClick={handleAction}>Process</button>
+      <button onClick={askQuestion}>Learn More</button>
+    </div>
+  );
+}
+```
+
+### State Management
+
+Use `useWidgetState()` for persistent widget state.
+
+```typescript
+import { useWidgetSDK, useWidgetState } from '@nitrostack/widgets';
+
+interface FormState {
+  name: string;
+  email: string;
+}
+
+export default function StatefulWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  const { state, setState } = useWidgetState<FormState>();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  const updateName = async (name: string) => {
+    await setState({ ...state, name });
+  };
+  
+  return (
+    <div>
+      <input 
+        value={state?.name || ''} 
+        onChange={(e) => updateName(e.target.value)}
+        placeholder="Name"
+      />
+      <p>Current name: {state?.name}</p>
+    </div>
+  );
+}
+```
+
+### Display Controls
+
+Ask the host to show the widget fullscreen, or to give it more height.
+
+```typescript
+import { useWidgetSDK } from '@nitrostack/widgets';
+
+export default function ControlsWidget() {
+  const { 
+    isReady, 
+    getToolOutput, 
+    requestFullscreen, 
+    requestInline,
+    requestClose 
+  } = useWidgetSDK();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  return (
+    <div>
+      <h2>{data.title}</h2>
+      <button onClick={requestFullscreen}>Fullscreen</button>
+      <button onClick={requestInline}>Inline</button>
+      <button onClick={requestClose}>Close</button>
+    </div>
+  );
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Palette />} title="Styling" href="/docs/sdk/ui/widgets/styling" description="Theme-aware styles that work in every host." />
+</Cards>

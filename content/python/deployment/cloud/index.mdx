@@ -1,0 +1,92 @@
+---
+title: "Cloud Platforms"
+description: "Deploy your Python MCP server to NitroCloud, AWS, Google Cloud, Azure, DigitalOcean, or Heroku"
+---
+
+import { Cloud, Server, Container, Droplet, Hexagon, Rocket } from 'lucide-react';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+You can run a NitroStack Python server anywhere that runs a container. NitroCloud builds and runs it for you from your repository; every other platform runs the same container from [Docker](/python/deployment/docker).
+
+## NitroCloud
+
+NitroCloud recognizes a Python NitroStack app when `nitrostack` appears in `pyproject.toml` (or `requirements.txt`) or your code imports it. It supplies its own Dockerfile, so you don't need one.
+
+| Requirement | Why |
+|-------------|-----|
+| `pyproject.toml` at the project root (or one folder deep) | Dependencies are installed with [uv](https://docs.astral.sh/uv/). A `uv.lock` is used when present |
+| `nitrostack` listed as a dependency | Lets NitroCloud pick the Python build |
+| `main.py` as the entry point | The container runs `python main.py` |
+| `MCP_TRANSPORT_TYPE=http` support | The container sets `HOST=0.0.0.0`, `PORT=3000` and `MCP_TRANSPORT_TYPE=http` for you |
+
+<Steps>
+<Step>
+
+### Check the project locally
+
+Validate the project, then make sure it runs over HTTP.
+
+```bash
+nitrostack-py validate
+MCP_TRANSPORT_TYPE=http nitrostack-py start
+```
+
+</Step>
+<Step>
+
+### Push to GitHub
+
+Commit your work and push it to the branch NitroCloud will deploy.
+
+```bash
+git add . && git commit -m "Ready to deploy" && git push
+```
+
+</Step>
+<Step>
+
+### Create the app in NitroCloud
+
+In the [NitroCloud dashboard](https://cloud.nitrostack.ai/), click **Create New App**. Open the app's [Deployments](/docs/cloud/apps/mcp/deployments) page and link your repository, then add environment variables such as `API_KEY` and `JWT_SECRET`.
+
+</Step>
+<Step>
+
+### Verify
+
+Point your MCP client at `https://<your-app-url>/mcp`, or check the health endpoint:
+
+```bash
+curl https://<your-app-url>/mcp/health
+```
+
+</Step>
+</Steps>
+
+`nitrostack-py` doesn't ship `login` or `deploy` commands; deployment to NitroCloud happens from the dashboard. To update the server, push to the connected branch and redeploy. To change configuration, edit the environment variables and redeploy. Never commit `.env`.
+
+## Self-hosting
+
+Every platform needs the same settings from your server: listen on all interfaces (`HOST=0.0.0.0`), use the port the platform expects (`PORT`), run over HTTP (`MCP_TRANSPORT_TYPE=http`), and point the health check at `/mcp/health`. [Docker](/python/deployment/docker) explains each one. Use `dual` transport only if you also need STDIO in the same process, which is unusual in the cloud. Keep `API_KEY`, `JWT_SECRET`, and OAuth settings in the platform's secret store.
+
+<Cards>
+  <Card icon={<Server />} title="AWS" href="/python/deployment/cloud/aws" description="ECS on Fargate or Lambda, with Secrets Manager, CloudWatch, and GitHub Actions." />
+  <Card icon={<Container />} title="Google Cloud" href="/python/deployment/cloud/google-cloud" description="Cloud Run or GKE, Secret Manager, and Cloud Logging." />
+  <Card icon={<Hexagon />} title="Microsoft Azure" href="/python/deployment/cloud/azure" description="Container Instances or AKS." />
+  <Card icon={<Droplet />} title="DigitalOcean" href="/python/deployment/cloud/digitalocean" description="App Platform, deployed from your GitHub repository." />
+  <Card icon={<Rocket />} title="Heroku" href="/python/deployment/cloud/heroku" description="The container stack, deployed with git push." />
+</Cards>
+
+## Comparison
+
+A rough guide to choosing:
+
+| Platform | Best For | Cost | Scaling |
+|----------|----------|------|---------|
+| NitroCloud | MCP servers, fastest setup | $ | Automatic |
+| AWS ECS | Enterprise | $$$ | Excellent |
+| AWS Lambda | Stateless, event-driven | $ | Automatic |
+| Google Cloud Run | Serverless containers | $$ | Automatic |
+| GKE/AKS | Large scale | $$$ | Manual |
+| DigitalOcean | Simplicity | $$ | Manual |
+| Heroku | Quick deploy | $$ | Easy |

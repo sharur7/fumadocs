@@ -1,0 +1,43 @@
+---
+title: "Interceptors"
+description: "use_interceptors around tool execution"
+---
+
+import { Funnel, Route } from 'lucide-react';
+
+<Callout type="info" title="Agent skill">
+
+`nitrostack-python-middleware-pipeline`
+
+</Callout>
+
+Interceptors run around your handler and can change what it returns, for example to add fields, mask data, or measure time.
+
+Around-invoke wrappers: `async def intercept(self, context, next_fn)`.
+
+```python
+from nitrostack import use_interceptors, tool, ExecutionContext
+
+class TimingInterceptor:
+    async def intercept(self, context: ExecutionContext, next_fn):
+        import time
+        start = time.perf_counter()
+        try:
+            return await next_fn()
+        finally:
+            context.logger.info(f"elapsed_ms={(time.perf_counter() - start) * 1000:.1f}")
+
+@tool(name="work", description="...", input_schema=WorkInput)
+@use_interceptors(TimingInterceptor)
+async def work(self, input: WorkInput, context: ExecutionContext):
+    ...
+```
+
+Generate a stub: `nitrostack-py generate interceptor Transform`.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Funnel />} title="Pipes" href="/python/sdk/pipes" description="Clean up and check input." />
+  <Card icon={<Route />} title="Middleware" href="/python/sdk/middleware" description="Run code around every call." />
+</Cards>

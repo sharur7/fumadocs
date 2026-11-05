@@ -1,0 +1,25 @@
+---
+title: "Validation"
+description: "Pydantic models as input_schema"
+---
+
+Every tool declares its input as a Pydantic model. NitroStack parses the incoming arguments with it before your handler runs, so the handler always receives valid, typed input.
+
+Tool `input_schema` is a **Pydantic v2** `BaseModel`. The app layer parses with `parse_tool_input` / `get_pydantic_model` before your handler runs.
+
+```python
+from pydantic import BaseModel, Field, field_validator
+
+class SearchInput(BaseModel):
+    query: str = Field(min_length=1, description="Search text")
+    limit: int = Field(default=10, ge=1, le=100)
+
+    @field_validator("query", mode="before")
+    @classmethod
+    def empty_to_default(cls, v):
+        return v or ""
+```
+
+Optional `output_schema` is also a Pydantic model. Custom transforms belong in [pipes](/python/sdk/pipes), not Zod `.transform()`.
+
+Invalid input raises `ValidationError` from `nitrostack`.

@@ -1,0 +1,174 @@
+---
+title: "AWS"
+description: "Run your MCP server on Amazon ECS with Fargate"
+---
+
+import { HeartPulse, Server, Container } from 'lucide-react';
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+[Amazon ECS](https://aws.amazon.com/ecs/) on Fargate runs your container without servers to manage: you describe the container in a task definition, and ECS keeps the number of copies you ask for running. It fits teams that already use AWS for networking, identity, and secrets.
+
+The image is pushed to Amazon ECR, ECS runs it as a service, and an Application Load Balancer gives it a stable HTTPS address. Clients connect to `https://<your-domain>/mcp`.
+
+<Callout title="Before you start">
+  Build the image from [Deploy with Docker](/docs/deployment/docker) and test it locally. You also need the AWS CLI, signed in to your account, and the `ecsTaskExecutionRole` IAM role, which lets ECS pull images, write logs, and read secrets.
+</Callout>
+
+## Deploy to ECS
+
+<Steps>
+<Step>
+
+### Push the image to ECR
+
+Create a repository, sign Docker in to it, then tag and push the image. Replace `ACCOUNT_ID` and the region with your own.
+
+```bash
+aws ecr create-repository --repository-name my-mcp-server
+
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
+
+docker tag my-mcp-server:latest ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/my-mcp-server:latest
+docker push ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/my-mcp-server:latest
+```
+
+</Step>
+<Step>
+
+### Register a task definition
+
+The task definition says which image to run, how much CPU and memory it gets, which port it listens on, where its logs go, and which secrets to inject.
+
+```json title="task-definition.json"
+{
+  "family": "mcp-server",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "mcp-server",
+      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/my-mcp-server:latest",
+      "essential": true,
+      "portMappings": [{ "containerPort": 3000, "protocol": "tcp" }],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "HOST", "value": "0.0.0.0" },
+        { "name": "MCP_TRANSPORT_TYPE", "value": "http" }
+      ],
+      "secrets": [
+        { "name": "JWT_SECRET", "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:mcp/jwt-secret" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/mcp-server",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
+}
+```
+
+```bash
+aws ecs register-task-definition --cli-input-json file://task-definition.json
+```
+
+</Step>
+<Step>
+
+### Create the cluster and service
+
+The service keeps your tasks running and replaces any that stop. Use subnets and a security group from your VPC; the security group must allow inbound traffic on port 3000 from the load balancer.
+
+```bash
+aws ecs create-cluster --cluster-name mcp-cluster
+
+aws ecs create-service \
+  --cluster mcp-cluster \
+  --service-name mcp-server \
+  --task-definition mcp-server \
+  --desired-count 1 \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[subnet-abc123],securityGroups=[sg-abc123],assignPublicIp=ENABLED}"
+```
+
+</Step>
+<Step>
+
+### Put a load balancer in front
+
+Create an Application Load Balancer with an HTTPS listener and a certificate from AWS Certificate Manager. Point its target group at port 3000, with target type `ip`, and attach it to the service with `--load-balancers` when you create it, or update the service in the console.
+
+</Step>
+</Steps>
+
+## Secrets
+
+The `secrets` block in the task definition reads values from AWS Secrets Manager when the task starts and exposes them as environment variables. Your code reads `process.env.JWT_SECRET` as usual, and the secret never appears in the image or in the task definition. Create the secret once:
+
+```bash
+aws secretsmanager create-secret --name mcp/jwt-secret --secret-string "your-secret-value"
+```
+
+## Health checks
+
+Set the target group's health check path to `/mcp/health`. The load balancer stops sending traffic to a task that fails the check, and ECS replaces it. The endpoint is built into every NitroStack HTTP server, so there's nothing to add to your code.
+
+## Logs
+
+The `awslogs` driver sends everything your server writes to standard output to CloudWatch Logs, in the `/ecs/mcp-server` log group. Read the latest entries from the terminal:
+
+```bash
+aws logs tail /ecs/mcp-server --follow
+```
+
+## Continuous deployment
+
+This GitHub Actions workflow builds the image on every push to `main`, pushes it to ECR, and tells ECS to start new tasks with it. Store the AWS credentials as repository secrets.
+
+```yaml title=".github/workflows/deploy.yml"
+name: Deploy to ECS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push
+        run: |
+          docker build -t ${{ steps.ecr.outputs.registry }}/my-mcp-server:latest .
+          docker push ${{ steps.ecr.outputs.registry }}/my-mcp-server:latest
+
+      - name: Redeploy
+        run: aws ecs update-service --cluster mcp-cluster --service mcp-server --force-new-deployment
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Container />} title="Deploy with Docker" href="/docs/deployment/docker" description="The image and environment variables this guide uses." />
+  <Card icon={<Server />} title="Google Cloud" href="/docs/deployment/cloud/google-cloud" description="Deploy to Cloud Run or GKE." />
+  <Card icon={<HeartPulse />} title="Health checks" href="/docs/sdk/health-checks" description="Report the health of your own dependencies." />
+</Cards>

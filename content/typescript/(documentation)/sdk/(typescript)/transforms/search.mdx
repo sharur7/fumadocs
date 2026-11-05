@@ -1,0 +1,86 @@
+---
+title: "Progressive Search"
+description: "Replace the tool catalog with search_tools and call_tool (BM25SearchTransform)"
+---
+
+import { Code, LayoutTemplate } from 'lucide-react';
+
+`BM25SearchTransform` hides the full catalog. The client sees two tools, `search_tools` and `call_tool`, plus any tools you mark as always visible. The model searches for what it needs, then calls it by name.
+
+The `BM25SearchTransform` indexes all registered tools using an in-memory BM25 information retrieval engine. When a client requests `tools/list`, it returns two synthetic tools instead of the entire catalog:
+
+* `search_tools`: Performs keyword or natural-language relevance searches against indexed tool names, descriptions, and parameter definitions.
+* `call_tool`: Dispatches an invocation to any underlying tool returned by the search query.
+
+## Configuration
+
+Add the transform to `@McpApp`. Put tools the model needs constantly, such as sign-in, in `alwaysVisible` so they skip the search step.
+
+```typescript
+import { McpApp, Module, BM25SearchTransform } from '@nitrostack/core';
+import { FinanceController } from './finance.controller.js';
+import { InventoryController } from './inventory.controller.js';
+
+@McpApp({
+  module: AppModule,
+  server: {
+    name: 'enterprise-inventory-service',
+    version: '1.0.0',
+  },
+  transforms: [
+    new BM25SearchTransform({
+      defaultLimit: 5,
+      defaultDetail: 'detailed', // 'brief' | 'detailed' | 'full'
+      alwaysVisible: [
+        'finance_auth_login',
+        'inventory_get_status',
+      ],
+      searchToolDescription:
+        'Searches available tools by keywords or natural language task description. ' +
+        'Query to retrieve matching tool names and schemas before calling them.',
+    }),
+  ],
+})
+@Module({
+  controllers: [FinanceController, InventoryController],
+})
+export class AppModule {}
+```
+
+## Options
+
+Every option is optional.
+
+| Option | Type | Default | Description |
+|:---|:---|:---|:---|
+| `defaultLimit` | `number` | `5` | Maximum number of search results returned per query. |
+| `defaultDetail` | `'brief' \| 'detailed' \| 'full'` | `'detailed'` | Schema detail level returned by `search_tools`. |
+| `alwaysVisible` | `string[]` | `[]` | List of tool names that bypass catalog collapsing and remain directly visible. |
+| `searchToolName` | `string` | `'search_tools'` | Custom name for the synthetic search tool. |
+| `callToolName` | `string` | `'call_tool'` | Custom name for the synthetic dispatch tool. |
+| `searchToolDescription` | `string` | Built-in | Custom prompt description for `search_tools`. |
+| `callToolDescription` | `string` | Built-in | Custom prompt description for `call_tool`. |
+| `allowRegex` | `boolean` | `false` | Enable regular expression pattern matching (RegexSearchTransform). |
+
+## What the model does
+
+A conversation with a search transform has three steps: list the catalog, search it, then call the tool the search found.
+
+<Sequence actors={['Model', 'NitroStack server']} messages={[
+  { from: 0, to: 1, label: 'tools/list' },
+  { from: 1, to: 0, label: 'search_tools, call_tool', sub: 'plus inventory_get_status, which is always visible' },
+  { from: 0, to: 1, label: 'search_tools', sub: '{ query: "transfer" }' },
+  { from: 1, to: 0, label: 'finance_transfer_funds', sub: 'with its description and input schema' },
+  { from: 0, to: 1, label: 'call_tool', sub: '{ name: "finance_transfer_funds", arguments: { to: "123", amount: 500 } }' },
+  { at: 1, note: 'Validates the arguments against the tool schema, then runs it' },
+  { from: 1, to: 0, label: 'Result', sub: '{ transferId: 88 }' },
+]} caption="The model only sees the full schema of a tool after searching for it." />
+
+When routed through `call_tool`, NitroStack automatically validates incoming arguments against the underlying tool's Zod schema before execution.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Code />} title="Code Mode" href="/docs/sdk/transforms/code-mode" description="Run several tools from one script." />
+  <Card icon={<LayoutTemplate />} title="Enterprise Search template" href="/docs/templates/enterprise-search" description="A full example." />
+</Cards>

@@ -1,0 +1,170 @@
+---
+title: "Pipeline and Services"
+description: "Protect, cache, and inject services into resources"
+---
+
+import { DatabaseZap, ShieldCheck } from 'lucide-react';
+
+Resources run through the same [request pipeline](/docs/getting-started/core-concepts/request-lifecycle) as tools, so guards, caching, and dependency injection work the same way.
+
+## Pipeline
+
+Attach guards, caching, and widgets to a resource with the same decorators you use on tools.
+
+### Guards for Protected Resources
+
+`@UseGuards` checks the caller before the resource is read. Here only the user the data belongs to can read it.
+
+```typescript
+import { UseGuards } from '@nitrostack/core';
+import { JWTGuard } from './guards/jwt.guard.js';
+
+@Resource({
+  uri: 'user://{id}/private-data',
+  name: 'Private User Data',
+  description: 'Sensitive user data requiring authentication'
+})
+@UseGuards(JWTGuard)
+async getPrivateData(uri: string, ctx: ExecutionContext) {
+  const requesterId = ctx.auth?.subject;
+  const targetId = uri.match(/user:\/\/([^\/]+)/)?.[1];
+
+  // Authorization check
+  if (requesterId !== targetId) {
+    throw new Error('Access denied: You can only access your own data');
+  }
+
+  const data = await this.userService.getPrivateData(targetId);
+  return {
+    contents: [{
+      uri,
+      mimeType: 'application/json',
+      text: JSON.stringify(data, null, 2)
+    }]
+  };
+}
+```
+
+### Caching
+
+`@Cache` keeps the result for the given number of seconds, which suits resources that are expensive to build and change rarely.
+
+```typescript
+import { Cache } from '@nitrostack/core';
+
+@Resource({
+  uri: 'config://application',
+  name: 'Application Config'
+})
+@Cache({ ttl: 3600 })  // Cache for 1 hour
+async getConfig(uri: string) {
+  const config = await this.configService.load();
+  return {
+    contents: [{
+      uri,
+      mimeType: 'application/json',
+      text: JSON.stringify(config, null, 2)
+    }]
+  };
+}
+
+// Cache with custom key
+@Resource({ uri: 'weather://{city}' })
+@Cache({
+  ttl: 600,  // 10 minutes
+  key: (uri) => `weather:${uri.replace('weather://', '')}`
+})
+async getWeather(uri: string) {
+  // ...
+}
+```
+
+### UI Widgets
+
+A resource can render a widget too. The JSON it returns becomes the widget's data.
+
+```typescript
+import { Widget } from '@nitrostack/core';
+
+@Resource({
+  uri: 'dashboard://metrics',
+  name: 'Dashboard Metrics'
+})
+@Widget('metrics-dashboard')  // Renders visual dashboard
+async getDashboardMetrics(uri: string) {
+  const metrics = await this.metricsService.getDashboard();
+  return {
+    contents: [{
+      uri,
+      mimeType: 'application/json',
+      text: JSON.stringify(metrics, null, 2)
+    }]
+  };
+}
+```
+
+## Dependency injection
+
+Inject services into resource classes:
+
+```typescript
+import { Injectable } from '@nitrostack/core';
+
+@Injectable()
+export class ProductRepository {
+  constructor(private db: DatabaseService) {}
+
+  async findById(id: string): Promise<Product | null> {
+    return this.db.query('SELECT * FROM products WHERE id = $1', [id]);
+  }
+
+  async findAll(options?: ListOptions): Promise<Product[]> {
+    return this.db.query(
+      'SELECT * FROM products ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+      [options?.limit ?? 50, options?.offset ?? 0]
+    );
+  }
+}
+
+export class ProductResources {
+  constructor(private productRepo: ProductRepository) {}
+
+  @Resource({ uri: 'product://{id}', name: 'Product' })
+  async getProduct(uri: string) {
+    const id = uri.replace('product://', '');
+    const product = await this.productRepo.findById(id);
+
+    if (!product) {
+      throw new Error(`Product not found: ${id}`);
+    }
+
+    return {
+      contents: [{
+        uri,
+        mimeType: 'application/json',
+        text: JSON.stringify(product, null, 2)
+      }]
+    };
+  }
+
+  @Resource({ uri: 'products://catalog', name: 'Product Catalog' })
+  @Cache({ ttl: 300 })
+  async getCatalog(uri: string) {
+    const products = await this.productRepo.findAll();
+    return {
+      contents: [{
+        uri,
+        mimeType: 'application/json',
+        text: JSON.stringify(products, null, 2)
+      }]
+    };
+  }
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Guards" href="/docs/sdk/guards" description="Protect resources." />
+  <Card icon={<DatabaseZap />} title="Caching" href="/docs/sdk/caching" description="Cache expensive reads." />
+</Cards>

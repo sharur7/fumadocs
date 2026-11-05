@@ -1,0 +1,19 @@
+{
+  "title": "Core Concepts",
+  "defaultOpen": false,
+  "pages": [
+    "index",
+    "mcp-basics",
+    "project-structure",
+    "server-concepts",
+    "bootstrap",
+    "modules",
+    "dependency-injection",
+    "request-lifecycle",
+    "server-lifecycle",
+    "execution-context",
+    "widgets",
+    "transports"
+  ],
+  "icon": "Layers"
+}

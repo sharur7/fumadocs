@@ -1,0 +1,61 @@
+---
+title: Troubleshooting
+description: Fixes for the problems people hit most, collected in one place.
+icon: LifeBuoy
+---
+
+Find your symptom below. Short fixes are given here; the links go to the full explanation on the page that covers the topic.
+
+## Install and the CLI
+
+**`nitrostack-cli: command not found`.** The CLI isn't on your path. Install it with `npm install -g @nitrostack/cli`, or run it without installing: `npx @nitrostack/cli --version`.
+
+**Permission errors when installing globally.** Point npm at a directory in your home folder, or use a Node version manager such as `nvm`:
+
+```bash
+mkdir -p ~/.npm-global
+npm config set prefix '~/.npm-global'
+export PATH=~/.npm-global/bin:$PATH
+```
+
+More: [dependency install problems](/docs/cli/manage-dependencies#troubleshooting-install), [`generate` problems](/docs/cli/generate#troubleshooting).
+
+## Running the server
+
+**The port is already in use.** Another process holds it, often a second copy of the server. Find it with `lsof -i :3001` (or the port in the error) and stop it. More: [Dev Command](/docs/cli/dev#troubleshooting), which also covers TypeScript errors, widgets not loading, and hot reload not working.
+
+**Studio shows the project as disconnected.** Run `npm run build` in a terminal and fix any TypeScript errors it reports. A server that fails at startup prints the reason in Studio's **Logs**, under **Server Logs**. More: [Verify and debug transports](/docs/guides/verify-transport#troubleshooting).
+
+## Connecting clients
+
+**HTTP clients get connection refused.** The server is running over STDIO only. Check that `NODE_ENV=production` or `MCP_TRANSPORT_TYPE` is set, then confirm with `curl http://localhost:3000/mcp/health`.
+
+**It works on your machine but not from another one.** The server is listening on `localhost`. Set `HOST=0.0.0.0`.
+
+More: [Dual transport](/docs/guides/dual-transport#troubleshooting).
+
+## Widgets
+
+**A widget shows "Loading..." forever, or its data is null.** See [Migrate to useWidgetSDK](/docs/guides/widget-sdk-migration#troubleshooting).
+
+**A widget doesn't appear in Studio, or shows the wrong data.** See [Widget manifest](/docs/sdk/ui/widget-manifest#troubleshooting).
+
+**The widget isn't in `widget://examples`.** Check that `src/widgets/widget-manifest.json` exists and is valid JSON. The manifest is read when the server starts, so restart it after editing. More: [Widget examples](/docs/guides/widget-examples#troubleshooting).
+
+## Docker and deployment
+
+**The port is published but connections are refused.** The server is listening on `localhost` inside the container. Set `HOST=0.0.0.0`.
+
+**Widgets don't render.** The image is missing `src/widgets/out`. Confirm that `npm run build` ran in the build stage and that the Dockerfile copies the folder.
+
+**The container exits right away.** Read its output with `docker logs mcp-server`.
+
+More: [Deploy with Docker](/docs/deployment/docker#troubleshooting), [Python on Docker](/python/deployment/docker#troubleshooting).
+
+## File uploads
+
+**A file doesn't decode, a large file runs out of memory, or the extension doesn't match.** See [File uploads](/docs/sdk/file-uploads#troubleshooting).
+
+## Still stuck?
+
+If the answer isn't here, see [Support](/docs/support) for where to ask, and what to include.

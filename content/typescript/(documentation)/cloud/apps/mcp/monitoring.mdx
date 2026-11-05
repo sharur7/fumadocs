@@ -1,0 +1,25 @@
+---
+title: "Monitoring"
+description: "Watch requests, status codes, and latency for your live deployment"
+---
+
+import { Rocket, ScrollText } from 'lucide-react';
+
+**Monitoring** charts requests and status codes for your active deployment. Pick a time range at the top, from the last few minutes to the last day.
+
+<Screenshot src="/images/cloud/mcp-monitoring.png" alt="The MCP Monitoring page: time range buttons, Refresh and Export, summary cards for P95 response, app health, total requests, and error rate, and a Requests over time chart" />
+
+The summary cards show the 95th-percentile response time, app health, total requests, and error rate. Below them:
+
+- **Requests over time** charts traffic per minute.
+- **Status code distribution** breaks requests down by response class (2xx, 3xx, 4xx, 5xx).
+- **Latency** charts response times.
+
+**Export** downloads the data, and **Refresh** reloads it.
+
+## Next steps
+
+<Cards>
+  <Card icon={<ScrollText />} title="Logs" href="/docs/cloud/apps/mcp/logs" description="Read what the server writes." />
+  <Card icon={<Rocket />} title="Deployments" href="/docs/cloud/apps/mcp/deployments" description="Roll out a fix." />
+</Cards>

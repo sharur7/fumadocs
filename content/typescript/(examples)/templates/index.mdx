@@ -1,0 +1,31 @@
+---
+title: "Overview"
+description: "Runnable NitroStack projects you can scaffold with one command"
+icon: LayoutTemplate
+---
+
+import { Calculator, KeyRound, Pizza, Search, Code } from 'lucide-react';
+
+Each template is a complete, runnable MCP server. Scaffold one with [the CLI](/docs/cli/overview), run it, and read the code to see a pattern working end to end. Starter, OAuth, and Pizzaz exist for both TypeScript and Python; Enterprise Search and Code Mode are TypeScript only.
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="code" />} title="Starter" href="/docs/templates/starter" description="A calculator with a tool, a resource, a prompt, and a widget. The best place to start." />
+  <Card className="nx-card-illo" icon={<Illustration name="shield" />} title="OAuth 2.1" href="/docs/templates/oauth" description="Flight booking with OAuth-protected tools and seven widgets." />
+  <Card className="nx-card-illo" icon={<Illustration name="widget" />} title="Pizzaz" href="/docs/templates/pizzaz" description="A pizza shop finder that shows off the Widget SDK: maps, lists, and state." />
+  <Card className="nx-card-illo" icon={<Illustration name="search" />} title="Enterprise Search" href="/docs/templates/enterprise-search" description="BM25 progressive tool discovery for large tool catalogs." />
+  <Card className="nx-card-illo" icon={<Illustration name="terminal" />} title="Code Mode" href="/docs/templates/code-mode" description="Models write scripts that run in a QuickJS WebAssembly sandbox." />
+</Cards>
+
+## Template names
+
+Pass these names to `--template`:
+
+| Template | TypeScript (`nitrostack-cli init`) | Python (`nitrostack-py init`) |
+| :-- | :-- | :-- |
+| Starter | `--template typescript-starter` | `--template python-starter` |
+| OAuth 2.1 | `--template typescript-oauth` | `--template python-oauth` |
+| Pizzaz | `--template typescript-pizzaz` | `--template python-pizzaz` |
+| Enterprise Search | `--template typescript-enterprise-search` | Not available |
+| Code Mode | `--template typescript-code-mode` | Not available |
+
+Leave out `--template` to choose one interactively.

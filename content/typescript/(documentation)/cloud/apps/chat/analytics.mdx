@@ -1,0 +1,32 @@
+---
+title: "Analytics"
+description: "Messages, active users, session length, and popular prompts for the chat"
+---
+
+import { Gauge, MessagesSquare } from 'lucide-react';
+
+**Analytics**, in the Chat menu, summarizes how people use the chat.
+
+<Callout type="warn" title="Not connected yet">
+  The Analytics numbers aren't wired to live data yet, so the page currently shows zeros. Until it is connected, use [Threads](/docs/cloud/apps/chat/threads) for operational analytics and [Monitoring](/docs/cloud/apps/chat/monitoring) for latency and errors.
+</Callout>
+
+## What it shows
+
+| Measure | What it counts |
+|---------|----------------|
+| **Total messages** | Every message the chat has handled, all time. |
+| **Active users** | People who used the chat in the last 30 days. |
+| **Avg session** | The mean length of a session. |
+| **Popular prompts** | The prompts used most often. When there are none yet, it shows **No data available yet**. |
+
+## Who can open it
+
+Members with read access to the chat can open Analytics. Anyone else sees a permission error.
+
+## Next steps
+
+<Cards>
+  <Card icon={<MessagesSquare />} title="Threads" href="/docs/cloud/apps/chat/threads" description="Conversations and operational analytics." />
+  <Card icon={<Gauge />} title="Monitoring" href="/docs/cloud/apps/chat/monitoring" description="Latency and errors." />
+</Cards>

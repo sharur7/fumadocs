@@ -1,0 +1,104 @@
+---
+title: "Styling"
+description: "Style widgets so they work in every host and follow its theme"
+---
+
+import { Bug } from 'lucide-react';
+
+Widgets run inside the host's sandboxed frame, so styles need to be self-contained, and they should follow the host's light or dark theme.
+
+## Styling Widgets
+
+Widgets render inside the host's frame, where your global CSS isn't loaded.
+
+### Inline Styles (Recommended)
+
+Use inline styles for widgets to ensure they work in iframes:
+
+```typescript
+const styles = {
+  container: {
+    background: '#000',
+    color: '#fff',
+    padding: '24px',
+    borderRadius: '12px',
+    fontFamily: 'system-ui, sans-serif'
+  },
+  heading: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    marginBottom: '16px'
+  },
+  button: {
+    background: '#007bff',
+    color: '#fff',
+    padding: '12px 24px',
+    borderRadius: '8px',
+    border: 'none',
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  }
+};
+
+export default function StyledWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  return (
+    <div style={styles.container}>
+      <h2 style={styles.heading}>{data.title}</h2>
+      <button style={styles.button}>Click me</button>
+    </div>
+  );
+}
+```
+
+### Why Not Tailwind?
+
+Tailwind CSS classes may not work in iframes due to CSS scope issues. Use inline styles for widgets.
+
+## Utility Functions
+
+Helpers that tell a widget about the device it's running on.
+
+### Device Detection
+
+Adapt interactions to touch screens and pointer devices.
+
+```typescript
+import { 
+  isPrimarilyTouchDevice, 
+  isHoverAvailable,
+  prefersReducedMotion 
+} from '@nitrostack/widgets';
+
+export default function AdaptiveWidget() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  
+  if (!isReady) return <div>Loading...</div>;
+  
+  const data = getToolOutput();
+  
+  const buttonSize = isPrimarilyTouchDevice() ? '48px' : '32px';
+  const showHoverEffects = isHoverAvailable();
+  const animate = !prefersReducedMotion();
+  
+  return (
+    <button style={{ 
+      height: buttonSize,
+      transition: animate ? 'all 0.3s' : 'none'
+    }}>
+      {data.label}
+    </button>
+  );
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Bug />} title="Hosts and debugging" href="/docs/sdk/ui/widgets/debugging" description="Find out why a widget doesn't render." />
+</Cards>

@@ -1,0 +1,30 @@
+{
+  "title": "TypeScript",
+  "pages": [
+    "quick-start",
+    "tools",
+    "resources",
+    "prompts",
+    "auth",
+    "ui",
+    "guards",
+    "middleware",
+    "interceptors",
+    "pipes",
+    "validation",
+    "dependency-injection",
+    "configuration",
+    "caching",
+    "rate-limiting",
+    "health-checks",
+    "tasks",
+    "transforms",
+    "data-spillover",
+    "error-handling",
+    "testing",
+    "events",
+    "performance",
+    "file-uploads"
+  ],
+  "icon": "FileCode"
+}

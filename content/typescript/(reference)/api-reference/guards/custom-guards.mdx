@@ -1,0 +1,139 @@
+---
+title: "Custom Guards"
+description: "Role, permission, and clearance checks"
+---
+
+import { ShieldCheck, KeyRound, Clock, BookOpen } from 'lucide-react';
+
+Each guard below checks one kind of rule. Copy the one closest to what you need and adapt it.
+
+## Basic Guard
+
+The simplest guard allows a call only when a guard earlier in the chain has identified the caller.
+
+```typescript
+import { Guard, ExecutionContext, Injectable } from '@nitrostack/core';
+
+@Injectable({ deps: [] })
+export class AuthGuard implements Guard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Check if user is authenticated
+    if (!context.auth?.subject) {
+      return false;  // Deny access
+    }
+    return true;  // Allow access
+  }
+}
+```
+
+## Role-Based Guard
+
+Allows a call only when the caller has the `admin` role.
+
+```typescript
+@Injectable({ deps: [] })
+export class AdminGuard implements Guard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const roles = context.auth?.roles as string[] | undefined;
+    
+    if (!roles || !roles.includes('admin')) {
+      context.logger.warn('Admin access denied', {
+        userId: context.auth?.subject,
+        roles
+      });
+      return false;
+    }
+    
+    return true;
+  }
+}
+```
+
+## Permission-Based Guard
+
+Takes the permission it checks as a constructor argument, so one class covers many permissions.
+
+```typescript
+@Injectable({ deps: [] })
+export class PermissionGuard implements Guard {
+  constructor(private requiredPermission: string) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const permissions = context.auth?.permissions as string[] | undefined;
+    return permissions?.includes(this.requiredPermission) ?? false;
+  }
+}
+
+// Factory function for different permissions
+export function RequirePermission(permission: string) {
+  return class extends PermissionGuard {
+    constructor() {
+      super(permission);
+    }
+  };
+}
+
+// Usage
+@UseGuards(RequirePermission('products:write'))
+async createProduct(input: any, ctx: ExecutionContext) {
+  // ...
+}
+```
+
+## Clearance Level Guard
+
+Ranks callers by level and allows a call only at or above the level the tool needs.
+
+```typescript
+type ClearanceLevel = 'public' | 'crew' | 'officer' | 'commander' | 'captain';
+
+const CLEARANCE_HIERARCHY: Record<ClearanceLevel, number> = {
+  public: 0,
+  crew: 1,
+  officer: 2,
+  commander: 3,
+  captain: 4
+};
+
+@Injectable({ deps: [] })
+export class ClearanceGuard implements Guard {
+  constructor(private requiredLevel: ClearanceLevel) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const userLevel = (context.auth?.clearance as ClearanceLevel) || 'public';
+    const userRank = CLEARANCE_HIERARCHY[userLevel] ?? 0;
+    const requiredRank = CLEARANCE_HIERARCHY[this.requiredLevel];
+
+    if (userRank < requiredRank) {
+      context.logger.warn('Clearance check failed', {
+        userId: context.auth?.subject,
+        userLevel,
+        requiredLevel: this.requiredLevel
+      });
+      return false;
+    }
+
+    context.logger.info('Clearance check passed', {
+      userLevel,
+      requiredLevel: this.requiredLevel
+    });
+    return true;
+  }
+}
+
+// Factory for specific clearance levels
+export class OfficerClearanceGuard extends ClearanceGuard {
+  constructor() { super('officer'); }
+}
+
+export class CommanderClearanceGuard extends ClearanceGuard {
+  constructor() { super('commander'); }
+}
+```
+
+## More guard patterns
+
+<Cards>
+  <Card icon={<KeyRound />} title="Authentication Guards" href="/docs/api-reference/guards/authentication-guards" description="Validate JWTs and API keys." />
+  <Card icon={<Clock />} title="Access Rules" href="/docs/api-reference/guards/access-rules" description="Rate limits, time windows, and conditions." />
+</Cards>

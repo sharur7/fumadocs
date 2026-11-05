@@ -1,0 +1,71 @@
+---
+title: Cloud Overview
+description: Deploy and run your MCP servers on NitroCloud.
+icon: Cloud
+---
+
+import { Cloud, Rocket, Gauge, Activity, Lock, KeyRound, BadgeCheck, Container, Server } from 'lucide-react';
+
+NitroCloud is purpose-built for MCP servers. It skips the setup complexity of running your own infrastructure: you connect your code, and NitroCloud builds and runs your server for you.
+
+<Cards>
+  <Card
+    className="nx-card-featured"
+    icon={<Cloud />}
+    title="Open NitroCloud"
+    href="https://cloud.nitrostack.ai"
+    external
+    description="Sign in to the dashboard and deploy your first app."
+  />
+</Cards>
+
+## What you get
+
+<Cards className="nx-cards-3">
+  <Card className="nx-card-illo" icon={<Illustration name="rocket" />} title="One-step deployment" description="Connect your code, and NitroCloud builds and runs the server for you." />
+  <Card className="nx-card-illo" icon={<Illustration name="layers" />} title="Auto-scaling" description="Scales automatically with traffic." />
+  <Card className="nx-card-illo" icon={<Illustration name="pulse" />} title="Built-in monitoring" description="Metrics and logs for each deployment." />
+  <Card className="nx-card-illo" icon={<Illustration name="shield" />} title="Automatic SSL" description="Free HTTPS certificates." />
+  <Card className="nx-card-illo" icon={<Illustration name="code" />} title="Environment variables" description="Set secrets in the dashboard, never in your code." />
+  <Card className="nx-card-illo" icon={<Illustration name="cloud" />} title="Free tier" description="No credit card required." />
+</Cards>
+
+## Deploy your first app
+
+You deploy from the dashboard: create an app, link your repository or upload a zip, and add your environment variables. The steps, including how to prepare a TypeScript or Python project, are on the [Dashboard](/docs/cloud/dashboard#deploy-from-the-dashboard) page.
+
+## How NitroCloud is organized
+
+Everything belongs to an organization. An organization has apps, and each app has an MCP server and a hosted chat.
+
+<Layers
+  layers={[
+    { title: 'Organization', sub: 'Teams, API keys, integrations, Studio, billing, usage, settings' },
+    { title: 'App', sub: 'Overview and billing' },
+  ]}
+  items={['MCP: overview, deployments, logs, monitoring, domains, integrations, settings', 'NitroStack Chat: general, threads, monitoring, analytics, domains, auth, database, AI model, files, settings, danger zone, access']}
+/>
+
+<Cards className="nx-cards-3">
+  <Card className="nx-card-illo" icon={<Illustration name="grid" />} title="Dashboard" href="/docs/cloud/dashboard" description="Apps, usage, and shortcuts at a glance." />
+  <Card className="nx-card-illo" icon={<Illustration name="layers" />} title="Apps" href="/docs/cloud/apps" description="Create apps, deploy servers, and host chats." />
+  <Card className="nx-card-illo" icon={<Illustration name="shield" />} title="API keys" href="/docs/cloud/api-keys" description="Sign NitroStudio in to your organization." />
+  <Card className="nx-card-illo" icon={<Illustration name="flow" />} title="Teams" href="/docs/cloud/team" description="Members, invitations, and requests." />
+  <Card className="nx-card-illo" icon={<Illustration name="plug" />} title="Integrations" href="/docs/cloud/integrations" description="Deploy on push with GitHub." />
+  <Card className="nx-card-illo" icon={<Illustration name="sparkle" />} title="Studio management" href="/docs/cloud/studio-management" description="Studio access, models, and spend limits." />
+</Cards>
+
+## What runs where
+
+An **organization** is the account boundary. Apps, members, API keys, the GitHub connection, Studio access, and payment methods all belong to the organization.
+
+An **app** is one product. It can have an MCP server, a hosted chat, or both. The server is what MCP clients call; the chat is a website that calls that server's tools. Each app has its own plan: Free includes 500,000 requests a month, and Pro is billed per app. See [App billing](/docs/cloud/apps/billing).
+
+**NitroStudio** is separate. It's the desktop app, and organization [API keys](/docs/cloud/api-keys) sign it in. [Studio management](/docs/cloud/studio-management) decides who on the team can use it and which models they can call.
+
+## Prefer to host it yourself?
+
+<Cards>
+  <Card icon={<Container />} title="Docker" href="/docs/deployment/docker" description="Containerize your server." />
+  <Card icon={<Server />} title="Cloud platforms" href="/docs/deployment/cloud" description="AWS, Google Cloud, Azure, and more." />
+</Cards>

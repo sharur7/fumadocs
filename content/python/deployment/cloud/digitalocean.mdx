@@ -1,0 +1,45 @@
+---
+title: "DigitalOcean"
+description: "Deploy the server with App Platform"
+---
+
+import { Cloud, Container } from 'lucide-react';
+
+DigitalOcean App Platform builds your Dockerfile straight from a GitHub repository and redeploys on every push to the branch you choose.
+
+Every platform needs the same settings from your server: listen on all interfaces (`HOST=0.0.0.0`), use the port the platform expects (`PORT`), run over HTTP (`MCP_TRANSPORT_TYPE=http`), and point the health check at `/mcp/health`. [Docker](/python/deployment/docker) explains each one.
+
+## App spec
+
+Add this spec to your repository and create the app from it in the DigitalOcean dashboard, or with `doctl apps create --spec .do/app.yaml`. Set the value of `JWT_SECRET` in the dashboard.
+
+```yaml
+# .do/app.yaml
+name: my-mcp-server
+services:
+  - name: web
+    github:
+      repo: your-org/your-repo
+      branch: main
+    dockerfile_path: Dockerfile
+    http_port: 3000
+    envs:
+      - key: HOST
+        value: 0.0.0.0
+      - key: MCP_TRANSPORT_TYPE
+        value: http
+      - key: JWT_SECRET
+        value: ${JWT_SECRET}
+        type: SECRET
+    health_check:
+      http_path: /mcp/health
+```
+
+Clients connect to `https://<your-app>.ondigitalocean.app/mcp`.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Container />} title="Docker" href="/python/deployment/docker" description="The Dockerfile and runtime settings." />
+  <Card icon={<Cloud />} title="Cloud Platforms" href="/python/deployment/cloud" description="Compare the other platforms." />
+</Cards>

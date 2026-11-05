@@ -1,0 +1,122 @@
+---
+title: "Testing"
+description: "Test tools, services, and pipeline classes with Jest"
+---
+
+import { Monitor } from 'lucide-react';
+
+NitroStack servers are ordinary TypeScript classes, so you test them with ordinary tools. Unit tests call a tool's method directly with a mock context; the testing module builds your providers with mocks in place of real dependencies; integration tests run tools through the full pipeline.
+
+## Setup
+
+Tests run with Jest and `ts-jest`, so TypeScript tests need no separate build step.
+
+### Install Dependencies
+
+Add Jest and its TypeScript support as development dependencies:
+
+```bash
+npm install --save-dev jest @types/jest ts-jest
+```
+
+### Jest Configuration
+
+Tell Jest to compile TypeScript and where to find tests:
+
+```javascript
+// jest.config.js
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1'
+  }
+};
+```
+
+### Package.json Script
+
+Add scripts so `npm test` runs the suite:
+
+```json
+{
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  }
+}
+```
+
+## Testing Module
+
+`TestingModule` builds a small version of your app for a test: the providers you list, with mocks wherever you override them.
+
+### Import Testing Utilities
+
+Everything comes from `@nitrostack/core/testing`:
+
+```typescript
+import {
+  TestingModule,
+  CompiledTestingModule,
+  createMockContext,
+  createMockFn,
+  spyOn,
+  MockLogger
+} from '@nitrostack/core/testing';
+```
+
+### TestingModule
+
+Create a testing module to test your services and components in isolation with dependency injection:
+
+```typescript
+import { TestingModule, CompiledTestingModule } from '@nitrostack/core/testing';
+import { ProductService } from '../products/products.service.js';
+import { DatabaseService } from '../database/database.service.js';
+
+describe('ProductService', () => {
+  let compiled: CompiledTestingModule;
+  let productService: ProductService;
+  let mockDatabaseService: { query: jest.Mock; queryOne: jest.Mock };
+  
+  beforeEach(() => {
+    mockDatabaseService = {
+      query: jest.fn(),
+      queryOne: jest.fn(),
+    };
+
+    compiled = TestingModule.create()
+      .addProvider(ProductService)
+      .addMock(DatabaseService, mockDatabaseService)
+      .compile();
+    
+    productService = compiled.get(ProductService);
+  });
+  
+  afterEach(() => {
+    compiled.cleanup();
+  });
+  
+  it('should be defined', () => {
+    expect(productService).toBeDefined();
+  });
+});
+```
+
+## Testing topics
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="code" />} title="Unit Tests" href="/docs/sdk/testing/unit-tests" description="Tools, services, middleware, and interceptors." />
+  <Card className="nx-card-illo" icon={<Illustration name="flow" />} title="Integration Tests" href="/docs/sdk/testing/integration" description="Run tools through the full pipeline." />
+  <Card className="nx-card-illo" icon={<Illustration name="funnel" />} title="Mocks and Coverage" href="/docs/sdk/testing/utilities" description="Mock helpers and coverage reports." />
+</Cards>
+
+## Related
+
+<Cards>
+  <Card icon={<Monitor />} title="Test Cases in Studio" href="/docs/studio/test-cases" description="Generate conversation tests with AI." />
+</Cards>

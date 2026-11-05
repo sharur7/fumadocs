@@ -1,0 +1,139 @@
+---
+title: "Widgets"
+description: "Build React UI that renders with a tool result"
+---
+
+import { AppWindow, FlaskConical, Monitor, WandSparkles, Wrench } from 'lucide-react';
+import { Braces, ShieldCheck } from 'lucide-react';
+
+A widget is a small React page that shows a tool's result as a card, a chart, a form, or anything else you can build in React. Clients that support MCP UI, such as ChatGPT and NitroStudio, render the widget next to the conversation; other clients still receive the tool's data.
+
+## Quick start
+
+A widget takes two pieces: a React page in `src/widgets/app/`, and a tool that names it with `@Widget`.
+
+### 1. Create the widget
+
+Each folder under `src/widgets/app/` is one widget. Its `page.tsx` reads the tool's output with `useWidgetSDK()`.
+
+```typescript
+// src/widgets/app/product-card/page.tsx
+'use client';
+
+import { useWidgetSDK } from '@nitrostack/widgets';
+
+interface ProductData {
+  id: string;
+  name: string;
+  price: number;
+  image_url?: string;
+}
+
+export default function ProductCard() {
+  const { isReady, getToolOutput } = useWidgetSDK();
+  
+  if (!isReady) {
+    return <div>Loading...</div>;
+  }
+  
+  const product = getToolOutput<ProductData>();
+  
+  return (
+    <div style={{
+      background: '#000',
+      color: '#fff',
+      padding: '24px',
+      borderRadius: '12px'
+    }}>
+      {product.image_url && (
+        <img src={product.image_url} alt={product.name} />
+      )}
+      <h2>{product.name}</h2>
+      <p>${product.price.toFixed(2)}</p>
+    </div>
+  );
+}
+```
+
+### 2. Connect it to a tool
+
+`@Widget('product-card')` links the tool to the folder of the same name.
+
+```typescript
+import { ToolDecorator as Tool, Widget } from '@nitrostack/core';
+
+@Tool({
+  name: 'get_product',
+  description: 'Get product details',
+  inputSchema: z.object({
+    product_id: z.string()
+  }),
+  // Invocation status messages (shown during tool execution)
+  invocation: {
+    invoking: 'Loading product...',
+    invoked: 'Product loaded'
+  },
+  // Example data for widget preview
+  examples: {
+    request: { product_id: 'prod-123' },
+    response: {
+      id: 'prod-123',
+      name: 'Awesome Product',
+      price: 99.99,
+      image_url: 'https://example.com/image.jpg'
+    }
+  }
+})
+@Widget('product-card')
+async getProduct(input: any, ctx: ExecutionContext) {
+  return {
+    id: input.product_id,
+    name: 'Awesome Product',
+    price: 99.99,
+    image_url: 'https://example.com/image.jpg'
+  };
+}
+```
+
+<Callout type="warn" title="Important">
+
+The `examples.response` data is used by clients to render widget previews before the tool is executed. Always provide realistic example data that matches your response structure.
+
+</Callout>
+
+## Where widgets render
+
+NitroStack widgets are compatible with both **OpenAI Apps SDK** and **MCP Apps** specifications:
+
+| Platform | API | Ready Event |
+|----------|-----|-------------|
+| OpenAI Apps SDK | `window.openai` | `openai:ready` |
+| MCP Apps | `window.__MCP_APP_CONTEXT__` | `mcp:ready` |
+
+The Widget SDK handles this automatically - your widgets work on both platforms without changes.
+
+```typescript
+const { isReady } = useWidgetSDK();
+
+// isReady checks for BOTH platforms automatically
+if (isReady) {
+  // Widget works on OpenAI ChatGPT AND MCP Apps clients
+}
+```
+
+## Widget topics
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="widget" />} title="Interactive Widgets" href="/docs/sdk/ui/widgets/interactive" description="Read data, call tools, and keep state." />
+  <Card className="nx-card-illo" icon={<Illustration name="grid" />} title="Widget Examples" href="/docs/sdk/ui/widgets/examples" description="Complete widgets to copy and adapt." />
+  <Card className="nx-card-illo" icon={<Illustration name="sparkle" />} title="Styling" href="/docs/sdk/ui/widgets/styling" description="Inline styles, themes, and helpers." />
+  <Card className="nx-card-illo" icon={<Illustration name="alert" />} title="Hosts and Debugging" href="/docs/sdk/ui/widgets/debugging" description="Debugging, APP_MODE, and legacy patterns." />
+</Cards>
+
+## Related
+
+<Cards>
+  <Card icon={<Braces />} title="Widget SDK reference" href="/docs/sdk/ui/widget-sdk" description="Every hook and method." />
+  <Card icon={<AppWindow />} title="Widget examples" href="/docs/guides/widget-examples" description="Preview widgets with sample data." />
+  <Card icon={<ShieldCheck />} title="Widget CSP" href="/docs/guides/widget-csp" description="Allow external images, fonts, and APIs." />
+</Cards>

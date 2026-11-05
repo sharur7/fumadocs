@@ -1,0 +1,55 @@
+---
+title: "UI Widgets"
+description: "Static HTML widgets under widgets/out"
+---
+
+<Callout type="info" title="Agent skill">
+
+`nitrostack-python-ui-widgets`
+
+</Callout>
+
+A widget shows a tool's result as UI instead of plain data: a card, a chart, a form. In Python, a widget is a static HTML file. You link it to a tool with `@widget`, and clients that support MCP UI render it with the tool's result.
+
+Python widgets are **static HTML**, not React trees from `@nitrostack/widgets`. Bind a route with `@widget` and return domain JSON from the tool.
+
+```python
+from nitrostack import tool, widget, WidgetOptions, WidgetCsp, ExecutionContext
+
+@tool(name="show_card", description="Product card", input_schema=CardInput)
+@widget("card")
+async def show_card(self, input: CardInput, context: ExecutionContext) -> dict:
+    return {"name": "Widget", "price": 9.99}
+```
+
+Place HTML at `widgets/out/{route}.html` (for example `widgets/out/card.html`). The SDK registers `ui://widget/card.html` and sets mode-gated `_meta` on `tools/list` and `tools/call`.
+
+Object form:
+
+```python
+@widget(WidgetOptions(
+    route="chart",
+    prefers_border=True,
+    csp=WidgetCsp(connect_domains=["https://api.example.com"]),
+))
+```
+
+## `NITROSTACK_APP_MODE` (default `universal`)
+
+This setting controls which metadata keys and MIME type widgets use, so they work in ChatGPT, MCP Apps hosts, or both.
+
+| Mode | Tool `_meta` | Resource MIME |
+|------|----------------|---------------|
+| `universal` | Both OpenAI and MCP Apps keys | `text/html;profile=mcp-app` |
+| `openai` | `openai/outputTemplate`, `ui/template` | `text/html` |
+| `mcp-app` | `_meta.ui` (`resourceUri`, `visibility`, CSP) | `text/html;profile=mcp-app` |
+
+Helpers: `get_app_mode`, `is_openai_mode`, `is_mcp_app_mode`, `get_widget_mime_type`.
+
+## Inspector and Studio
+
+MCP Inspector: **HTTP + stateless**, Apps tab. Connect to `http://localhost:3000/mcp` (no trailing slash). Live preview: `http://localhost:3000/widgets/preview`. Do not use `widgets/preview.html` as the live result.
+
+**NitroStudio folder-connect** natively detects Python NitroStack projects (`main.py` + `nitrostack` in `requirements.txt` or `pyproject.toml`) and binds the allocated `PORT`. You can also test via MCP Inspector HTTP at `http://localhost:3000/mcp`. Turn Authentication off unless the OAuth template is configured.
+
+There is no Python equivalent of the TypeScript Widget SDK / file-upload guides.

@@ -1,0 +1,150 @@
+---
+title: "Init Command"
+description: "Create a new project from one of the official templates."
+---
+
+import { FolderTree, LayoutTemplate, Play } from 'lucide-react';
+
+`init` creates a new NitroStack project from a template, installs its dependencies, and adds agent skills for your coding tools. Run it in the folder where you want the new project folder to appear.
+
+## Usage
+
+```bash tab="TypeScript" tab-group="language"
+npx @nitrostack/cli init [project-name] [options]
+# or, when the CLI is installed globally:
+nitrostack-cli init [project-name] [options]
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py init [name] [options]
+```
+
+If you leave out the project name, the CLI asks for it (the Python CLI suggests `my-mcp-server`). If you leave out the template, it asks you to pick one.
+
+## Options
+
+Every option is optional.
+
+### TypeScript options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--preset <alias>` | Short template name: `starter`, `enterprise-search`, `code-mode`, `pizzaz`, or `oauth` | `starter` |
+| `--template <name>` | Full template name, such as `typescript-starter` | `typescript-starter` |
+| `--description <desc>` | Description of the MCP server project | `My awesome MCP server` |
+| `--author <author>` | Author string for `package.json` | `""` |
+| `--skip-install` | Skip installing dependencies, including the widget dependencies | `false` |
+| `--force` | Overwrite agent skill files that already exist | `false` |
+
+### Python options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--template <name>` | `python-starter`, `python-pizzaz`, or `python-oauth` | Asked when omitted |
+| `--skip-install` | Skip installing Python dependencies, and widget npm dependencies if there are any | `false` |
+| `--force` | Overwrite agent skill folders that already exist | `false` |
+| `--port <port>` | MCP HTTP port | `3000` |
+| `--widget <port>` | Widget preview port | `3001` |
+
+## Templates
+
+### TypeScript templates
+
+Each TypeScript template has a full name and a short preset alias, and either one selects it.
+
+| Template | Preset | Focus |
+|:---|:---|:---|
+| `typescript-starter` | `starter` | Calculator tool, Next.js widget, health checks, ConfigModule |
+| `typescript-enterprise-search` | `enterprise-search` | BM25SearchTransform, @Controller namespacing, token reduction |
+| `typescript-code-mode` | `code-mode` | QuickJS WebAssembly sandbox, worker thread pool, local script execution |
+| `typescript-pizzaz` | `pizzaz` | Mapbox map widget, multi-widget shop workflow, MCP resources |
+| `typescript-oauth` | `oauth` | OAuth 2.1 PKCE, JWT verification, Duffel flights API, scope guards |
+
+#### Starter
+
+A clean, modular server and the best place to begin. It has a calculator tool with an interactive Next.js widget (`calculator-result`), a file upload temperature conversion tool, the `@McpApp` and `@Module` architecture with `ConfigModule.forRoot()`, and system health checks under `health://checks`.
+
+```bash
+npx @nitrostack/cli init my-calculator --preset starter
+```
+
+#### Enterprise search
+
+An enterprise service built around progressive tool discovery. It organizes finance, inventory, and support capabilities with `@Controller` namespacing, and uses `BM25SearchTransform` to collapse the raw tools into synthetic `search_tools` and `call_tool` tools. This reduces prompt token consumption by up to 98% for large toolsets, and an `alwaysVisible` setting keeps essential bootstrap tools out of the collapse.
+
+```bash
+npx @nitrostack/cli init enterprise-tools --preset enterprise-search
+```
+
+#### Code mode
+
+An execution server that runs scripts in isolated WebAssembly. It uses `CodeModeTransform` with QuickJS sandboxing, runs multi-step batch scripts in an isolated Node.js worker pool, and exposes `search`, `get_schema`, and `execute` meta-tools. A sample data processing script is included at `src/scripts/sample-batch.js`.
+
+```bash
+npx @nitrostack/cli init code-service --preset code-mode
+```
+
+#### Pizzaz
+
+A location and shop finder that shows off rich UI widgets. It has a multi-widget workflow (map view, shop listings, and order audit), a dynamic Mapbox integration using `@nitrostack/widgets`, and structured MCP resource and prompt providers.
+
+```bash
+npx @nitrostack/cli init pizza-finder --preset pizzaz
+```
+
+#### OAuth
+
+A flight booking server with end-to-end OAuth 2.1 authentication. It has RFC 9068 JWT verification, a PKCE flow, and a Duffel flight booking API integration, protected by the built-in `OAuthGuard` and scope verification (`createScopeGuard(['flights:read', 'flights:book'])`), and an interactive flight selection widget.
+
+```bash
+npx @nitrostack/cli init flight-booking --preset oauth
+```
+
+### Python templates
+
+| Template | Focus |
+|------|--------|
+| `python-starter` | A calculator tool and its result widget |
+| `python-pizzaz` | Pizza shops, with list, map, and shop widgets |
+| `python-oauth` | Duffel flights with OAuth 2.1, and an `OAUTH_SETUP.md` guide |
+
+```bash
+nitrostack-py init flights --template python-oauth --port 4000 --widget 4001
+```
+
+## What init creates
+
+### TypeScript projects
+
+A new TypeScript project has this layout:
+
+```text
+my-project/
+├── src/
+│   ├── modules/            # Feature modules (controllers, tools, resources)
+│   ├── health/             # Health check providers
+│   ├── app.module.ts       # Root AppModule with @McpApp
+│   ├── index.ts            # Application bootstrap (McpApplicationFactory)
+│   └── widgets/            # Next.js interactive widget application
+├── .env.example            # Environment template
+├── tsconfig.json           # Modern TypeScript configuration
+└── package.json            # Project dependencies (@nitrostack/core)
+```
+
+### Python projects
+
+Every Python template ships `main.py`, `app_module.py`, `pyproject.toml`, `uv.toml`, `.python-version`, `.env`, `requirements.txt`, the built widgets in `widgets/out/*.html`, and a health check in `health/system_health.py`.
+
+`init` also copies the SDK it is running from into `vendor/nitrostack`, and points `[tool.uv.sources]` in `pyproject.toml` at it. The dependency is still named `nitrostack`, so `nitrostack-py install` and cloud builders such as NitroCloud can run `uv sync` reliably.
+
+### Agent skills
+
+Both CLIs install NitroStack agent skills, so the coding agents you use already know the framework. The TypeScript CLI writes them to `.cursor/skills/`, `.claude/skills/`, `.codex/skills/`, `.gemini/skills/`, `.copilot/skills/`, `.opencode/skills/`, and `.agents/skills/`. The Python CLI clones them from [skills-python-sdk](https://github.com/nitrocloudofficial/skills-python-sdk) into the same folders plus `.antigravity/skills/`, and records the version in `.nitrostack.json`.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Play />} title="Dev command" href="/docs/cli/dev" description="Run the new project with hot reload." />
+  <Card icon={<LayoutTemplate />} title="Templates" href="/docs/templates" description="What each template includes." />
+  <Card icon={<FolderTree />} title="Project Structure" href="/docs/getting-started/core-concepts/project-structure" description="What each generated file does." />
+</Cards>

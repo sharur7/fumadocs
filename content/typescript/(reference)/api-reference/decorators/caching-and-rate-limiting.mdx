@@ -1,0 +1,100 @@
+---
+title: "Caching and Rate Limiting"
+description: "Cache results and limit how often a tool runs"
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+`@Cache` reuses a recent result instead of running the handler again; `@RateLimit` caps how often a caller can run it.
+
+## @Cache
+
+Caches tool responses for improved performance.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { Cache } from '@nitrostack/core';
+
+@Cache(options: CacheOptions)
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@cache(ttl=60)
+```
+
+</Tab>
+</Tabs>
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `ttl` | `number` | Yes | Time to live in seconds |
+| `key` | `function` | No | Custom cache key generator |
+| `invalidateOn` | `string[]` | No | Events that invalidate the cache |
+
+**Example:**
+
+```typescript
+@Tool({ name: 'get_product' })
+@Cache({
+  ttl: 300,
+  key: (input) => `product:${input.productId}`,
+  invalidateOn: ['product.updated']
+})
+async getProduct(input: { productId: string }, ctx: ExecutionContext) {
+  return this.productService.findById(input.productId);
+}
+```
+
+## @RateLimit
+
+Limits request rate to prevent abuse.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { RateLimit } from '@nitrostack/core';
+
+@RateLimit(options: RateLimitOptions)
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@rate_limit(max=100, window=60)
+```
+
+</Tab>
+</Tabs>
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `requests` | `number` | Yes | Maximum requests allowed |
+| `window` | `string` | Yes | Time window ('1m', '1h', '1d') |
+| `key` | `function` | No | Custom rate limit key (e.g., per-user) |
+| `message` | `string` | No | Custom error message |
+
+**Example:**
+
+```typescript
+@Tool({ name: 'send_email' })
+@RateLimit({
+  requests: 10,
+  window: '1m',
+  key: (ctx) => ctx.auth?.subject || 'anonymous',
+  message: 'Email rate limit exceeded. Please wait.'
+})
+async sendEmail(input: EmailInput, ctx: ExecutionContext) {
+  return this.emailService.send(input);
+}
+```

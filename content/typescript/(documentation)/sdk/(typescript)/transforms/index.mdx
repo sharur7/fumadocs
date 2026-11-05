@@ -1,0 +1,58 @@
+---
+title: "Transforms"
+description: "Reshape the tool catalog a client sees: progressive search, code mode, and visibility"
+---
+
+import { LayoutTemplate } from 'lucide-react';
+
+Every tool your server registers is normally sent to the client in `tools/list`, schema and all. With a few tools that's fine. With hundreds, the catalog alone can fill the model's context before the conversation starts. Transforms sit between your tools and the client and reshape that catalog: they can hide tools until they're needed, replace the catalog with a search tool, or let the model run several tools from one script.
+
+## Why transforms
+
+A large catalog costs tokens on every request and gives the model more tools to confuse with each other. Transforms send a small, stable catalog instead, and reveal the rest on demand.
+
+<Compare columns={[
+  { title: 'Without transforms', sub: 'tools/list returns everything', icon: 'List', items: ['100+ full tool schemas on every request', '15,000 to 40,000 tokens of catalog', 'More tools for the model to confuse', 'Too large for small-context models'] },
+  { title: 'With a search transform', sub: 'tools/list returns a few tools', icon: 'Search', accent: true, items: ['search_tools and call_tool', 'Plus the tools you mark alwaysVisible', 'Schemas fetched only when needed', 'The same small catalog for every model'] },
+]} />
+
+## How a catalog request flows
+
+Transforms run in the order you list them in `@McpApp`. A typical setup filters hidden tools first, then collapses what's left into a search tool.
+
+<Flow steps={[
+  { title: 'tools/list', sub: 'From the client', icon: 'Bot' },
+  { title: 'Registered tools', sub: 'Everything your server declares' },
+  { title: 'VisibilityTransform', sub: 'Drops hidden tools for this session' },
+  { title: 'Search or Code Mode', sub: 'Collapses the catalog' },
+  { title: 'What the client sees', sub: 'Meta-tools and alwaysVisible tools', icon: 'Eye' },
+]} />
+
+You add transforms in `@McpApp`:
+
+```typescript
+@McpApp({
+  module: AppModule,
+  server: { name: 'enterprise-service', version: '1.0.0' },
+  transforms: [
+    new VisibilityTransform(),
+    new BM25SearchTransform({ defaultLimit: 5, alwaysVisible: ['auth_login'] }),
+  ],
+})
+```
+
+## Transforms
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="search" />} title="Progressive Search" href="/docs/sdk/transforms/search" description="Collapse the catalog into a search tool and a call tool." />
+  <Card className="nx-card-illo" icon={<Illustration name="terminal" />} title="Code Mode" href="/docs/sdk/transforms/code-mode" description="Run several tools from one script, in a sandbox." />
+  <Card className="nx-card-illo" icon={<Illustration name="shield" />} title="Visibility" href="/docs/sdk/transforms/visibility" description="Hide tools until a session unlocks them." />
+  <Card className="nx-card-illo" icon={<Illustration name="code" />} title="Write a Transform" href="/docs/sdk/transforms/custom" description="The transform interface, order, and catalog bypass." />
+</Cards>
+
+## Related
+
+<Cards>
+  <Card icon={<LayoutTemplate />} title="Enterprise Search template" href="/docs/templates/enterprise-search" description="A working BM25 server." />
+  <Card icon={<LayoutTemplate />} title="Code Mode template" href="/docs/templates/code-mode" description="A working Code Mode server." />
+</Cards>

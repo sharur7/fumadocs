@@ -1,0 +1,429 @@
+---
+title: "Middleware"
+description: "Request processing and authentication middleware"
+---
+
+import { Funnel, ShieldAlert, Sparkles } from 'lucide-react';
+
+Middleware functions execute before and after tool, resource, and prompt handlers. They enable cross-cutting concerns such as logging, timing, authentication verification, request transformation, and error handling.
+
+Middleware follows the "onion model" where each layer wraps around the next, with the handler at the center.
+
+## Creating Middleware
+
+A middleware is a class with a `use()` method. It receives the execution context and a `next` function, runs code before and after calling `next()`, and returns the result.
+
+### Basic Middleware
+
+Middleware implements the `MiddlewareInterface`:
+
+```typescript
+import { Middleware, MiddlewareInterface, ExecutionContext } from '@nitrostack/core';
+
+@Middleware()
+export class LoggingMiddleware implements MiddlewareInterface {
+  async use(context: ExecutionContext, next: () => Promise<any>): Promise<any> {
+    const startTime = Date.now();
+    const toolName = context.toolName || 'unknown';
+
+    context.logger.info(`Request started: ${toolName}`, {
+      requestId: context.requestId,
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      // Execute next middleware or handler
+      const result = await next();
+
+      const duration = Date.now() - startTime;
+      context.logger.info(`Request completed: ${toolName}`, {
+        requestId: context.requestId,
+        duration,
+        success: true
+      });
+
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      context.logger.error(`Request failed: ${toolName}`, {
+        requestId: context.requestId,
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
+  }
+}
+```
+
+### Middleware Interface
+
+Every middleware implements this one method. Call `next()` to continue the pipeline; return without calling it to stop the call.
+
+```typescript
+interface MiddlewareInterface {
+  use(context: ExecutionContext, next: () => Promise<any>): Promise<any>;
+}
+```
+
+**Parameters:**
+- `context`: The execution context with auth, logger, and metadata
+- `next`: Function to call the next middleware or handler
+
+**Return:** The result from the handler (possibly transformed)
+
+## Using Middleware
+
+Attach middleware with `@UseMiddleware`, on a single handler or on several.
+
+### On Individual Methods
+
+Put `@UseMiddleware` on the handler it should wrap.
+
+```typescript
+import { ToolDecorator as Tool, UseMiddleware, ExecutionContext } from '@nitrostack/core';
+import { LoggingMiddleware } from './middleware/logging.middleware.js';
+
+export class ProductTools {
+  @Tool({ name: 'get_product' })
+  @UseMiddleware(LoggingMiddleware)
+  async getProduct(input: { productId: string }, ctx: ExecutionContext) {
+    return this.productService.findById(input.productId);
+  }
+}
+```
+
+### Multiple Middleware
+
+List several middleware in one decorator. They run in the order listed.
+
+```typescript
+import { TimingMiddleware } from './middleware/timing.middleware.js';
+import { ValidationMiddleware } from './middleware/validation.middleware.js';
+
+@Tool({ name: 'create_order' })
+@UseMiddleware(LoggingMiddleware, TimingMiddleware, ValidationMiddleware)
+async createOrder(input: CreateOrderInput, ctx: ExecutionContext) {
+  return this.orderService.create(input);
+}
+```
+
+## Execution Order
+
+Middleware executes in declaration order, forming a pipeline:
+
+<Layers layers={[
+  { title: 'LoggingMiddleware', sub: 'Listed first: runs first on the way in, last on the way out' },
+  { title: 'TimingMiddleware', sub: 'Runs second, and second to last' },
+  { title: 'ValidationMiddleware', sub: 'Runs last on the way in, first on the way out' },
+  { title: 'Handler', sub: 'Your tool runs in the middle' },
+]} caption="Middleware wraps the handler like layers: each one runs its code, calls next(), then finishes after everything inside it." />
+
+### Order Matters
+
+Put middleware that others depend on first. A request ID, for example, should exist before anything logs.
+
+```typescript
+// Recommended order:
+@UseMiddleware(
+  RequestIdMiddleware,      // 1. Generate request ID first
+  LoggingMiddleware,        // 2. Log with request ID
+  AuthenticationMiddleware, // 3. Verify authentication
+  ValidationMiddleware      // 4. Validate input
+)
+```
+
+## Common Patterns
+
+These middleware solve problems most servers have.
+
+### Request ID Generation
+
+Give every call an ID you can search for in your logs.
+
+```typescript
+@Middleware()
+export class RequestIdMiddleware implements MiddlewareInterface {
+  private counter = 0;
+
+  async use(context: ExecutionContext, next: () => Promise<any>): Promise<any> {
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 8);
+    const sequence = (++this.counter).toString(36).padStart(4, '0');
+
+    const requestId = `req_${timestamp}_${random}_${sequence}`;
+
+    // Store in metadata for downstream use
+    if (context.metadata) {
+      context.metadata.requestId = requestId;
+      context.metadata.requestTimestamp = new Date().toISOString();
+    }
+
+    return next();
+  }
+}
+```
+
+### Performance Timing
+
+Measure how long each call takes, and warn when one is slow.
+
+```typescript
+@Middleware()
+export class TimingMiddleware implements MiddlewareInterface {
+  private static readonly SLOW_THRESHOLD_MS = 1000;
+
+  async use(context: ExecutionContext, next: () => Promise<any>): Promise<any> {
+    const startTime = process.hrtime.bigint();
+
+    try {
+      const result = await next();
+
+      this.recordTiming(context, startTime);
+      return result;
+    } catch (error) {
+      this.recordTiming(context, startTime);
+      throw error;
+    }
+  }
+
+  private recordTiming(context: ExecutionContext, startTime: bigint): void {
+    const endTime = process.hrtime.bigint();
+    const durationMs = Number(endTime - startTime) / 1_000_000;
+
+    if (context.metadata) {
+      context.metadata.executionTimeMs = durationMs;
+    }
+
+    if (durationMs > TimingMiddleware.SLOW_THRESHOLD_MS) {
+      context.logger.warn('Slow request detected', {
+        toolName: context.toolName,
+        duration: durationMs,
+        threshold: TimingMiddleware.SLOW_THRESHOLD_MS
+      });
+    }
+  }
+}
+```
+
+### Error Handling
+
+Catch errors from everything inside the middleware, log them with context, and rethrow.
+
+```typescript
+@Middleware()
+export class ErrorHandlingMiddleware implements MiddlewareInterface {
+  async use(context: ExecutionContext, next: () => Promise<any>): Promise<any> {
+    try {
+      return await next();
+    } catch (error) {
+      // Log error with context
+      context.logger.error('Request error', {
+        toolName: context.toolName,
+        requestId: context.metadata?.requestId,
+        error: this.serializeError(error)
+      });
+
+      // Transform error for client
+      if (error instanceof ValidationError) {
+        return {
+          error: true,
+          code: 'VALIDATION_ERROR',
+          message: error.message,
+          details: error.details
+        };
+      }
+
+      if (error instanceof NotFoundError) {
+        return {
+          error: true,
+          code: 'NOT_FOUND',
+          message: error.message
+        };
+      }
+
+      // Unknown errors
+      return {
+        error: true,
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred'
+      };
+    }
+  }
+
+  private serializeError(error: unknown): Record<string, unknown> {
+    if (error instanceof Error) {
+      return {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      };
+    }
+    return { value: String(error) };
+  }
+}
+```
+
+### Request Context Enrichment
+
+Add information, such as the environment name, to the context so later stages can use it.
+
+```typescript
+@Middleware()
+export class ContextEnrichmentMiddleware implements MiddlewareInterface {
+  async use(context: ExecutionContext, next: () => Promise<any>): Promise<any> {
+    if (context.metadata) {
+      // Add environment information
+      context.metadata.environment = process.env.NODE_ENV || 'development';
+      context.metadata.serverVersion = process.env.APP_VERSION || '1.0.0';
+
+      // Add user context if authenticated
+      if (context.auth?.subject) {
+        context.metadata.userId = context.auth.subject;
+        context.metadata.userRoles = context.auth.roles || [];
+      }
+    }
+
+    return next();
+  }
+}
+```
+
+### Conditional Processing
+
+Skip work for calls that don't need it, such as health checks.
+
+```typescript
+@Middleware()
+export class ConditionalMiddleware implements MiddlewareInterface {
+  private readonly skipTools = ['health_check', 'ping', 'version'];
+
+  async use(context: ExecutionContext, next: () => Promise<any>): Promise<any> {
+    // Skip middleware for certain tools
+    if (this.skipTools.includes(context.toolName || '')) {
+      return next();
+    }
+
+    // Apply middleware logic only for non-skipped tools
+    context.logger.info('Processing request', {
+      toolName: context.toolName
+    });
+
+    return next();
+  }
+}
+```
+
+### Metrics Collection
+
+Count calls and failures per tool. Making the middleware injectable lets other services read the numbers.
+
+```typescript
+import { Injectable } from '@nitrostack/core';
+
+@Injectable()
+@Middleware()
+export class MetricsMiddleware implements MiddlewareInterface {
+  private requestCounts = new Map<string, number>();
+  private errorCounts = new Map<string, number>();
+  private totalDuration = new Map<string, number>();
+
+  async use(context: ExecutionContext, next: () => Promise<any>): Promise<any> {
+    const toolName = context.toolName || 'unknown';
+    const startTime = Date.now();
+
+    // Increment request count
+    this.requestCounts.set(toolName, (this.requestCounts.get(toolName) || 0) + 1);
+
+    try {
+      const result = await next();
+
+      // Record duration
+      const duration = Date.now() - startTime;
+      this.totalDuration.set(toolName, (this.totalDuration.get(toolName) || 0) + duration);
+
+      return result;
+    } catch (error) {
+      // Increment error count
+      this.errorCounts.set(toolName, (this.errorCounts.get(toolName) || 0) + 1);
+      throw error;
+    }
+  }
+
+  getMetrics(): Record<string, unknown> {
+    const tools: Record<string, unknown> = {};
+
+    for (const [tool, count] of this.requestCounts) {
+      tools[tool] = {
+        requests: count,
+        errors: this.errorCounts.get(tool) || 0,
+        avgDuration: (this.totalDuration.get(tool) || 0) / count
+      };
+    }
+
+    return { tools };
+  }
+}
+```
+
+## Dependency Injection
+
+Middleware can use dependency injection:
+
+```typescript
+import { Injectable, Middleware, MiddlewareInterface } from '@nitrostack/core';
+
+@Injectable()
+@Middleware()
+export class AuditMiddleware implements MiddlewareInterface {
+  constructor(
+    private auditService: AuditService,
+    private configService: ConfigService
+  ) {}
+
+  async use(context: ExecutionContext, next: () => Promise<any>): Promise<any> {
+    const shouldAudit = this.configService.get('ENABLE_AUDIT_LOG', true);
+
+    if (!shouldAudit) {
+      return next();
+    }
+
+    const startTime = Date.now();
+    const auditEntry = {
+      toolName: context.toolName,
+      userId: context.auth?.subject,
+      requestId: context.metadata?.requestId,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      const result = await next();
+
+      await this.auditService.log({
+        ...auditEntry,
+        status: 'success',
+        duration: Date.now() - startTime
+      });
+
+      return result;
+    } catch (error) {
+      await this.auditService.log({
+        ...auditEntry,
+        status: 'error',
+        duration: Date.now() - startTime,
+        error: error instanceof Error ? error.message : String(error)
+      });
+
+      throw error;
+    }
+  }
+}
+```
+
+## Related
+
+<Cards>
+  <Card icon={<Sparkles />} title="Interceptors Guide" href="/docs/sdk/interceptors" description="Response transformation." />
+  <Card icon={<Funnel />} title="Pipes Guide" href="/docs/sdk/pipes" description="Input validation." />
+  <Card icon={<ShieldAlert />} title="Error Handling" href="/docs/sdk/error-handling" description="Exception filters." />
+</Cards>

@@ -1,0 +1,271 @@
+---
+title: "Input and Output"
+description: "Validate tool input with Zod, declare an output schema, and return resource links"
+---
+
+import { Box, CheckCheck } from 'lucide-react';
+
+A tool's input schema is a contract with the model: it says which arguments to send, and NitroStack rejects anything that doesn't match before your handler runs. An output schema does the same for what the tool returns.
+
+## Input Validation with Zod
+
+NitroStack uses Zod for runtime input validation. The schema is automatically converted to JSON Schema for MCP protocol compliance.
+
+### Primitive Types
+
+Zod has a builder for each JSON type, with checks you can chain, such as length limits and formats.
+
+```typescript
+import { z } from '@nitrostack/core';
+
+// String validation
+z.string()
+z.string().min(1).max(255)
+z.string().email()
+z.string().url()
+z.string().uuid()
+z.string().regex(/^[A-Z]{2}-\d{4}$/)
+
+// Number validation
+z.number()
+z.number().int()
+z.number().positive()
+z.number().min(0).max(100)
+z.number().multipleOf(0.01)  // Currency precision
+
+// Boolean
+z.boolean()
+
+// Literal values
+z.literal('active')
+z.literal(42)
+```
+
+### Complex Types
+
+Enums, arrays, and nested objects describe structured input. The model sees the same structure in the tool's JSON Schema.
+
+```typescript
+// Enumerations
+z.enum(['pending', 'processing', 'completed', 'failed'])
+
+// Arrays
+z.array(z.string())
+z.array(z.number()).min(1).max(100)
+z.array(z.object({ id: z.string() }))
+
+// Objects
+z.object({
+  name: z.string(),
+  address: z.object({
+    street: z.string(),
+    city: z.string(),
+    postalCode: z.string()
+  })
+})
+
+// Records (dynamic keys)
+z.record(z.string())  // { [key: string]: string }
+z.record(z.string(), z.number())  // { [key: string]: number }
+
+// Unions
+z.union([z.string(), z.number()])
+z.discriminatedUnion('type', [
+  z.object({ type: z.literal('email'), address: z.string().email() }),
+  z.object({ type: z.literal('phone'), number: z.string() })
+])
+```
+
+### Modifiers
+
+Modifiers change how a field is treated: whether it can be left out, what it defaults to, and how it's cleaned up before your handler sees it.
+
+```typescript
+// Optional fields
+z.string().optional()  // string | undefined
+
+// Nullable fields
+z.string().nullable()  // string | null
+
+// Default values
+z.string().default('pending')
+z.number().default(0)
+
+// Transformations
+z.string().transform(val => val.toLowerCase())
+z.string().trim()
+```
+
+### Complex Schema Example
+
+A real tool combines these. Every `.describe()` text reaches the model, so use it to say what each field means.
+
+```typescript
+@Tool({
+  name: 'create_order',
+  description: 'Create a new order with line items and shipping details',
+  inputSchema: z.object({
+    customer: z.object({
+      id: z.string().uuid().describe('Existing customer ID'),
+      email: z.string().email().describe('Contact email for order updates')
+    }),
+    items: z.array(z.object({
+      productId: z.string().describe('Product SKU or ID'),
+      quantity: z.number().int().positive().describe('Quantity to order'),
+      priceOverride: z.number().positive().optional()
+        .describe('Optional price override for special pricing')
+    })).min(1).describe('Order line items (at least one required)'),
+    shipping: z.object({
+      address: z.string().min(10).describe('Full street address'),
+      city: z.string().describe('City name'),
+      state: z.string().length(2).describe('Two-letter state code'),
+      postalCode: z.string().regex(/^\d{5}(-\d{4})?$/).describe('ZIP code'),
+      expedited: z.boolean().default(false).describe('Request expedited shipping')
+    }),
+    paymentMethod: z.enum(['card', 'ach', 'wire']).describe('Payment method'),
+    notes: z.string().max(500).optional().describe('Special instructions')
+  })
+})
+async createOrder(input: CreateOrderInput, ctx: ExecutionContext) {
+  // Input is validated before handler execution
+  return this.orderService.create(input);
+}
+```
+
+## Output Schema Validation
+
+Output schemas define the expected structure of tool responses. They serve two purposes:
+
+1. **Documentation**: Clients understand what data to expect
+2. **Validation**: Runtime validation ensures responses match the schema
+
+### Basic Output Schema
+
+Add `outputSchema` to declare the shape of the result. Clients can rely on it, and NitroStack checks your return value against it.
+
+```typescript
+@Tool({
+  name: 'get_product',
+  title: 'Get Product Details',
+  description: 'Retrieve product information by ID',
+  inputSchema: z.object({
+    productId: z.string()
+  }),
+  outputSchema: z.object({
+    id: z.string(),
+    name: z.string(),
+    price: z.number(),
+    currency: z.string(),
+    inStock: z.boolean(),
+    category: z.string().optional()
+  })
+})
+async getProduct(input: { productId: string }, ctx: ExecutionContext) {
+  return this.productService.findById(input.productId);
+}
+```
+
+### Complex Output Schema
+
+Output schemas can nest arrays and objects, which suits paginated results.
+
+```typescript
+@Tool({
+  name: 'search_products',
+  title: 'Search Product Catalog',
+  description: 'Search products with pagination',
+  inputSchema: z.object({
+    query: z.string(),
+    page: z.number().default(1),
+    limit: z.number().default(20)
+  }),
+  outputSchema: z.object({
+    results: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      price: z.number(),
+      relevanceScore: z.number()
+    })),
+    pagination: z.object({
+      page: z.number(),
+      limit: z.number(),
+      total: z.number(),
+      hasMore: z.boolean()
+    })
+  })
+})
+async searchProducts(input: SearchInput, ctx: ExecutionContext) {
+  return this.searchService.query(input);
+}
+```
+
+## Returning Resource Links
+
+Tools can return links to resources, allowing AI models to access additional context without embedding large data directly in the response.
+
+### Resource Link Type
+
+Instead of returning a large document inline, a tool can return a link to a resource the client can read when it needs the full content.
+
+```typescript
+import type { ResourceLink } from '@nitrostack/core';
+
+@Tool({
+  name: 'create_report',
+  title: 'Generate Report',
+  description: 'Create a report and return a link to the full document'
+})
+async createReport(input: ReportInput, ctx: ExecutionContext) {
+  const report = await this.reportService.generate(input);
+  
+  return {
+    reportId: report.id,
+    summary: report.summary,
+    // Include a resource link for the full report
+    fullReport: {
+      type: 'resource_link',
+      uri: `report://${report.id}`,
+      name: 'Full Report',
+      title: `${input.title} - Full Report`,
+      description: 'Complete report with all data and visualizations',
+      mimeType: 'application/json'
+    } as ResourceLink
+  };
+}
+```
+
+### Embedded Resources
+
+For smaller data, embed the resource directly:
+
+```typescript
+import type { EmbeddedResource } from '@nitrostack/core';
+
+@Tool({
+  name: 'get_config',
+  title: 'Get Configuration',
+  description: 'Retrieve current configuration'
+})
+async getConfig(input: {}, ctx: ExecutionContext) {
+  const config = await this.configService.get();
+  
+  return {
+    version: config.version,
+    embeddedConfig: {
+      type: 'resource',
+      resource: {
+        uri: 'config://current',
+        mimeType: 'application/json',
+        text: JSON.stringify(config.settings, null, 2)
+      }
+    } as EmbeddedResource
+  };
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Box />} title="Execution context" href="/docs/sdk/tools/execution-context" description="Read the caller, logger, and cancellation signal." />
+  <Card icon={<CheckCheck />} title="Validation" href="/docs/sdk/validation" description="Advanced validation patterns." />
+</Cards>

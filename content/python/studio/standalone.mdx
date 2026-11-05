@@ -1,0 +1,15 @@
+---
+title: "Standalone Setup"
+description: "Point Studio at a custom Streamable HTTP URL"
+---
+
+Run the server yourself, then attach Studio or Inspector as a client.
+
+```bash
+cd my-server
+nitrostack-py start --port 3000 --widget 3001
+```
+
+Custom Streamable HTTP URL: `http://<host>:3000/mcp`. Health: `http://<host>:3000/mcp/health`.
+
+For folder-connect or Inspector testing, see [Studio Overview](/python/studio/overview).

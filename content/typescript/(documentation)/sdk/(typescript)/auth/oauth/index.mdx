@@ -1,0 +1,118 @@
+---
+title: "OAuth 2.1"
+description: "Let users sign in with an identity provider, and protect tools with their tokens"
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Box, KeyRound, ShieldCheck } from 'lucide-react';
+import { LayoutTemplate, Lock } from 'lucide-react';
+
+OAuth 2.1 lets the people who use your MCP server sign in with an identity provider they already use, such as Auth0, Okta, Microsoft Entra ID, or Google. The client gets a short-lived access token from that provider and sends it with every request; your server checks the token and knows who is calling and what they're allowed to do.
+
+NitroStack's `OAuthModule` does the server side for you. It validates JWT signatures against the provider's keys, checks expiry, audience, and issuer, publishes the metadata clients need to start a sign-in (RFC 9728), and supports token introspection for opaque tokens. You add the module to your app and put `@UseGuards(OAuthGuard)` on the tools that need a signed-in user.
+
+## Quick start
+
+The fastest way to see OAuth working is the OAuth template, which has everything below already wired up.
+
+<Steps>
+<Step>
+
+### Create the project
+
+Scaffold a new project from the OAuth template:
+
+```bash
+npx @nitrostack/cli init my-oauth-server --template typescript-oauth
+cd my-oauth-server
+```
+
+</Step>
+<Step>
+
+### Set up your identity provider
+
+In your provider, create an application for your MCP clients and an API whose identifier is your server's `RESOURCE_URI`. Add the scopes your tools need, such as `read`, `write`, and `admin`. The template's `OAUTH_SETUP.md` walks through this for Auth0, and the [OAuth 2.1 template](/docs/templates/oauth) page lists the environment variables.
+
+</Step>
+<Step>
+
+### Configure the module
+
+`OAuthModule.forRoot()` tells NitroStack where your provider is and how to check its tokens. Every value comes from `.env`, so the same code runs in development and production.
+
+```typescript title="src/app.module.ts"
+import { McpApp, Module, ConfigModule, OAuthModule } from '@nitrostack/core';
+
+@McpApp({
+  module: AppModule,
+  server: { name: 'my-oauth-server', version: '1.0.0' },
+})
+@Module({
+  name: 'app',
+  imports: [
+    ConfigModule.forRoot(),
+    OAuthModule.forRoot({
+      // Reject calls without a valid token. Off by default for local development
+      required: process.env.OAUTH_REQUIRED === 'true',
+      // Your server's public identifier; tokens must be issued for it (RFC 8707)
+      resourceUri: process.env.RESOURCE_URI || 'https://mcplocal',
+      // Your identity provider
+      authorizationServers: [process.env.AUTH_SERVER_URL!],
+      scopesSupported: ['read', 'write', 'admin'],
+      // Verify JWT signatures with the provider's public keys
+      jwksUri: process.env.JWKS_URI,
+      // Optional extra checks
+      audience: process.env.TOKEN_AUDIENCE,
+      issuer: process.env.TOKEN_ISSUER,
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+</Step>
+<Step>
+
+### Start the server
+
+Run the server in development mode:
+
+```bash
+npm run dev
+```
+
+With OAuth enabled, the server publishes its sign-in metadata over HTTP even while it talks MCP over STDIO. In STDIO mode the metadata is served on port 3005 by default; set `OAUTH_DISCOVERY_PORT` to change it.
+
+</Step>
+<Step>
+
+### Sign in from NitroStudio
+
+Open the project in [NitroStudio](/docs/studio/overview), go to **Authentication**, and add your provider's details for the project. Register `nitrostudio://oauth/callback` as a redirect URI in your provider. After you sign in, call a protected tool and it runs as you.
+
+</Step>
+</Steps>
+
+<Callout type="warn" title="Turn enforcement on before you deploy">
+
+While `OAUTH_REQUIRED` isn't `true`, `OAuthGuard` lets calls through without a token, which is convenient locally. Set `OAUTH_REQUIRED=true` in every deployed environment.
+
+</Callout>
+
+## OAuth topics
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="shield" />} title="Protect Tools" href="/docs/sdk/auth/oauth/protecting-tools" description="Require sign-in and scopes on a tool." />
+  <Card className="nx-card-illo" icon={<Illustration name="flow" />} title="How It Works" href="/docs/sdk/auth/oauth/how-it-works" description="Discovery endpoints, token checks, and the sign-in flow." />
+  <Card className="nx-card-illo" icon={<Illustration name="code" />} title="Configuration" href="/docs/sdk/auth/oauth/configuration" description="Introspection, custom validation, and security features." />
+  <Card className="nx-card-illo" icon={<Illustration name="rocket" />} title="Testing and Production" href="/docs/sdk/auth/oauth/testing-and-production" description="Test sign-in locally, then deploy safely." />
+</Cards>
+
+## Related
+
+<Cards>
+  <Card icon={<LayoutTemplate />} title="OAuth 2.1 template" href="/docs/templates/oauth" description="A complete flight-booking server with OAuth." />
+  <Card icon={<Lock />} title="Studio authentication" href="/docs/studio/authentication" description="Sign in to a protected server from Studio." />
+  <Card icon={<ShieldCheck />} title="Authentication overview" href="/docs/sdk/auth/overview" description="OAuth, JWT, and API keys compared." />
+</Cards>

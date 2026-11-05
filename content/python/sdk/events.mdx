@@ -1,0 +1,20 @@
+---
+title: "Events"
+description: "@on_event and EventEmitter"
+---
+
+Events let one part of your app react to something that happened in another, without calling it directly. Emit an event with a name and a payload; every handler registered for that name receives it.
+
+```python
+from nitrostack import on_event, EventEmitter
+
+@on_event("order.created")
+async def on_order_created(payload: dict) -> None:
+    ...
+
+emitter = EventEmitter()
+await emitter.emit("order.created", {"id": "ord_1"})
+emitter.emit_sync("order.created", {"id": "ord_1"})
+```
+
+`EventEmitter` also supports `on`, `off`, `once`.

@@ -1,0 +1,9 @@
+{
+  "title": "Get started",
+  "pages": [
+    "create-mcp-server",
+    "add-mcp-server",
+    "configuration"
+  ],
+  "icon": "Rocket"
+}

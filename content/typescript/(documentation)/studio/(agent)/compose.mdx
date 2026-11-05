@@ -1,0 +1,57 @@
+---
+title: Compose
+description: Build and change an MCP app by describing what it should do.
+---
+
+import { MessageSquare, GraduationCap, FlaskConical, Rocket } from 'lucide-react';
+
+Compose is an agent that builds your MCP app with you. You describe what the app should do, its tools, and the widgets that show their results, and Compose writes the code, runs the server, and checks the result in a live chat. You stay in the loop the whole time: every change is visible, and you can ask for another.
+
+<Screenshot src="/images/studio/compose.webp" alt="Compose in NitroStudio: the Compose agent summarizing its changes on the left, and the Travel Buddy app on the right showing a search-hotels widget with two hotel cards" caption="Compose on the left, explaining what it changed; the Travel Buddy app on the right, rendering the hotel results as a widget." />
+
+## Vibe code your own MCP with Compose
+
+You don't need to write any code to start. On NitroStudio's home screen, under **Build anything with MCP**, describe the app you want in plain words, for example:
+
+> Create a travel planner which generates travel itineraries and books hotel for the given date
+
+Choose the model under the prompt, attach a file or speak the prompt if that's easier, and pick the folder the project goes in. Then click **Build**, or press ⌘ + Enter.
+
+<Screenshot src="/images/studio/compose-start.png" alt="NitroStudio's home screen: Build anything with MCP, with a prompt describing a travel planner, the model selector, a microphone button, the Build button, and the Home folder picker" caption="Describe the app, then click Build. Compose takes it from there." />
+
+Compose turns the description into a complete MCP server: it plans the tools and widgets, writes the code, runs the server, and tests it in a live chat, all while you watch. When it's done, the app is running in the right-hand pane, ready to try, change, and [deploy](/docs/studio/deployments). The sections below explain what you see while it works.
+
+To change a server you already have instead, click **Open existing mcp**.
+
+## Two panes
+
+Switch to Compose with **Composer** at the bottom right of the window.
+
+The left pane is your conversation with Compose. Describe the app or a change to it, mention a [skill](/docs/studio/skills) or a tool with `@` to point Compose at it, and follow its progress. Compose works from a specification: the tools, the widgets and what each must show, and the requirements the code must meet, such as rendering correctly in light and dark themes. It typechecks after every change and doesn't call the work finished until the checks pass.
+
+The right pane is your app, running. It's a chat with the app's [branding](/docs/studio/chat#branding), its tools, and its connection status, where tool calls render their widgets exactly as users will see them. When a result looks wrong, **Fix in chat** sends it back to Compose with the context it needs. **View raw JSON** shows what the tool actually returned, and **Full chat** opens the app in a full-size chat.
+
+## Progress and checkpoints
+
+Compose breaks the build into steps. If you leave and come back, it offers to **Continue building** from the last completed step, or to **Start fresh**.
+
+Save a **checkpoint** whenever the app is in a state you like. If a later change goes wrong, you can return to it.
+
+## When the chat unlocks
+
+While the app is still being built, its chat is read-only. It unlocks after the app's first conversation test passes, which includes its widgets rendering in the test runner. That way, the first time you chat with the app, it already works end to end.
+
+## Related
+
+<Cards>
+  <Card icon={<GraduationCap />} title="Skills" href="/docs/studio/skills" description="Instructions Compose and the chat can follow." />
+  <Card icon={<FlaskConical />} title="Test Cases" href="/docs/studio/test-cases" description="The tests that unlock the chat." />
+  <Card icon={<MessageSquare />} title="AI Chat" href="/docs/studio/chat" description="Chat with any connected server." />
+  <Card icon={<Rocket />} title="Deployments" href="/docs/studio/deployments" description="Ship the app to NitroCloud." />
+</Cards>
+
+## Watch the video
+
+For an example of building an app this way, check out the video.
+
+<YouTube id="OeB4x7mYSRA" title="Building an AI Agent That Can Make Payments | Build With NitroStack" />

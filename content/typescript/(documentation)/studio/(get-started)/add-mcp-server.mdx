@@ -1,0 +1,61 @@
+---
+title: Add an MCP server
+description: Open a project folder in Studio, or connect a prebuilt server.
+---
+
+import { FolderPlus, Settings, Network, Lock } from 'lucide-react';
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+Studio works on one or more MCP servers at a time. Each one you add becomes a project in Studio, shown in the project card at the top of the sidebar. When you open a project, Studio starts the server, connects to it, and loads its tools, resources, prompts, and tasks.
+
+## Open a project folder
+
+<Steps>
+<Step>
+
+### Choose the folder
+
+In the project card, choose **Add / Manage Projects**. Select your project's folder, the one that contains `package.json`, and click **Connect**.
+
+</Step>
+<Step>
+
+### Check the connection
+
+The project card shows the project's name and three fields. **Status** reads **Connected** once Studio has reached the server. **Transport** shows how it's connected, usually `STDIO` for a local project. **Watch** shows whether Studio reloads the server when you save a file.
+
+</Step>
+<Step>
+
+### Explore what it offers
+
+Open [App Canvas](/docs/studio/app-canvas) to see everything the server exposes, or go straight to [Tools](/docs/studio/tools) to run one.
+
+</Step>
+</Steps>
+
+If the status doesn't change to **Connected**, run `npm run build` in the project folder and fix any errors it reports, then try again. [Logs](/docs/studio/logs) shows what the server printed while it started.
+
+## Connect a prebuilt server
+
+Studio's marketplace connects well-known MCP servers in one step, such as GitHub, Figma, Linear, Jira, Supabase, and Vercel. These servers run elsewhere, so you don't need their code. If a server requires you to sign in, Studio handles the OAuth flow and keeps the credentials on your machine; see [Authentication](/docs/studio/authentication).
+
+## Work with several servers
+
+You can connect several projects at once. Each keeps its own session, and you switch between them from the project card. In **All** mode, Studio combines the tools of every connected project, so a single chat can use them together. This is useful when your app relies on another server, for example your own server plus GitHub.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Network />} title="App Canvas" href="/docs/studio/app-canvas" description="See your whole server on one screen." />
+  <Card icon={<Settings />} title="Configuration" href="/docs/studio/configuration" description="Watch mode, theme, and chat settings." />
+  <Card icon={<Lock />} title="Authentication" href="/docs/studio/authentication" description="Sign in to servers that need credentials." />
+  <Card icon={<FolderPlus />} title="Create an MCP server" href="/docs/studio/create-mcp-server" description="Start a new server instead." />
+</Cards>
+
+## Watch the video
+
+Check out the video for a walkthrough of everything on this page.
+
+<YouTube id="0SMdC69TaHA" title="Installing NitroStudio and Adding Your First MCP Server" />

@@ -1,0 +1,9 @@
+{
+  "title": "Getting Started",
+  "pages": [
+    "overview",
+    "quickstart",
+    "how-nitrostack-works",
+    "core-concepts"
+  ]
+}

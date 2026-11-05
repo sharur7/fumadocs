@@ -1,0 +1,190 @@
+---
+title: "Dev Command"
+description: "Run your server in development mode with hot reload."
+---
+
+import { Download, FlaskConical, Monitor, Package } from 'lucide-react';
+
+The `dev` command starts your NitroStack server in development mode, with hot reload for the server and a development server for your widgets. Leave it running while you work, and your changes appear as you save.
+
+<Callout type="info" title="NitroStudio runs separately">
+
+NitroStudio is a standalone application, and `dev` does not start it. To open your project in Studio, see [Add an MCP server](/docs/studio/add-mcp-server).
+
+</Callout>
+
+## Usage
+
+Run it from your project folder. TypeScript projects created with `init` also have an `npm run dev` script that runs the same command.
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli dev [options]
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py dev [options]
+```
+
+## Options
+
+Every option is optional.
+
+| Option | CLI | Description | Default |
+|--------|-----|-------------|---------|
+| `--port <port>` | TypeScript | Port for the widget development server. In CLI 1.1.2 the flag is accepted, but the widget server always starts on 3001. | `3001` |
+| `--port <port>` | Python | MCP HTTP port | `3000` |
+| `--widget <port>` | Python | Widget preview port | `3001` |
+
+## How it works
+
+`dev` runs two processes side by side: your MCP server, which reloads when you save, and a Next.js server for your widgets. NitroStudio is a separate app that connects to both.
+
+<DevServerDiagram />
+
+When you run it, the CLI does three things:
+
+1. Starts your MCP server over the stdio transport and watches `src/` for changes, reloading the server when a file changes.
+2. Starts the widget server if `src/widgets` exists. It is a Next.js dev server on port 3001, with React Fast Refresh, so widget edits appear without losing state.
+3. Prints a ready screen that shows where the widgets are served and how to connect NitroStudio.
+
+### What is watched
+
+Changes to `.ts` and `.js` files under `src/`, and to `.env`, reload the server. `node_modules/`, `dist/`, `logs/`, and `src/widgets/` are not watched by the server; Next.js handles the widgets.
+
+### Python projects
+
+The Python CLI reloads the project's `main.py`, and any widgets under `src/widgets`, using [watchfiles](https://watchfiles.helpmanual.io/). The server uses the stdio transport unless `MCP_TRANSPORT_TYPE` or a production environment says otherwise.
+
+## Example
+
+Running `dev` in a project that has widgets looks like this:
+
+```bash
+nitrostack-cli dev
+```
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  NITROSTACK ━━ Development                                       │
+│  Starting development servers                                    │
+└──────────────────────────────────────────────────────────────────┘
+
+✔ MCP Server ready (stdio)
+✔ Widget Server ready (http://localhost:3001)
+
+┌──────────────────────────────────────────────────────────────────┐
+│  ✓ Development servers ready                                     │
+│                                                                  │
+│  MCP Server: stdio transport                                     │
+│  Widgets: http://localhost:3001                                  │
+│                                                                  │
+│  To test your server:                                            │
+│  1. Open NitroStudio                                             │
+│  2. Select this project folder                                   │
+│  3. Click Connect                                                │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+## Configure development mode
+
+Set these in your project's `.env` file:
+
+```bash
+# Widget port
+WIDGET_PORT=3001
+
+# Log level
+LOG_LEVEL=info
+
+# Transport type (for MCP)
+MCP_TRANSPORT_TYPE=stdio
+```
+
+To see more detail while debugging, start with the log level raised:
+
+```bash
+LOG_LEVEL=debug npm run dev
+```
+
+## Use the MCP Inspector
+
+To test with the MCP Inspector, run the server over HTTP and connect Streamable HTTP to `http://localhost:3000/mcp`, with no trailing slash. In a Python project, the live widget preview is at `http://localhost:3000/widgets/preview`.
+
+```bash tab="TypeScript" tab-group="language"
+MCP_TRANSPORT_TYPE=http npm start
+```
+
+```bash tab="Python" tab-group="language"
+MCP_TRANSPORT_TYPE=http MCP_STATELESS=true nitrostack-py dev
+```
+
+## Connect NitroStudio
+
+With `dev` running, connect Studio to the project:
+
+1. [Download NitroStudio](https://nitrostack.ai/studio) and open it.
+2. Select your project folder.
+3. Click **Connect**.
+
+Studio connects to your MCP server and widget server automatically. From there you can run tools, preview widgets, and test with AI chat; save a file, and the changes are live on the next call.
+
+## Register with Claude Desktop
+
+The Python CLI can add your server to Claude Desktop for you. `register` writes Claude Desktop's MCP configuration for the project, and finds both the standard and the Windows Store installs and your virtual environment's Python. Restart Claude Desktop afterwards. For TypeScript projects, and other clients, see [Connect to Clients](/docs/guides/connect-to-clients).
+
+```bash
+nitrostack-py register --name my-mcp-server --file main.py
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--name` | Server name in Claude Desktop | The current folder name |
+| `--file` | Python entry script | `main.py` |
+
+## Troubleshooting
+
+### Port already in use
+
+If you see `listen EADDRINUSE: address already in use :::3001`, another process is using the widget port, often a second copy of `dev`. Find it and stop it gracefully.
+
+```bash
+lsof -i :3001
+kill -15 <PID>
+```
+
+### TypeScript errors on start
+
+If the server fails to compile, find the errors with the TypeScript compiler, fix them, and restart.
+
+```bash
+npx tsc --noEmit
+npm run dev
+```
+
+### Widgets don't load
+
+If widgets return a 500 error, check that the widget server responds and that its dependencies are installed, then restart.
+
+```bash
+curl http://localhost:3001
+cd src/widgets && npm install
+npm run dev
+```
+
+### Hot reload stops working
+
+Check that you have write access to `src/`, restart `dev`, and confirm the project still builds.
+
+```bash
+ls -la src/
+npm run build
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Package />} title="Build" href="/docs/cli/build-and-ship#build" description="Compile for production." />
+  <Card icon={<Download />} title="Install" href="/docs/cli/manage-dependencies#install" description="Install server and widget dependencies." />
+  <Card icon={<Monitor />} title="Add an MCP server" href="/docs/studio/add-mcp-server" description="Open the project in NitroStudio." />
+  <Card icon={<FlaskConical />} title="Testing" href="/docs/sdk/testing" description="Test your tools in code." />
+</Cards>

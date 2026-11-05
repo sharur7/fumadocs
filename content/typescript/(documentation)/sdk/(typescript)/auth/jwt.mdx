@@ -1,0 +1,123 @@
+---
+title: "JWT"
+description: "Authenticate callers with JSON Web Tokens you issue yourself"
+---
+
+import { KeyRound, ShieldCheck, Lock } from 'lucide-react';
+
+Use JWTs when your own server, or a service you run, signs users in and issues tokens. Each call carries a signed token; a guard verifies the signature and expiry and tells your tools who is calling. If users sign in with an external identity provider instead, use [OAuth 2.1](/docs/sdk/auth/oauth).
+
+## Set up JWTModule
+
+`JWTModule` holds your signing secret and token settings, so every part of the app signs and verifies tokens the same way.
+
+```typescript
+import { JWTModule, Module, McpApp } from '@nitrostack/core';
+
+@McpApp({
+  module: AppModule,
+  server: { name: 'my-server', version: '1.0.0' }
+})
+@Module({
+  imports: [
+    JWTModule.forRoot({
+      secret: process.env.JWT_SECRET!,
+      expiresIn: '7d'
+    }),
+    // Other modules...
+  ]
+})
+export class AppModule {}
+```
+
+## Create a JWT guard
+
+The guard reads the bearer token from the request, verifies it, and puts the user's identity on `context.auth`. Tools that use the guard can trust that identity.
+
+```typescript
+import { Guard, ExecutionContext, Injectable } from '@nitrostack/core';
+import * as jwt from 'jsonwebtoken';
+
+@Injectable()
+export class JWTGuard implements Guard {
+  constructor(private config: ConfigService) {}
+  
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const token = this.extractToken(context);
+    
+    if (!token) {
+      context.logger.warn('No token provided');
+      return false;
+    }
+    
+    try {
+      const secret = this.config.get('JWT_SECRET');
+      const payload = jwt.verify(token, secret) as any;
+      
+      // Attach auth info to context
+      context.auth = {
+        subject: payload.sub,
+        email: payload.email,
+        role: payload.role,
+        token: token
+      };
+      
+      context.logger.info(`Authenticated user: ${payload.sub}`);
+      return true;
+      
+    } catch (error) {
+      context.logger.error('Token verification failed:', error);
+      return false;
+    }
+  }
+  
+  private extractToken(context: ExecutionContext): string | null {
+    // From metadata (MCP protocol)
+    if (context.metadata?.authorization) {
+      const auth = context.metadata.authorization;
+      if (auth.startsWith('Bearer ')) {
+        return auth.substring(7);
+      }
+    }
+    
+    // From tool arguments (for testing)
+    if (context.metadata?.token) {
+      return context.metadata.token;
+    }
+    
+    return null;
+  }
+}
+```
+
+## Issue tokens from a login tool
+
+A login tool checks a user's credentials and returns a signed token, which the client sends with later calls.
+
+```typescript
+import * as jwt from 'jsonwebtoken';
+import * as bcrypt from 'bcrypt';
+
+export class AuthTools {
+  constructor(
+    private userService: UserService
+  ) {}
+  
+  @Tool({ name: 'whoami' })
+  @UseGuards(JWTGuard)
+  @Widget('user-profile')
+  async whoami(input: any, ctx: ExecutionContext) {
+    const userId = ctx.auth?.subject;
+    const user = await this.userService.findById(userId);
+    return user;
+  }
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Access control" href="/docs/sdk/auth/access-control" description="Roles, scopes, and combined checks." />
+  <Card icon={<KeyRound />} title="OAuth 2.1" href="/docs/sdk/auth/oauth" description="Let an identity provider issue tokens." />
+  <Card icon={<Lock />} title="Studio authentication" href="/docs/studio/authentication" description="Send a JWT from Studio." />
+</Cards>

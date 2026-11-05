@@ -1,0 +1,90 @@
+---
+title: "API Key Auth"
+description: "Protect tools with ApiKeyModule and ApiKeyGuard"
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { KeyRound, ShieldCheck } from 'lucide-react';
+
+API keys suit services and integrations: another backend, an internal tool, a script. `ApiKeyModule` loads the valid keys from your environment, and `ApiKeyGuard` checks the key each call carries in its `x-api-key` header.
+
+## Set up
+
+<Steps>
+<Step>
+
+### Add keys to your environment
+
+`ApiKeyModule` reads `API_KEY`, plus every variable that starts with `API_KEY_`, so you can keep several keys at once and rotate them.
+
+```bash title=".env"
+API_KEY=sk_live_first
+API_KEY_PARTNER=sk_live_second
+```
+
+</Step>
+<Step>
+
+### Import the module
+
+Add `ApiKeyModule` to your root module so the keys load at startup.
+
+```python title="app_module.py"
+from nitrostack import module, ApiKeyModule
+
+@module(name="app", imports=[ApiKeyModule.for_root()])
+class AppModule:
+    pass
+```
+
+</Step>
+<Step>
+
+### Guard your tools
+
+Add `@use_guards(ApiKeyGuard)` to every tool that must not be called anonymously. A call without a valid key is rejected before your handler runs.
+
+```python
+from nitrostack import tool, use_guards, ApiKeyGuard, ExecutionContext
+
+@tool(name="secret_op", description="Run a protected operation", input_schema=OpInput)
+@use_guards(ApiKeyGuard)
+async def secret_op(self, input: OpInput, context: ExecutionContext):
+    ...
+```
+
+</Step>
+</Steps>
+
+If no keys are configured, the guard rejects every call.
+
+## Options
+
+`ApiKeyModule.for_root()` takes three optional arguments:
+
+| Argument | Default | Description |
+| :-- | :-- | :-- |
+| `keys_env_prefix` | `"API_KEY"` | The environment variable to read, plus any that start with this prefix and `_`. |
+| `header_name` | `"x-api-key"` | The header name stored on the service. `ApiKeyGuard` itself always reads `x-api-key`. |
+| `hashed` | `False` | Store SHA-256 hashes in the environment instead of the keys themselves. |
+
+## Hashed keys and new keys
+
+With `hashed=True`, the guard hashes the incoming key and compares it with the stored hashes, so the raw keys never sit in your environment. `ApiKeyService` has helpers to create a key and its hash:
+
+```python
+from nitrostack.auth.api_key import ApiKeyService
+
+service = ApiKeyService()
+key = service.generate_key(prefix="sk")   # give this to the client
+stored = service.hash_key(key)            # put this in API_KEY_...
+```
+
+Use one primary auth method per server. Combine API keys with [OAuth](/python/sdk/auth/oauth) only when you need both.
+
+## Next steps
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Authentication Overview" href="/python/sdk/auth/overview" description="API keys, JWT, and OAuth compared." />
+  <Card icon={<KeyRound />} title="OAuth 2.1" href="/python/sdk/auth/oauth" description="Sign-in with an identity provider." />
+</Cards>

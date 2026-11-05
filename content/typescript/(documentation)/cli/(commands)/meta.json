@@ -1,0 +1,5 @@
+{
+  "title": "Commands",
+  "icon": "SquareTerminal",
+  "pages": ["init", "dev", "generate", "build-and-ship"]
+}

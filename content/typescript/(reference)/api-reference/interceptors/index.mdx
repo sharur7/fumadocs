@@ -1,0 +1,119 @@
+---
+title: "Interceptors"
+description: "Interceptor interface and decorators for TypeScript and Python"
+icon: Repeat
+---
+
+import { Sparkles } from 'lucide-react';
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+Interceptors wrap tool execution handlers to implement cross-cutting concerns, transform input/output payloads, inject metadata, and protect against payload overflow. They execute after guards and pipes, directly surrounding the tool handler.
+
+## Core Interfaces & Types
+
+An interceptor wraps the handler: it calls `next()` to run it and can change the result.
+
+### InterceptorInterface
+
+All interceptors implement the `InterceptorInterface` contract:
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { ExecutionContext } from '@nitrostack/core';
+
+export interface InterceptorInterface {
+  /**
+   * Intercepts tool execution before and after handler invocation.
+   *
+   * @param context Execution context containing auth, logger, request metadata
+   * @param next Invocation trigger calling the next interceptor or tool handler
+   * @returns Transformed or validated result
+   */
+  intercept(
+    context: ExecutionContext,
+    next: () => Promise<unknown>
+  ): Promise<unknown>;
+}
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+async def intercept(self, context: ExecutionContext, next_fn)
+```
+
+```python
+from nitrostack import use_interceptors
+
+@use_interceptors(TimingInterceptor)
+async def handler(...):
+    ...
+```
+
+Scaffold: `nitrostack-py generate interceptor Transform`.
+
+</Tab>
+</Tabs>
+
+### Type Definitions
+
+Types used when you attach interceptors:
+
+```typescript
+export type InterceptorConstructor = new (...args: unknown[]) => InterceptorInterface;
+
+/**
+ * Union permitting either an uninstantiated class constructor
+ * or a pre-configured instance.
+ */
+export type InterceptorType = InterceptorConstructor | InterceptorInterface;
+```
+
+## Interceptor Decorators
+
+Mark interceptor classes, and attach them to handlers.
+
+### @Interceptor()
+
+Marks a class as an interceptor, making it discoverable and registrable within the NitroStack DI container.
+
+```typescript
+import { Interceptor, InterceptorInterface, ExecutionContext } from '@nitrostack/core';
+
+@Interceptor()
+export class TimingInterceptor implements InterceptorInterface {
+  async intercept(context: ExecutionContext, next: () => Promise<unknown>) {
+    const start = Date.now();
+    const result = await next();
+    context.logger.info(`Execution took ${Date.now() - start}ms`, {
+      tool: context.toolName,
+    });
+    return result;
+  }
+}
+```
+
+### @UseInterceptors()
+
+Binds one or more interceptors to a specific tool method or entire controller class.
+
+```typescript
+@UseInterceptors(...interceptors: InterceptorType[])
+```
+
+* **Method-level**: Evaluated specifically for that method.
+* **Class-level**: Applied across all tool methods declared within the class.
+* **Accepts**: Both class constructors (`@UseInterceptors(TimingInterceptor)`) and pre-configured instances (`@UseInterceptors(new DataSpilloverInterceptor({ maxPayloadBytes: 20480 }))`).
+
+## Data spillover
+
+The built-in `DataSpilloverInterceptor` moves large tool results out of the model's context. Its options, envelope schema, storage drivers, and preview generator are on a separate page.
+
+<Cards>
+  <Card icon={<Sparkles />} title="Data Spillover" href="/docs/api-reference/interceptors/data-spillover" description="DataSpilloverInterceptor, envelope, drivers, and previews." />
+  <Card icon={<Sparkles />} title="Interceptors guide" href="/docs/sdk/interceptors" description="Patterns for reshaping, masking, and caching responses." />
+</Cards>

@@ -1,0 +1,71 @@
+---
+title: "Cache Storage"
+description: "Keep cached results in memory or in a shared store such as Redis"
+---
+
+import { DatabaseZap, Database } from 'lucide-react';
+
+By default, `@Cache` keeps results in the memory of the server process. That's the fastest option and needs no setup, but each copy of your server has its own cache, and it's empty again after a restart. When you run several copies behind a load balancer, keep results in a shared store so every copy can reuse them.
+
+<Compare columns={[
+  { title: 'In memory', sub: 'The default', icon: 'MemoryStick', items: ['No setup, fastest reads', 'Empty after a restart', 'Each server caches separately'] },
+  { title: 'Shared store', sub: 'For example Redis', icon: 'Database', accent: true, items: ['One cache for every server', 'Survives restarts', 'Needs a store you run'] },
+]} />
+
+## The storage interface
+
+Any object with these four methods can store cached results. `get` returns a stored value, or `undefined` when there's none or it has expired.
+
+```typescript
+interface CacheStorage {
+  get(key: string): Promise<unknown> | unknown;
+  set(key: string, value: unknown, ttl: number): Promise<void> | void; // ttl in seconds
+  delete(key: string): Promise<void> | void;
+  clear(): Promise<void> | void;
+}
+```
+
+## Redis
+
+This implementation stores each result as JSON and lets Redis expire it after the TTL.
+
+```typescript title="src/common/redis-cache.storage.ts"
+import { createClient } from 'redis';
+import type { CacheStorage } from '@nitrostack/core';
+
+const client = createClient({ url: process.env.REDIS_URL });
+await client.connect();
+
+export const redisCacheStorage: CacheStorage = {
+  async get(key) {
+    const value = await client.get(`cache:${key}`);
+    return value === null ? undefined : JSON.parse(value);
+  },
+  async set(key, value, ttl) {
+    await client.set(`cache:${key}`, JSON.stringify(value), { EX: ttl });
+  },
+  async delete(key) {
+    await client.del(`cache:${key}`);
+  },
+  async clear() {
+    for await (const key of client.scanIterator({ MATCH: 'cache:*' })) {
+      await client.del(key);
+    }
+  },
+};
+```
+
+Pass it to each cache that should be shared:
+
+```typescript
+@Cache({ ttl: 300, storage: redisCacheStorage })
+```
+
+Results are stored as JSON, so return plain data from cached handlers: objects, arrays, strings, and numbers, not class instances or dates you expect to come back as `Date` objects.
+
+## Next steps
+
+<Cards>
+  <Card icon={<DatabaseZap />} title="Caching" href="/docs/sdk/caching" description="Options, keys, and clearing the cache." />
+  <Card icon={<Database />} title="Rate limit storage" href="/docs/sdk/rate-limiting/storage" description="Share rate limit counters the same way." />
+</Cards>

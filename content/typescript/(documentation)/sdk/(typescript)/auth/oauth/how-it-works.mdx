@@ -1,0 +1,131 @@
+---
+title: "How It Works"
+description: "The discovery server, token validation, and the sign-in flow"
+---
+
+import { Settings } from 'lucide-react';
+
+An OAuth-protected MCP server has two jobs: tell clients how to sign in, and check the tokens they send back. This page shows how NitroStack does both.
+
+## Two jobs, two channels
+
+Clients need to find out how to sign in before they have a token, so the sign-in metadata is always available over plain HTTP. Tool calls keep using your normal transport.
+
+<Compare columns={[
+  { title: 'MCP transport', sub: 'STDIO or HTTP', icon: 'Cable', items: ['Carries tool calls and results', 'Checks the bearer token on protected tools', 'Connected to Studio, Claude, and other clients'] },
+  { title: 'Discovery over HTTP', sub: 'Port 3005 in STDIO mode, otherwise your HTTP port', icon: 'Globe', accent: true, items: ['/.well-known/oauth-protected-resource (RFC 9728)', 'Tells clients which provider to sign in with', 'Lists the scopes your server supports'] },
+]} caption="With OAuthModule, the server always publishes its sign-in metadata over HTTP, even when tools run over STDIO." />
+
+## Token validation
+
+Every call to a protected tool carries a bearer token. `OAuthGuard` validates it before the handler runs.
+
+### What's checked
+
+A token passes only if all of these hold:
+
+| Check | Claim |
+| :-- | :-- |
+| The token is a well-formed JWT | |
+| The signature matches the provider's keys (JWKS) | |
+| It hasn't expired | `exp` |
+| It's already valid | `nbf` |
+| It was issued for your server | `aud` |
+| It was issued by your provider | `iss` |
+| It has the scopes the tool requires | `scope` |
+
+### An example token
+
+A decoded access token looks like this. `sub` identifies the user and `scope` lists what they may do.
+
+```json
+{
+  "iss": "https://auth.example.com/",
+  "sub": "auth0|abc123",
+  "aud": "http://localhost:3002",
+  "exp": 1234567890,
+  "iat": 1234564290,
+  "scope": "read write admin",
+  "email": "user@example.com"
+}
+```
+
+### Reading claims in a tool
+
+After validation, the claims are available on `context.auth`.
+
+```typescript
+@Tool({ name: 'check_token' })
+@UseGuards(OAuthGuard)
+async checkToken(input: any, context: ExecutionContext) {
+  const auth = context.auth;
+  const payload = auth?.tokenPayload;
+
+  return {
+    // Standard claims from AuthContext
+    subject: auth?.subject,                  // User ID (sub claim)
+    scopes: auth?.scopes,                    // ['read', 'write']
+    clientId: auth?.clientId,                // Client identifier
+    exp: payload?.exp,                       // Expiration timestamp (Unix)
+
+    // Full decoded token payload
+    tokenPayload: payload,                   // OAuthTokenPayload
+    email: (payload as any)?.email,          // Custom or profile claim
+  };
+}
+```
+
+## The sign-in flow
+
+This is the full sequence, from a client that knows nothing about your server to a successful tool call.
+
+<Sequence actors={['Client (Studio)', 'Identity provider', 'Your MCP server']} messages={[
+  { from: 0, to: 2, label: 'Discover OAuth settings', sub: 'GET /.well-known/oauth-protected-resource' },
+  { from: 2, to: 0, label: 'Provider and scopes' },
+  { from: 0, to: 1, label: 'Start sign-in', sub: 'Authorization request with PKCE' },
+  { at: 1, note: 'The user signs in and approves access' },
+  { from: 1, to: 0, label: 'Authorization code' },
+  { from: 0, to: 1, label: 'Exchange the code' },
+  { from: 1, to: 0, label: 'Access token (JWT)' },
+  { from: 0, to: 2, label: 'Call a tool', sub: 'Authorization: Bearer <token>' },
+  { at: 2, note: 'OAuthGuard validates the token' },
+  { from: 2, to: 0, label: 'Tool result' },
+]} caption="The client signs in with the provider, never with your server. Your server only checks the token it receives." />
+
+## Standards
+
+NitroStack implements these specifications:
+
+- **OAuth 2.1** ([draft-ietf-oauth-v2-1-13](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13))
+- **RFC 9728** - Protected Resource Metadata (`/.well-known/oauth-protected-resource`)
+- **RFC 8414** - Authorization Server Metadata (`/.well-known/oauth-authorization-server`)
+- **Client ID Metadata Documents (CIMD)** - Modern client identifier specification (MCP 2026-07-28 replacement for DCR)
+- **RFC 7591** - Dynamic Client Registration (optional legacy opt-in via `enableClientRegistration: true`)
+- **RFC 8707** - Resource Indicators (Token Audience Binding)
+- **RFC 7636** - PKCE
+- **RFC 7662** - Token Introspection
+- **RFC 9068** - JWT Profile for OAuth 2.0 Access Tokens
+
+Compatible with:
+[MCP Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization)
+[OpenAI Apps SDK](https://developers.openai.com/apps-sdk/build/auth)
+
+## Providers
+
+Any provider that follows the OAuth 2.1 standards works, including:
+
+- **Auth0** - Easiest for testing
+- **Okta** - Enterprise-ready
+- **Keycloak** - Self-hosted
+- **Azure AD / Entra ID**
+- **Google Identity Platform**
+- **AWS Cognito**
+- **Custom OAuth servers**
+
+See [OAuth 2.1 Template Guide](/docs/templates/oauth) and the template's `OAUTH_SETUP.md` for provider-specific setup guides.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Settings />} title="Configuration" href="/docs/sdk/auth/oauth/configuration" description="Introspection, custom validation, and more." />
+</Cards>

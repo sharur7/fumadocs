@@ -1,0 +1,87 @@
+---
+title: "Controllers and Initial Tools"
+description: "Group related tools under a prefix, and run a tool when a client connects"
+---
+
+import { Boxes, Settings } from 'lucide-react';
+
+As a server grows, related tools belong together. `@Controller` groups them under a shared prefix, and `@InitialTool` marks a tool to run as soon as a client connects.
+
+## Controller Grouping & Namespacing (@Controller)
+
+Rather than manually repeating prefix names across related tools (e.g., `orders_create`, `orders_get_status`), NitroStack provides the `@Controller` decorator. 
+
+Decorating a class with `@Controller(prefix)` achieves two critical architectural objectives:
+1. **Automatic Tool Namespacing:** Automatically prepends the prefix to every tool, resource, and prompt declared within the class.
+2. **Automatic DI Registration:** Automatically registers the controller instance inside NitroStack's dependency injection container as a singleton, ensuring it can receive constructor injections and participate in application lifecycle hooks.
+
+```typescript
+import { Controller, ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
+import { OrderService } from './order.service.js';
+
+@Controller('orders') // All tools automatically prefixed with 'orders_'
+export class OrdersController {
+  constructor(private readonly orderService: OrderService) {}
+
+  // Registered in MCP tool catalog as: 'orders_create'
+  @Tool({
+    name: 'create',
+    description: 'Create a new customer order',
+    inputSchema: z.object({
+      customerId: z.string().describe('Unique customer identifier'),
+      items: z.array(z.string()).describe('SKUs of items to order'),
+    }),
+  })
+  async createOrder(input: { customerId: string; items: string[] }, ctx: ExecutionContext) {
+    ctx.logger.info('Creating order', { customerId: input.customerId });
+    return await this.orderService.create(input);
+  }
+
+  // Registered in MCP tool catalog as: 'orders_get_status'
+  @Tool({
+    name: 'get_status',
+    description: 'Retrieve order tracking status',
+    inputSchema: z.object({
+      orderId: z.string().describe('Order ID to look up'),
+    }),
+  })
+  async getStatus(input: { orderId: string }, ctx: ExecutionContext) {
+    return await this.orderService.findStatus(input.orderId);
+  }
+}
+```
+
+## Initial Tool Startup Execution (@InitialTool)
+
+The `@InitialTool()` decorator marks a tool method to be called automatically when an MCP client initializes a new connection. This pattern is ideal for session handshakes, retrieving client environment configurations, or bootstrapping dynamic authorization state.
+
+```typescript
+import { Controller, ToolDecorator as Tool, InitialTool, ExecutionContext, z } from '@nitrostack/core';
+
+@Controller('session')
+export class SessionController {
+  @Tool({
+    name: 'bootstrap',
+    description: 'Initializes the client session and returns server capabilities',
+    inputSchema: z.object({}),
+  })
+  @InitialTool()
+  async bootstrapSession(input: Record<string, never>, ctx: ExecutionContext) {
+    ctx.logger.info('Session established', { sessionId: ctx.sessionId });
+
+    return {
+      appName: 'Enterprise Inventory Assistant',
+      version: '1.1.0',
+      authenticatedUser: ctx.auth?.subject ?? 'anonymous',
+      capabilities: ['inventory_search', 'order_management'],
+    };
+  }
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Settings />} title="Tool options" href="/docs/sdk/tools/options" description="Every option @Tool accepts." />
+  <Card icon={<Boxes />} title="Modules" href="/docs/getting-started/core-concepts/modules" description="Register controllers in a module." />
+</Cards>

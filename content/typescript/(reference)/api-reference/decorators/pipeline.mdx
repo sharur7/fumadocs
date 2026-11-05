@@ -1,0 +1,174 @@
+---
+title: "Pipeline"
+description: "Attach guards, middleware, interceptors, pipes, and filters to a handler"
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+These decorators attach request pipeline stages to a handler, or to every handler in a class. They run in a fixed order: guards, middleware, interceptors, pipes, then the handler, with filters catching errors.
+
+## @UseGuards
+
+Applies guards for authentication and authorization.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { UseGuards } from '@nitrostack/core';
+
+@UseGuards(...guards: GuardConstructor[])
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@use_guards(...)
+```
+
+</Tab>
+</Tabs>
+
+**Example:**
+
+```typescript
+@Tool({ name: 'admin_action' })
+@UseGuards(JWTGuard, AdminGuard)
+async adminAction(input: AdminInput, ctx: ExecutionContext) {
+  // Only authenticated admins can access
+}
+```
+
+## @UseMiddleware
+
+Applies middleware for cross-cutting concerns.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { UseMiddleware } from '@nitrostack/core';
+
+@UseMiddleware(...middleware: MiddlewareConstructor[])
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@use_middleware(...)
+```
+
+</Tab>
+</Tabs>
+
+**Example:**
+
+```typescript
+@Tool({ name: 'tracked_operation' })
+@UseMiddleware(LoggingMiddleware, TimingMiddleware)
+async trackedOperation(input: OperationInput, ctx: ExecutionContext) {
+  // Middleware runs before and after
+}
+```
+
+## @UseInterceptors
+
+Applies interceptors for response transformation.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { UseInterceptors } from '@nitrostack/core';
+
+@UseInterceptors(...interceptors: InterceptorConstructor[])
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@use_interceptors(...)
+```
+
+</Tab>
+</Tabs>
+
+**Example:**
+
+```typescript
+@Tool({ name: 'get_data' })
+@UseInterceptors(ResponseWrapperInterceptor, DataMaskingInterceptor)
+async getData(input: DataInput, ctx: ExecutionContext) {
+  return { sensitiveField: 'value' };
+  // Response transformed and masked by interceptors
+}
+```
+
+## @UsePipes
+
+Applies pipes for input validation and transformation.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { UsePipes } from '@nitrostack/core';
+
+@UsePipes(...pipes: PipeConstructor[])
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@use_pipes(...)
+```
+
+</Tab>
+</Tabs>
+
+**Example:**
+
+```typescript
+@Tool({ name: 'search' })
+@UsePipes(TrimPipe, ValidationPipe)
+async search(input: { query: string }, ctx: ExecutionContext) {
+  // Input is trimmed and validated
+}
+```
+
+## @UseFilters
+
+Applies exception filters for error handling.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { UseFilters } from '@nitrostack/core';
+
+@UseFilters(...filters: ExceptionFilterConstructor[])
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@use_filters(...)
+```
+
+</Tab>
+</Tabs>
+
+**Example:**
+
+```typescript
+@Tool({ name: 'risky_operation' })
+@UseFilters(GlobalExceptionFilter)
+async riskyOperation(input: RiskyInput, ctx: ExecutionContext) {
+  // Errors caught and formatted by filter
+}
+```

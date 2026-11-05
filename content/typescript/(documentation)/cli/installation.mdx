@@ -1,0 +1,112 @@
+---
+title: "Installation"
+description: "Install the NitroStack CLI, or run it on demand without installing."
+icon: Download
+---
+
+import { Play, Rocket, Sparkles } from 'lucide-react';
+
+You can install the NitroStack CLI once and use it everywhere. For TypeScript you can also skip installing and run it with `npx` each time.
+
+## Requirements
+
+The CLIs run on Windows, macOS, and Linux. The TypeScript CLI needs Node.js 20.x or later (LTS recommended) and npm 9.x or later; check yours with `node -v` and `npm -v`. The Python CLI needs Python and `pip`, and uses [uv](https://docs.astral.sh/uv/) when it's installed.
+
+## Install the CLI
+
+```bash tab="TypeScript" tab-group="language"
+npm install -g @nitrostack/cli
+```
+
+```bash tab="Python" tab-group="language"
+pip install nitrostack
+```
+
+With pnpm or Bun, install the TypeScript CLI with `pnpm add -g @nitrostack/cli` or `bun add -g @nitrostack/cli`. The Python package installs the SDK and the `nitrostack-py` command together.
+
+### Verify the installation
+
+Check that the command is on your path:
+
+```bash tab="TypeScript" tab-group="language"
+nitrostack-cli --version
+```
+
+```bash tab="Python" tab-group="language"
+nitrostack-py --version
+```
+
+If `nitrostack-py` isn't found, the script isn't on your `PATH`. Run it through Python instead: `python -m nitrostack.cli.main --help`.
+
+## Run without installing
+
+For TypeScript, `npx` downloads and runs the CLI for a single command, so nothing is installed globally. `pnpm dlx` and `bunx` do the same.
+
+```bash
+npx @nitrostack/cli init my-project
+```
+
+## What a new project depends on
+
+When `init` creates a project, it adds the SDK for you, so you never install it separately.
+
+### TypeScript projects
+
+A TypeScript project is two npm projects. The root `package.json` lists the SDK, plus the CLI and TypeScript as development tools:
+
+```json title="package.json"
+{
+  "dependencies": {
+    "@nitrostack/core": "^1",
+    "zod": "^3.22.4",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@nitrostack/cli": "^1",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.3.3"
+  }
+}
+```
+
+Widgets live in `src/widgets`, a separate Next.js app with its own `package.json`:
+
+```json title="src/widgets/package.json"
+{
+  "dependencies": {
+    "@nitrostack/widgets": "^1",
+    "next": "^14",
+    "react": "^18",
+    "react-dom": "^18"
+  }
+}
+```
+
+### Python projects
+
+`init` writes `pyproject.toml`, `.python-version`, and `uv.toml`, and runs `uv lock` when `uv` is on your `PATH`. Without uv, the project uses a `.venv` and `pip`. The dependency is always named `nitrostack`, in both `pyproject.toml` and `requirements.txt`.
+
+To test an unpublished copy of the SDK, pin it as a local path. With pip, put `-e /path/to/nitrostack-python-sdk` in `requirements.txt`, and `nitrostack-py install` uses `pip install -r requirements.txt`. With uv, add a source to `pyproject.toml`:
+
+```toml title="pyproject.toml"
+[tool.uv.sources]
+nitrostack = { path = "/path/to/nitrostack-python-sdk", editable = true }
+```
+
+## After you install
+
+To install a cloned project's dependencies, or to upgrade NitroStack packages, see [Manage Dependencies](/docs/cli/manage-dependencies). To test your server, download [NitroStudio](/docs/studio/overview).
+
+## Next steps
+
+<Cards>
+  <Card icon={<Rocket />} title="Quickstart" href="/docs/getting-started/quickstart" description="Create and run a server in five minutes." />
+  <Card icon={<Sparkles />} title="Init" href="/docs/cli/init" description="Create a project from a template." />
+  <Card icon={<Play />} title="Dev" href="/docs/cli/dev" description="Run it with hot reload." />
+</Cards>
+
+## Watch the video
+
+Check out the video for a walkthrough of everything on this page.
+
+<YouTube id="FxDkZ-RVQTQ" title="Getting Started With NitroStack: Installing It With the CLI" />

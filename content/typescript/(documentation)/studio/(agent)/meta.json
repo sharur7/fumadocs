@@ -1,0 +1,9 @@
+{
+  "title": "Agent",
+  "pages": [
+    "chat",
+    "compose",
+    "skills"
+  ],
+  "icon": "Bot"
+}

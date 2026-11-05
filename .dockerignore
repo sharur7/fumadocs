@@ -1,0 +1,33 @@
+# Dependencies & Build Outputs
+node_modules/
+.next/
+out/
+dist/
+build/
+.source/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Git & IDE files
+.git/
+.gitignore
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Testing & Cache
+coverage/
+.cache/
+*.tsbuildinfo
+.tsbuildinfo

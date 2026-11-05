@@ -1,0 +1,41 @@
+---
+title: "MCP Tasks"
+description: "task_support and context.task.update_progress"
+---
+
+Some tools take longer than a client wants to wait. A tool with task support can run in the background while the client checks on its progress, and can report progress as it goes.
+
+Long-running tools can opt into MCP tasks.
+
+Set `task_support` on `@tool`: `"forbidden"` \| `"optional"` \| `"required"`.
+
+```python
+from nitrostack import tool, ExecutionContext
+
+@tool(
+    name="import_catalog",
+    description="Import a large catalog",
+    input_schema=ImportInput,
+    task_support="optional",
+)
+async def import_catalog(self, input: ImportInput, context: ExecutionContext) -> dict:
+    context.task.throw_if_cancelled()
+    await context.task.update_progress(0.5, "halfway")
+    return {"ok": True}
+```
+
+Types: `TaskManager`, `TaskData`, `TaskStatus`, `TERMINAL_STATUSES`, `is_terminal_status`. Store: `TaskStore`, `InMemoryTaskStore`, `check_task_access`. Errors: `TaskCancelledError`, `TaskNotFoundError`, `TaskAlreadyTerminalError`, `InvalidTaskTransitionError`, `TaskExpiredError`.
+
+Progress also emits `notifications/progress` on HTTP when the client sends `_meta.progressToken`.
+
+## Multi-round-trip (MRTR)
+
+A tool can pause and ask the client for more input, then finish once it arrives.
+
+```python
+from nitrostack import input_required, accepted_content, InputRequest
+
+# elicit more input from the client when the tool cannot finish in one round
+```
+
+See `InputRequest`, `InputRequiredResult`, `input_required`, `accepted_content` in `nitrostack.protocol.mrtr`.

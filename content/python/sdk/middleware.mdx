@@ -1,0 +1,41 @@
+---
+title: "Middleware"
+description: "use_middleware protocol and stacking"
+---
+
+import { ShieldCheck, Sparkles } from 'lucide-react';
+
+<Callout type="info" title="Agent skill">
+
+`nitrostack-python-middleware-pipeline`
+
+</Callout>
+
+Middleware wraps every call to a handler. It runs code before and after the rest of the pipeline, which makes it the place for logging, timing, and request IDs. A middleware is any class with an async `use(context, next_fn)` method.
+
+```python
+from nitrostack import use_middleware, tool, ExecutionContext
+
+class AuditMiddleware:
+    async def use(self, context: ExecutionContext, next_fn):
+        context.logger.info("before", extra={"request_id": context.request_id})
+        result = await next_fn()
+        context.logger.info("after")
+        return result
+
+@tool(name="search", description="...", input_schema=SearchInput)
+@use_middleware(AuditMiddleware)
+async def search(self, input: SearchInput, context: ExecutionContext) -> dict:
+    ...
+```
+
+Protocol: `async def use(self, context, next_fn)`. Scaffold with `nitrostack-py generate` is for guards/pipes/interceptors/filters; middleware is the same stacking pattern via `use_middleware`.
+
+Read tokens from `context.metadata` (`authorization`, `headers`). Do not assume Express/Nest request objects.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Sparkles />} title="Interceptors" href="/python/sdk/interceptors" description="Change a handler's result." />
+  <Card icon={<ShieldCheck />} title="Guards" href="/python/sdk/guards" description="Allow or reject calls." />
+</Cards>

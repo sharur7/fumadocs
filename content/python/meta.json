@@ -1,0 +1,10 @@
+{
+  "pages": [
+    "sdk",
+    "studio",
+    "templates",
+    "deployment",
+    "api-reference",
+    "reference"
+  ]
+}

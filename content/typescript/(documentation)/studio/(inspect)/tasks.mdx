@@ -1,0 +1,28 @@
+---
+title: Tasks
+description: Follow long-running tool calls while they work.
+---
+
+import { Code, MessageSquare, ScrollText } from 'lucide-react';
+
+Some tool calls take longer than a client wants to wait, such as a report that takes a minute to build. A tool that supports task mode can run as a task: the call returns straight away, the work carries on in the background, and the client checks its status until the result is ready. The Tasks page shows those tasks for the connected project as they happen.
+
+<Screenshot src="/images/studio/tasks.webp" alt="The Tasks page in NitroStudio listing three tasks: quicklookup completed, indexdocuments cancelled, and generatereport working, with the cancelled task open in the detail pane" caption="Three tasks for the project, filtered by status. indexdocuments is open and shows it was cancelled by the client, with its timeline." />
+
+## Start a task
+
+Tasks start from the [AI Chat](/docs/studio/chat). Ask the model to do something that uses a tool with task support, and run the tool as a task. The new task appears on this page immediately, and its status updates in real time.
+
+Only tools written for task mode can run this way. See [Tasks](/docs/sdk/tasks) in the SDK to add task support to a tool.
+
+## Follow progress
+
+The panel on the right lists tasks and filters them by status: **Working**, **Completed**, **Failed**, or **Cancelled**. The search box finds a task by name. Select a task to see its details and, once it has finished, its result.
+
+## Related
+
+<Cards>
+  <Card icon={<Code />} title="Tasks in the SDK" href="/docs/sdk/tasks" description="Make a tool run as a task." />
+  <Card icon={<MessageSquare />} title="AI Chat" href="/docs/studio/chat" description="Where tasks are started." />
+  <Card icon={<ScrollText />} title="Logs" href="/docs/studio/logs" description="See the messages behind each task." />
+</Cards>

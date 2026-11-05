@@ -1,0 +1,192 @@
+---
+title: "Bootstrap"
+description: "Create and start the server, and configure it with @McpApp"
+---
+
+import { ArrowLeftRight, Boxes, Layers, RefreshCw } from 'lucide-react';
+
+Every NitroStack server starts the same way: `src/index.ts` creates the application from your root module and starts it. This page covers that entry point, the options `start()` accepts, and the `@McpApp` decorator that configures the server.
+
+## Prerequisites
+
+NitroStack relies on TypeScript decorator metadata, so it needs `reflect-metadata` and two compiler options. Projects created with `nitrostack-cli init` already have both. Install the packages:
+
+```bash
+npm install @nitrostack/core reflect-metadata zod
+```
+
+Then turn on decorator metadata in `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022"
+  }
+}
+```
+
+## Application entry point
+
+The entry file creates the application from your root module, then starts it. Options passed to `start()` override the ones in `@McpApp`.
+
+<Callout type="warn" title="Important">
+
+`import 'reflect-metadata'` **must** be the very first import in your entry file (`src/index.ts`). Without it, TypeScript decorators cannot persist runtime metadata.
+
+</Callout>
+
+```typescript
+// src/index.ts
+import 'reflect-metadata'; // Must be first
+import { McpApplicationFactory } from '@nitrostack/core';
+import { AppModule } from './app.module.js';
+
+async function bootstrap() {
+  const server = await McpApplicationFactory.create(AppModule);
+  
+  // Starts with defaults from @McpApp, or pass programmatic overrides:
+  await server.start({
+    transport: 'dual', // 'stdio' | 'http' | 'dual'
+    port: 8080,        // Custom HTTP port
+    host: '0.0.0.0',   // Custom host binding
+    endpoint: '/mcp',  // MCP base path (default: '/mcp')
+    enableCors: true,  // CORS headers for browser clients
+  });
+}
+
+bootstrap();
+```
+
+## ServerStartOptions
+
+When calling `server.start(options)`, the following options can override `@McpApp` decorator defaults:
+
+| Property | Type | Default | Description |
+|:---|:---|:---|:---|
+| `transport` | `'stdio' \| 'http' \| 'dual'` | Value from `@McpApp` | Transport listener mode. |
+| `port` | `number` | `3000` | Port for HTTP listeners. |
+| `host` | `string` | `HOST` env var, else `'localhost'` | Host interface binding. Use `'0.0.0.0'` to accept connections from other machines or containers. |
+| `endpoint` | `string` | `'/mcp'` | Base path for streamable MCP routes. |
+| `enableCors` | `boolean` | `true` | Enables Cross-Origin Resource Sharing for browser web clients. |
+
+## The @McpApp decorator
+
+The `@McpApp` decorator configures your root application module, transport modes, and server metadata:
+
+```typescript
+// src/app.module.ts
+import {
+  McpApp,
+  Module,
+  ConfigModule,
+  BM25SearchTransform,
+} from '@nitrostack/core';
+import { ProductsModule } from './modules/products/products.module.js';
+
+@McpApp({
+  module: AppModule,
+  server: {
+    name: 'bookshelf-server',
+    version: '1.0.0',
+    protocolVersion: 'auto', // 'auto' (default: 2026-07-28 + legacy fallback) | '2026-07-28' | 'legacy'
+  },
+  logging: {
+    level: 'info', // 'debug' | 'info' | 'warn' | 'error'
+  },
+  transport: {
+    type: 'dual', // 'stdio' | 'http' | 'dual'
+    http: {
+      port: 3000,
+      host: '0.0.0.0',
+      basePath: '/mcp',
+    },
+  },
+  shutdownHooks: true, // Graceful SIGINT/SIGTERM lifecycle execution
+  transforms: [
+    // Progressive tool discovery pipeline to minimize LLM token consumption
+    new BM25SearchTransform({
+      defaultLimit: 5,
+      alwaysVisible: ['products_search_catalog'],
+    }),
+  ],
+})
+@Module({
+  imports: [
+    ConfigModule.forRoot(),
+    ProductsModule,
+  ],
+})
+export class AppModule {}
+```
+
+## Protocol version
+
+The `protocolVersion` option chooses which revision of MCP the HTTP endpoint speaks.
+
+| Value | What it serves |
+| :-- | :-- |
+| `auto` (default) | The stateless 2026-07-28 protocol, with a fallback for older sessionful clients |
+| `2026-07-28` | Only the stateless protocol: `server/discover`, a per-request `_meta` envelope, and multi round-trip requests via `inputRequired` |
+| `legacy` or `2025-06-18` | Only the sessionful Streamable HTTP protocol, with an `Mcp-Session-Id` header |
+
+<Callout type="idea" title="Tip">
+
+The environment variable `NITRO_MCP_PROTOCOL_VERSION` takes precedence over `@McpApp({ server: { protocolVersion } })`, allowing DevOps operators to switch deployed protocol modes without modifying code.
+
+</Callout>
+
+## What `create()` and `start()` do
+
+`McpApplicationFactory.create()` reads the `@McpApp` metadata from your root module, sets up logging and the dependency injection container, registers every imported module, and builds your tools, resources, and prompts. `start()` then runs the startup [lifecycle hooks](/docs/getting-started/core-concepts/server-lifecycle) and opens the transports.
+
+<Flow numbered steps={[
+  { title: 'Read @McpApp', sub: 'Root module metadata' },
+  { title: 'Set up logging and DI', sub: 'Container and logger' },
+  { title: 'Register modules', sub: 'Imports, recursively' },
+  { title: 'Build primitives', sub: 'Tools, resources, prompts' },
+  { title: 'Start transports', sub: 'STDIO, HTTP, or both' },
+]} caption="What happens between create() and the first request." />
+
+## Spillover storage
+
+To prevent oversized tool outputs from overflowing model context windows and exhausting Node.js heap memory, servers can configure default spillover storage:
+
+```typescript
+import { createServer } from '@nitrostack/core';
+
+// Production filesystem configuration:
+const server = createServer({
+  name: 'enterprise-server',
+  version: '1.0.0',
+  spillover: {
+    driver: 'filesystem',
+    storageDir: './.spillover_cache',
+    maxSizeBytes: 200 * 1024 * 1024, // 200MB maximum disk quota
+  },
+});
+
+// Development in-memory configuration:
+const devServer = createServer({
+  name: 'dev-server',
+  version: '1.0.0',
+  spillover: {
+    driver: 'memory',
+    maxSizeBytes: 20 * 1024 * 1024,  // 20MB in-memory buffer
+  },
+});
+```
+
+When configured, NitroStack automatically exposes the built-in `resource://data-spillover/{id}` endpoint, allowing AI models to inspect spilled datasets on demand via standard MCP `resources/read`.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Boxes />} title="Modules" href="/docs/getting-started/core-concepts/modules" description="Organize features into modules." />
+  <Card icon={<RefreshCw />} title="Lifecycle" href="/docs/getting-started/core-concepts/server-lifecycle" description="Startup and shutdown hooks, in order." />
+  <Card icon={<ArrowLeftRight />} title="Transports" href="/docs/getting-started/core-concepts/transports" description="STDIO, HTTP, and dual mode." />
+  <Card icon={<Layers />} title="Data spillover" href="/docs/sdk/data-spillover" description="Keep large results out of the model context." />
+</Cards>

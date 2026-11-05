@@ -1,0 +1,115 @@
+---
+title: "Server Lifecycle"
+description: "Startup and shutdown hooks, in the order NitroStack calls them"
+---
+
+import { Workflow, Server, HeartPulse } from 'lucide-react';
+
+Your services can run code at fixed points while the server starts and stops: open a database pool before the first request, or close it cleanly when the process is told to exit. You do this by implementing lifecycle hooks on any class decorated with `@Injectable()` or `@Controller()`.
+
+## The sequence
+
+NitroStack calls each hook on every instance that implements it, in this order.
+
+<Phases phases={[
+  { label: 'Startup', note: 'McpApplicationFactory.create(), then server.start()', steps: [
+    { title: 'Resolve dependencies', sub: 'The DI container builds every provider and controller' },
+    { title: 'onModuleInit()', sub: 'Open connections, warm caches' },
+    { title: 'onApplication\u200BBootstrap()', sub: 'Everything is initialized; final checks' },
+    { title: 'Transports listen', sub: 'STDIO and HTTP accept requests' },
+  ] },
+  { label: 'Shutdown', note: 'SIGINT, SIGTERM, or server.stop()', steps: [
+    { title: 'onModuleDestroy()', sub: 'Stop taking new work' },
+    { title: 'beforeApplication\u200BShutdown(signal)', sub: 'Release pools and workers' },
+    { title: 'Transports close', sub: 'Sessions and listeners shut down' },
+    { title: 'onApplication\u200BShutdown(signal)', sub: 'Last logs before the process exits' },
+  ] },
+]} caption="Startup hooks run before the server accepts requests. Shutdown hooks run before and after the transports close." />
+
+## Hook interfaces
+
+`@nitrostack/core` exports one interface per hook. Implement the ones you need.
+
+| Interface | Method | When it runs | Use it to |
+| :-- | :-- | :-- | :-- |
+| `OnModuleInit` | `onModuleInit()` | After the container has created your instance | Open database connections, compile schemas, warm caches |
+| `OnApplicationBootstrap` | `onApplicationBootstrap()` | After every instance is initialized, before the server accepts connections | Verify that dependencies are ready, register with a service registry |
+| `OnModuleDestroy` | `onModuleDestroy()` | First, when shutdown starts | Stop accepting new work, flush queues |
+| `BeforeApplicationShutdown` | `beforeApplicationShutdown(signal?)` | After `onModuleDestroy`, before the transports close | Close connection pools, stop worker processes |
+| `OnApplicationShutdown` | `onApplicationShutdown(signal?)` | Last, after the transports have closed | Final logging and cleanup |
+
+Every method can be synchronous or return a promise; NitroStack waits for it before moving on.
+
+## Example
+
+This connection pool implements all five hooks. The numbers in the log messages show the order they run in.
+
+```typescript
+import {
+  Injectable,
+  OnModuleInit,
+  OnApplicationBootstrap,
+  BeforeApplicationShutdown,
+  OnModuleDestroy,
+  OnApplicationShutdown,
+} from '@nitrostack/core';
+
+@Injectable()
+export class DatabaseConnectionPool implements
+  OnModuleInit,
+  OnApplicationBootstrap,
+  BeforeApplicationShutdown,
+  OnModuleDestroy,
+  OnApplicationShutdown {
+  
+  private isConnected = false;
+
+  async onModuleInit(): Promise<void> {
+    console.log('[DatabaseConnectionPool] 1. Initializing connection pool...');
+    // Establish connection to database
+    this.isConnected = true;
+  }
+
+  async onApplicationBootstrap(): Promise<void> {
+    console.log('[DatabaseConnectionPool] 2. Application ready; verifying connection readiness...');
+    if (!this.isConnected) {
+      throw new Error('Database pool failed to initialize during startup');
+    }
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    console.log('[DatabaseConnectionPool] 3. Shutdown started; stop taking new queries...');
+  }
+
+  async beforeApplicationShutdown(signal?: string): Promise<void> {
+    console.log(`[DatabaseConnectionPool] 4. Closing pool connections (${signal})...`);
+    this.isConnected = false;
+  }
+
+  async onApplicationShutdown(signal?: string): Promise<void> {
+    console.log(`[DatabaseConnectionPool] 5. Teardown complete. Exiting via ${signal}.`);
+  }
+}
+```
+
+## Errors and signals
+
+Hooks run one instance at a time. If an `onModuleInit` hook throws, startup stops and the server never listens, so a half-initialized server can't take requests. Shutdown hooks are more forgiving: an error in one is logged and the remaining hooks still run.
+
+With `shutdownHooks: true` in `@McpApp`, which is the default, NitroStack listens for `SIGINT` and `SIGTERM` and runs the shutdown sequence when either arrives. That's what `docker stop` and most platforms send before they stop a process.
+
+## Request lifecycle
+
+Once the server is listening, every tool call passes through the same pipeline. Guards run first and can reject the call; middleware, interceptors, and pipes wrap the handler; exception filters turn any error into a response.
+
+<PipelineDiagram />
+
+[Request Lifecycle](/docs/getting-started/core-concepts/request-lifecycle) in Core Concepts explains each stage.
+
+## Next steps
+
+<Cards>
+  <Card icon={<Workflow />} title="Request Lifecycle" href="/docs/getting-started/core-concepts/request-lifecycle" description="Each pipeline stage and when to use it." />
+  <Card icon={<HeartPulse />} title="Health checks" href="/docs/sdk/health-checks" description="Report readiness once startup finishes." />
+  <Card icon={<Server />} title="Deploy with Docker" href="/docs/deployment/docker" description="How containers send shutdown signals." />
+</Cards>

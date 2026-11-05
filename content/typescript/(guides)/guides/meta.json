@@ -1,0 +1,16 @@
+{
+  "title": "How-to Guides",
+  "pages": [
+    "---Clients and agents---",
+    "connect-to-clients",
+    "connect-your-coding-agent",
+    "---Transports---",
+    "dual-transport",
+    "streamable-http",
+    "verify-transport",
+    "---Widgets---",
+    "widget-csp",
+    "widget-examples",
+    "widget-sdk-migration"
+  ]
+}

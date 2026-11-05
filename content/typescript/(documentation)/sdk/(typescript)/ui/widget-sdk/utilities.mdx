@@ -1,0 +1,190 @@
+---
+title: "Utilities and Types"
+description: "Helper functions, TypeScript types, and ready-made components"
+---
+
+import { History } from 'lucide-react';
+
+Smaller pieces of the SDK: helpers for common tasks, the types you'll use in your components, and components you can drop in.
+
+## Utility Functions
+
+Small helpers for accessibility and device capabilities.
+
+### prefersReducedMotion()
+
+Check if user prefers reduced motion.
+
+**Returns:** `boolean`
+
+**Example:**
+```typescript
+import { prefersReducedMotion } from '@nitrostack/widgets';
+
+const shouldAnimate = !prefersReducedMotion();
+```
+
+### isPrimarilyTouchDevice()
+
+Check if device is primarily touch-based.
+
+**Returns:** `boolean`
+
+**Example:**
+```typescript
+import { isPrimarilyTouchDevice } from '@nitrostack/widgets';
+
+const buttonSize = isPrimarilyTouchDevice() ? '48px' : '32px';
+```
+
+### isHoverAvailable()
+
+Check if hover interactions are available.
+
+**Returns:** `boolean`
+
+**Example:**
+```typescript
+import { isHoverAvailable } from '@nitrostack/widgets';
+
+const showTooltipOnHover = isHoverAvailable();
+```
+
+### prefersDarkColorScheme()
+
+Check if user prefers dark color scheme.
+
+**Returns:** `boolean`
+
+**Example:**
+```typescript
+import { prefersDarkColorScheme } from '@nitrostack/widgets';
+
+const defaultTheme = prefersDarkColorScheme() ? 'dark' : 'light';
+```
+
+## Type Definitions
+
+Types you'll use when you read data and handle events.
+
+### DisplayMode
+
+How the host is showing the widget.
+
+```typescript
+type DisplayMode = 'inline' | 'fullscreen' | 'pip';
+```
+
+### Theme
+
+The host's color theme.
+
+```typescript
+type Theme = 'light' | 'dark';
+```
+
+### CallToolResponse
+
+What `callTool()` resolves to.
+
+```typescript
+interface CallToolResponse {
+  result: string;              // Primary result as string
+  structuredContent?: unknown; // Optional structured content (OpenAI Apps SDK)
+  isError?: boolean;           // Error indicator
+}
+```
+
+### UserAgent
+
+Information about the device and browser.
+
+```typescript
+interface UserAgent {
+  deviceType: DeviceType;
+  browser: string;
+  os: string;
+}
+
+type DeviceType = 'mobile' | 'tablet' | 'desktop';
+```
+
+### SafeArea
+
+Insets to keep content clear of notches and system bars.
+
+```typescript
+interface SafeArea {
+  insets: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+}
+```
+
+### McpAppContext (MCP Apps Compatibility)
+
+The data a widget receives in hosts that use the MCP Apps format.
+
+```typescript
+interface McpAppContext<ToolInput = unknown, ToolOutput = unknown> {
+  toolInput: ToolInput;
+  toolOutput: ToolOutput | null;
+  theme: Theme;
+  locale: string;
+  displayMode: DisplayMode;
+  maxHeight: number;
+}
+```
+
+### McpAppAPI (MCP Apps Compatibility)
+
+The methods available in those hosts.
+
+```typescript
+interface McpAppAPI {
+  callTool: (name: string, args: Record<string, unknown>) => Promise<CallToolResponse>;
+  requestDisplayMode: (args: { mode: DisplayMode }) => Promise<{ mode: DisplayMode }>;
+  requestClose(): void;
+  openExternal(payload: { href: string }): void;
+}
+```
+
+## Components
+
+Ready-made components for common layouts.
+
+### WidgetLayout
+
+Wrapper component that provides consistent layout and theme integration.
+
+**Props:**
+```typescript
+interface WidgetLayoutProps {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}
+```
+
+**Example:**
+```typescript
+import { WidgetLayout } from '@nitrostack/widgets';
+
+export default function MyWidget() {
+  return (
+    <WidgetLayout>
+      <h1>My Widget</h1>
+      <p>Content automatically adapts to theme</p>
+    </WidgetLayout>
+  );
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<History />} title="Legacy API" href="/docs/sdk/ui/widget-sdk/legacy" description="withToolData and migration." />
+</Cards>

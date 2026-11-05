@@ -1,0 +1,104 @@
+---
+title: "DigitalOcean"
+description: "Run your MCP server on App Platform, built from your GitHub repository"
+---
+
+import { Cloud, Server, Container } from 'lucide-react';
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+[DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform) builds your server from a GitHub repository and redeploys it on every push. It provides HTTPS on a `*.ondigitalocean.app` address, restarts the server if it stops, and lets you add a custom domain. It's a good fit when you want a managed deployment without writing infrastructure code.
+
+App Platform builds from your Dockerfile when the repository has one. Clients connect to `https://<your-app>.ondigitalocean.app/mcp`.
+
+<Callout title="Before you start">
+  Push your project, including the Dockerfile from [Deploy with Docker](/docs/deployment/docker), to a GitHub repository. You need a DigitalOcean account connected to GitHub, and the `doctl` CLI if you deploy from the terminal.
+</Callout>
+
+## Deploy with an app spec
+
+An app spec is a YAML file that describes the app: where the code comes from, how it's built, which port it listens on, and its environment variables. Keeping it in the repository means the deployment is reviewed and versioned like any other code.
+
+<Steps>
+<Step>
+
+### Add the spec to your repository
+
+Save this file as `.do/app.yaml`, with your repository's name:
+
+```yaml title=".do/app.yaml"
+name: mcp-server
+services:
+  - name: server
+    github:
+      repo: your-username/mcp-server
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /mcp/health
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: MCP_TRANSPORT_TYPE
+        value: http
+      - key: JWT_SECRET
+        type: SECRET
+        value: your-secret-value
+```
+
+</Step>
+<Step>
+
+### Create the app
+
+Create the app from the spec:
+
+```bash
+doctl apps create --spec .do/app.yaml
+```
+
+You can also create the app in the DigitalOcean console: choose **Create App**, pick the repository, and App Platform detects the Dockerfile. Set the HTTP port to 3000 and add the environment variables there.
+
+</Step>
+<Step>
+
+### Find the address
+
+List your apps to find the new one's URL:
+
+```bash
+doctl apps list
+```
+
+The **Default Ingress** column shows the app's URL. Your MCP endpoint is that URL followed by `/mcp`.
+
+</Step>
+</Steps>
+
+## Secrets
+
+Environment variables with `type: SECRET` are encrypted, and App Platform replaces their values in the spec with an encrypted reference after the first deploy. Change them later in the console under **Settings**, or with `doctl apps update`.
+
+## Health checks and logs
+
+The `health_check` entry points App Platform at the built-in `/mcp/health` endpoint. A new deployment only receives traffic after the check passes, so a broken build never replaces a working one.
+
+Stream the server's output from the terminal:
+
+```bash
+doctl apps logs <app-id> server --type run --follow
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Container />} title="Deploy with Docker" href="/docs/deployment/docker" description="The image and environment variables this guide uses." />
+  <Card icon={<Server />} title="Heroku" href="/docs/deployment/cloud/heroku" description="Deploy with git push." />
+  <Card icon={<Cloud />} title="Cloud Platforms" href="/docs/deployment/cloud" description="Compare platforms." />
+</Cards>

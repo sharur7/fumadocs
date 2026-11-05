@@ -1,0 +1,88 @@
+---
+title: Project Structure
+description: What each file in a NitroStack project does, and what happens when the server starts.
+---
+
+import { Boxes, Terminal } from 'lucide-react';
+
+Every project created with `nitrostack-cli init` has the same shape. This page walks through the Starter [template](/docs/templates) from the [Quickstart](/docs/getting-started/quickstart).
+
+<Callout title="No project yet?">
+  This page reads best with a project open next to it. Scaffold the Starter template first, then come back:
+
+  ```bash
+  npx @nitrostack/cli init my-server --template typescript-starter
+  ```
+
+  The [Quickstart](/docs/getting-started/quickstart) covers running it and making your first tool call.
+</Callout>
+
+```text
+my-server/
+├── src/
+│   ├── index.ts              # Entry point: creates and starts the server
+│   ├── app.module.ts         # Root module: server settings and imports
+│   ├── health/               # Health checks
+│   ├── modules/
+│   │   └── calculator/       # One folder per feature
+│   └── widgets/              # A small Next.js app for tool UI
+├── .env.example              # Environment variables to copy into .env
+├── package.json              # Scripts: dev, build, start
+└── tsconfig.json
+```
+
+## The entry point
+
+`src/index.ts` creates the application from the root module and starts it. You rarely need to change it.
+
+```typescript title="src/index.ts"
+import 'dotenv/config';
+import { McpApplicationFactory } from '@nitrostack/core';
+import { AppModule } from './app.module.js';
+
+async function bootstrap() {
+  const server = await McpApplicationFactory.create(AppModule);
+  await server.start();
+}
+
+bootstrap();
+```
+
+## The root module
+
+`src/app.module.ts` is where the server is configured. `@McpApp` sets server-wide options, and `@Module` lists the feature modules to load.
+
+```typescript title="src/app.module.ts"
+import { McpApp, Module, ConfigModule } from '@nitrostack/core';
+import { CalculatorModule } from './modules/calculator/calculator.module.js';
+
+@McpApp({
+  module: AppModule,
+  server: { name: 'calculator-server', version: '1.0.0' },
+  logging: { level: 'info' },
+})
+@Module({
+  name: 'app',
+  imports: [ConfigModule.forRoot(), CalculatorModule],
+})
+export class AppModule {}
+```
+
+To add a feature, create a module and add it to `imports`. `ConfigModule.forRoot()` loads your `.env` values; see [Configuration](/docs/sdk/configuration).
+
+## Feature folders
+
+Each folder under `src/modules/` holds one feature. By convention the files are split by role: `*.module.ts` declares the module, `*.tools.ts`, `*.resources.ts`, and `*.prompts.ts` hold the MCP primitives, and `*.service.ts` holds business logic. [Modules](/docs/getting-started/core-concepts/modules) explains how they connect.
+
+## What happens at startup
+
+When the server starts, NitroStack reads the root module, follows its imports, creates every service in dependency order, registers each `@Tool`, `@Resource`, and `@Prompt`, and then opens the [transport](/docs/getting-started/core-concepts/transports). If a dependency is missing, startup fails with an error instead of failing later during a request.
+
+Services can run code at specific points with lifecycle hooks such as `onModuleInit` and `onApplicationBootstrap`. The full sequence is in [Server Concepts](/docs/getting-started/core-concepts/server-lifecycle).
+
+## Go deeper
+
+<Cards>
+  <Card icon={<Boxes />} title="Modules" href="/docs/getting-started/core-concepts/modules" description="How feature modules are declared and connected." />
+  <Card icon={<Terminal />} title="Generate Command" href="/docs/cli/generate" description="Scaffold new modules, tools, and services from the CLI." />
+</Cards>

@@ -1,0 +1,108 @@
+---
+title: Overview
+description: The handful of ideas behind every NitroStack server, and how they fit together.
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { GraduationCap, FolderTree, Boxes, Syringe, Workflow, AppWindow, ArrowLeftRight } from 'lucide-react';
+
+A NitroStack server is a set of classes that the framework wires together at startup. Once you know a few ideas, you can read any NitroStack project and know where to make a change.
+
+<ArchitectureDiagram />
+
+## Core architecture
+
+Designed for enterprise applications, NitroStack enforces architectural best practices. Your codebase stays clean, testable, and adaptable as it scales from a single tool to a complex distributed system. Both SDKs share the same mental model (modules, controllers, providers, and a request pipeline), each with idiomatic APIs for its language.
+
+**Decorator-based design.** NitroStack utilizes a descriptive, decorator-based architecture. This approach reduces boilerplate and improves readability by keeping configuration close to the implementation. Behavior such as authentication, caching, and rate limiting is applied through composable decorators, and schemas give you end-to-end type safety and runtime validation.
+
+<Tabs items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+@Tool({
+  name: 'search_products',
+  description: 'Search product catalog with advanced filtering specification',
+  inputSchema: z.object({
+    query: z.string(),
+    category: z.string().optional(),
+    filters: z.object({
+      minPrice: z.number().optional(),
+      maxPrice: z.number().optional(),
+    }).optional(),
+    pagination: z.object({
+      page: z.number().default(1),
+      limit: z.number().default(20)
+    }).default({})
+  })
+})
+@UseGuards(JwtAuthGuard)
+@UseMiddleware(AuditLoggingMiddleware)
+@Cache({ ttl: 600, key: (input) => `search:${input.query}` })
+@RateLimit({ requests: 100, window: '1h' })
+@Widget('product-grid-view')
+async searchProducts(input: any, ctx: ExecutionContext) {
+  ctx.logger.info('Executing product search', { query: input.query });
+  return await this.productService.executeSearch(input);
+}
+```
+
+This single declaration encapsulates API definition, validation, security, observability, performance optimization, and UI presentation layer association.
+
+</Tab>
+<Tab value="Python">
+
+```python
+from nitrostack import injectable, tool, ExecutionContext
+from pydantic import BaseModel, Field
+
+class AddInput(BaseModel):
+    a: float = Field(description="First number")
+    b: float = Field(description="Second number")
+
+@injectable(deps=[])
+class CalculatorService:
+    def add(self, a: float, b: float) -> float:
+        return a + b
+
+@injectable(deps=[CalculatorService])
+class CalculatorController:
+    def __init__(self, service: CalculatorService):
+        self.service = service
+
+    @tool(name="add", description="Add two numbers", input_schema=AddInput)
+    async def add(self, input: AddInput, context: ExecutionContext) -> float:
+        return self.service.add(input.a, input.b)
+```
+
+The Python SDK uses [Pydantic](https://docs.pydantic.dev) models as input schemas. See the [Python introduction](/python/sdk/quick-start).
+
+</Tab>
+</Tabs>
+
+## Concepts
+
+<Cards>
+  <Card className="nx-card-illo" icon={<Illustration name="book" />} title="MCP Basics" href="/docs/getting-started/core-concepts/mcp-basics" description="Tools, resources, prompts, and how a request reaches your code." />
+  <Card className="nx-card-illo" icon={<Illustration name="folder" />} title="Project Structure" href="/docs/getting-started/core-concepts/project-structure" description="What each file does, and what happens when the server starts." />
+  <Card className="nx-card-illo" icon={<Illustration name="layers" />} title="Modules" href="/docs/getting-started/core-concepts/modules" description="Group a feature's tools, resources, prompts, and services." />
+  <Card className="nx-card-illo" icon={<Illustration name="plug" />} title="Dependency Injection" href="/docs/getting-started/core-concepts/dependency-injection" description="Share services across your server without wiring them by hand." />
+  <Card className="nx-card-illo" icon={<Illustration name="flow" />} title="Request Lifecycle" href="/docs/getting-started/core-concepts/request-lifecycle" description="Guards, middleware, interceptors, and pipes, in order." />
+  <Card className="nx-card-illo" icon={<Illustration name="widget" />} title="Widgets" href="/docs/getting-started/core-concepts/widgets" description="Return interactive React UI from a tool." />
+  <Card className="nx-card-illo" icon={<Illustration name="transport" />} title="Transports" href="/docs/getting-started/core-concepts/transports" description="STDIO and HTTP, and when to use each." />
+</Cards>
+
+## Decorators at a glance
+
+Most of NitroStack is expressed through decorators. This table maps each one to the concept it belongs to.
+
+| Decorator | What it does | Learn more |
+| :-- | :-- | :-- |
+| `@McpApp` | Configures the server: name, version, transport, logging | [Project Structure](/docs/getting-started/core-concepts/project-structure) |
+| `@Module` | Groups a feature's classes | [Modules](/docs/getting-started/core-concepts/modules) |
+| `@Tool`, `@Resource`, `@Prompt` | Expose a method to MCP clients | [MCP Basics](/docs/getting-started/core-concepts/mcp-basics) |
+| `@Injectable` | Makes a class available for injection | [Dependency Injection](/docs/getting-started/core-concepts/dependency-injection) |
+| `@UseGuards`, `@UseMiddleware`, `@UseInterceptors`, `@UsePipes`, `@UseFilters` | Attach pipeline steps to a handler | [Request Lifecycle](/docs/getting-started/core-concepts/request-lifecycle) |
+| `@Widget` | Attaches a React UI to a tool | [Widgets](/docs/getting-started/core-concepts/widgets) |
+
+For every option on every decorator, see the [Decorators reference](/docs/api-reference/decorators).

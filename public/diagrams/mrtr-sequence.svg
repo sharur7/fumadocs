@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 220" width="100%" height="100%">
+  <defs>
+    <style>
+      .box { fill: #111827; stroke: #374151; stroke-width: 1.5; rx: 8; }
+      .box-active { fill: #1e3a5f; stroke: #3b82f6; stroke-width: 2; rx: 8; }
+      .title { fill: #f9fafb; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 600; text-anchor: middle; }
+      .subtitle { fill: #9ca3af; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 11px; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <!-- Step 1: Initial Invocation -->
+  <g transform="translate(30, 45)">
+    <rect width="210" height="130" class="box" />
+    <text x="105" y="35" class="title">1. Tool Call</text>
+    <text x="105" y="65" class="subtitle">Agent invokes @Tool</text>
+    <text x="105" y="90" class="subtitle">Requires missing context</text>
+    <text x="105" y="110" class="subtitle">or human confirmation</text>
+  </g>
+
+  <!-- Step 2: Context Elicitation -->
+  <g transform="translate(275, 45)">
+    <rect width="210" height="130" class="box-active" />
+    <text x="105" y="35" class="title">2. Interactive State</text>
+    <text x="105" y="65" class="subtitle">Returns widget or prompt</text>
+    <text x="105" y="90" class="subtitle">Captures user form input</text>
+    <text x="105" y="110" class="subtitle">Resumes with session ID</text>
+  </g>
+
+  <!-- Step 3: Final Resolution -->
+  <g transform="translate(520, 45)">
+    <rect width="210" height="130" class="box" />
+    <text x="105" y="35" class="title">3. Execution Completed</text>
+    <text x="105" y="65" class="subtitle">Handler completes execution</text>
+    <text x="105" y="90" class="subtitle">Commits transaction</text>
+    <text x="105" y="110" class="subtitle">Returns final JSON payload</text>
+  </g>
+</svg>

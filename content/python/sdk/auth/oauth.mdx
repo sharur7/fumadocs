@@ -1,0 +1,83 @@
+---
+title: "OAuth 2.1"
+description: "Sign users in with an identity provider using OAuthModule and OAuthGuard"
+---
+
+import { KeyRound, ShieldCheck, Package } from 'lucide-react';
+
+<Callout type="info" title="Agent skill">
+
+`nitrostack-python-auth-security`
+
+</Callout>
+
+OAuth 2.1 lets people sign in with an identity provider they already use, such as Auth0 or Okta. `OAuthModule` validates the tokens clients send, and `OAuthGuard` protects the tools that need a signed-in user.
+
+The quickest start is the `python-oauth` template. Its `OAUTH_SETUP.md` covers every environment variable, JWKS versus introspection, scopes, and PKCE.
+
+## Configure the module
+
+`OAuthModule.for_root(...)` needs your server's resource URI, at least one authorization server, and the scopes you support. Add a token introspection endpoint or a `jwks_uri` so the server can check tokens.
+
+```python title="app_module.py"
+import os
+from nitrostack import OAuthModule, module
+
+@module(
+    name="app",
+    imports=[
+        OAuthModule.for_root(
+            resource_uri=os.environ.get("RESOURCE_URI", "https://mcplocal"),
+            authorization_servers=[os.environ.get("AUTH_SERVER_URL", "https://auth.example.com")],
+            scopes_supported=["read", "write", "admin"],
+            token_introspection_endpoint=os.environ.get("INTROSPECTION_ENDPOINT"),
+            token_introspection_client_id=os.environ.get("INTROSPECTION_CLIENT_ID"),
+            token_introspection_client_secret=os.environ.get("INTROSPECTION_CLIENT_SECRET"),
+            audience=os.environ.get("TOKEN_AUDIENCE"),
+            issuer=os.environ.get("TOKEN_ISSUER"),
+        )
+    ],
+)
+class AppModule:
+    pass
+```
+
+## Protect tools
+
+Add `OAuthGuard` to a tool, and a scope guard when the tool needs a specific scope. The template generates `create_scope_guard` for you.
+
+```python
+from nitrostack import tool, use_guards, OAuthGuard, ExecutionContext
+from guards.oauth_guard import create_scope_guard  # generated in the python-oauth template
+
+@tool(name="search_flights", description="Search for flights", input_schema=SearchFlightsInput)
+@use_guards(OAuthGuard, create_scope_guard(["read"]))
+async def search_flights(self, input: SearchFlightsInput, context: ExecutionContext) -> dict:
+    subject = context.auth.subject if context.auth else None
+    ...
+```
+
+Once a token is checked, its details are in `context.auth`. Note that `aud` is a list.
+
+<Callout type="warn" title="Set OAUTH_REQUIRED in production">
+  Unless `OAUTH_REQUIRED=true`, `OAuthGuard` lets calls without a token through, so you can try the template in Studio with mock data. Set it before you deploy. Don't turn on OAuth in the MCP Inspector against the starter or pizzaz templates: the Inspector posts to `/register` and fails.
+</Callout>
+
+## Helpers
+
+These functions are exported from `nitrostack` for custom checks:
+
+| Purpose | Functions |
+| :-- | :-- |
+| Scopes | `has_scope`, `has_any_scope`, `has_all_scopes`, `require_scopes` |
+| Error responses | `generate_www_authenticate_header` |
+| PKCE | `generate_code_verifier`, `generate_code_challenge`, `generate_pkce_params`, `verify_pkce`, `is_valid_code_verifier`, `validate_pkce_support` |
+| Client ID metadata (CIMD) | `resolve_cimd`, `validate_client_identifier_url`, `is_blocked_ip` |
+| Issuer | `validate_authorization_iss` |
+
+## Next steps
+
+<Cards>
+  <Card icon={<Package />} title="OAuth Template" href="/python/templates/oauth" description="A complete server with OAuth." />
+  <Card icon={<ShieldCheck />} title="Authentication Overview" href="/python/sdk/auth/overview" description="API keys, JWT, and OAuth compared." />
+</Cards>

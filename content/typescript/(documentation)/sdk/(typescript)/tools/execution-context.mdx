@@ -1,0 +1,120 @@
+---
+title: "Execution Context in Tools"
+description: "Use the logger, caller identity, and cancellation signal inside a tool"
+---
+
+import { Braces, MessageSquare } from 'lucide-react';
+
+Every tool receives an `ExecutionContext` as its second argument. It tells the handler who is calling, gives it a logger tied to the request, and signals when the client cancels.
+
+Every tool handler receives an `ExecutionContext` object providing access to authentication, logging, request lifecycle metadata, and dynamic catalog control.
+
+## Context Properties
+
+These are the fields a tool can read. Optional fields are set only when they apply; `auth`, for example, appears after a guard has identified the caller.
+
+```typescript
+interface ExecutionContext {
+  /** Structured logger instance */
+  logger: Logger;
+
+  /** Current tool name */
+  toolName?: string;
+
+  /** Unique request identifier for tracing */
+  requestId: string;
+
+  /** Active transport connection or session identifier */
+  sessionId?: string;
+
+  /** Standard AbortSignal triggered if client cancels invocation */
+  abortSignal?: AbortSignal;
+
+  /** Authentication data populated by guards */
+  auth?: {
+    subject?: string;      // User/client identifier
+    token?: string;        // Raw authentication token
+    scopes?: string[];     // Permission scopes
+    [key: string]: unknown;
+  };
+
+  /** Cryptographically verified subject identifier */
+  verifiedSubject?: string;
+
+  /** Request metadata (writable) */
+  metadata?: Record<string, unknown>;
+
+  /** MCP Background Task tracking metadata when taskSupport is active */
+  task?: {
+    taskId: string;
+    status: 'working' | 'completed' | 'failed' | 'cancelled';
+    totalSteps?: number;
+    currentStep?: number;
+    [key: string]: unknown;
+  };
+
+  /** Client responses to prior inputRequired elicitations (SEP-2322) */
+  inputResponses?: Record<string, unknown>;
+
+  /** Opaque round-trip state echoed by client (SEP-2322) */
+  requestState?: unknown;
+
+  /** Dynamic tool visibility helpers */
+  enableTools?: (toolNames: string[]) => void | Promise<void>;
+  disableTools?: (toolNames: string[]) => void | Promise<void>;
+}
+```
+
+## Usage Patterns
+
+A typical handler checks who is calling, logs with structured fields, does its work, and emits an event when it's done.
+
+```typescript
+import { ToolDecorator as Tool, UseGuards, ExecutionContext, emitEvent } from '@nitrostack/core';
+import { JWTGuard } from './guards/jwt.guard.js';
+
+@Tool({ name: 'process_payment' })
+@UseGuards(JWTGuard)
+async processPayment(input: PaymentInput, ctx: ExecutionContext) {
+  // Access authenticated user
+  const userId = ctx.auth?.subject;
+  if (!userId) {
+    throw new Error('Authentication required');
+  }
+
+  // Structured logging with context
+  ctx.logger.info('Processing payment', {
+    userId,
+    amount: input.amount,
+    requestId: ctx.requestId
+  });
+
+  try {
+    const result = await this.paymentService.process(input, userId);
+
+    // Emit event asynchronously across the event bus
+    await emitEvent('payment.completed', {
+      paymentId: result.id,
+      userId,
+      amount: input.amount
+    });
+
+    ctx.logger.info('Payment processed successfully', { paymentId: result.id });
+    return result;
+  } catch (error: any) {
+    ctx.logger.error('Payment processing failed', {
+      error: error.message,
+      userId,
+      amount: input.amount
+    });
+    throw error;
+  }
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<MessageSquare />} title="Ask the user for input" href="/docs/sdk/tools/user-input" description="Pause a tool for confirmation." />
+  <Card icon={<Braces />} title="Context reference" href="/docs/api-reference/execution-context" description="Every field." />
+</Cards>

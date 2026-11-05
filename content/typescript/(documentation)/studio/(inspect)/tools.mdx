@@ -1,0 +1,37 @@
+---
+title: Tools
+description: Run any tool by hand, from a form built from its input schema.
+---
+
+import { Boxes, MessageSquare, FlaskConical, Code } from 'lucide-react';
+
+The Tools page calls your tools directly, without a model in between. It's how you check that a tool does what its description promises: you choose the inputs, run it, and see exactly what it returns, including the widget it renders.
+
+<Screenshot src="/images/studio/tools.webp" alt="The Tools page in NitroStudio, with the list of available tools on the right and suggested tools in the center" caption="Available tools on the right; a UI badge marks the tools that render a widget." />
+
+## Find a tool
+
+The **Available tools** panel lists every tool on the server with its description. Search by name, filter the list, or refresh it after you change your code. A **UI** badge marks tools that render a [widget](/docs/getting-started/core-concepts/widgets). When nothing is selected, the center of the page suggests a few tools to start with.
+
+## Run it
+
+Select a tool and Studio builds a form from its input schema. Each field matches a property in your `inputSchema`, with its type and description, and required fields are marked. Studio checks your values against the schema before it sends the call, so a validation error here means the input is wrong, not the tool.
+
+If the tool has [examples](/docs/guides/widget-examples) in its `@Tool` decorator, Studio uses them to fill the form, which makes a first run one click.
+
+## Read the result
+
+Studio shows the raw result the tool returned, how long the call took, and, for tools with a widget, the widget rendered with that result. You can enlarge the widget to check it at full size. This is the same result an AI client receives, so if it looks wrong here, it will look wrong in chat.
+
+## When a call fails
+
+An error from your handler appears in place of the result, after it passes through your [exception filters](/docs/api-reference/filters). For the full story, open [Logs](/docs/studio/logs): **Traffic** shows the `tools/call` request and its response, and **Server Logs** shows anything the handler printed.
+
+## Related
+
+<Cards>
+  <Card icon={<Code />} title="Write a tool" href="/docs/sdk/tools" description="Define tools with @Tool and Zod schemas." />
+  <Card icon={<MessageSquare />} title="AI Chat" href="/docs/studio/chat" description="Let a model decide when to call your tools." />
+  <Card icon={<FlaskConical />} title="Test Cases" href="/docs/studio/test-cases" description="Turn checks into repeatable tests." />
+  <Card icon={<Boxes />} title="Resources" href="/docs/studio/resources" description="Read the data your tools work with." />
+</Cards>

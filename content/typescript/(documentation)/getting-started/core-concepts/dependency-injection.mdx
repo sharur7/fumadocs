@@ -1,0 +1,61 @@
+---
+title: Dependency Injection
+description: Let NitroStack create and share your services instead of wiring them by hand.
+---
+
+import { Workflow, BookOpen } from 'lucide-react';
+
+Dependency injection (DI) means a class declares what it needs, and the framework supplies it. You never write `new DatabaseService()` inside a tool. This keeps classes small, makes them easy to test, and lets many tools share one connection pool or API client.
+
+## Two steps
+
+First, mark the service as injectable and register it as a provider in its module:
+
+```typescript title="product.service.ts"
+import { Injectable } from '@nitrostack/core';
+
+@Injectable()
+export class ProductService {
+  async findById(id: string) {
+    // talk to your database or API here
+    return { id, name: 'Desk lamp', price: 39 };
+  }
+}
+```
+
+Then ask for it in a constructor. NitroStack sees the type and passes the instance in:
+
+```typescript title="products.tools.ts"
+import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
+import { ProductService } from './product.service.js';
+
+export class ProductsTools {
+  constructor(private readonly products: ProductService) {}
+
+  @Tool({
+    name: 'get_product',
+    description: 'Look up a product by ID',
+    inputSchema: z.object({ id: z.string() }),
+  })
+  async getProduct(input: { id: string }, ctx: ExecutionContext) {
+    return this.products.findById(input.id);
+  }
+}
+```
+
+## How instances are shared
+
+Providers are **singletons** by default: NitroStack creates one instance when the server starts and gives the same one to every class that asks for it. That is what you want for clients, pools, and caches. It also means a service should not keep per-request data in its fields; pass that through method arguments or the `ExecutionContext` instead.
+
+A service can only be injected where it is visible: in its own module, or in a module that imports a module exporting it. See [Modules](/docs/getting-started/core-concepts/modules).
+
+<Callout type="warn" title="Keep reflect-metadata in place">
+  DI reads TypeScript's decorator metadata. Projects from `init` are already configured; if you set up a project by hand, follow the prerequisites in [Server Concepts](/docs/getting-started/core-concepts/server-concepts).
+</Callout>
+
+## Go deeper
+
+<Cards>
+  <Card icon={<Workflow />} title="Request Lifecycle" href="/docs/getting-started/core-concepts/request-lifecycle" description="Guards and middleware are injectable too." />
+  <Card icon={<BookOpen />} title="Dependency Injection in depth" href="/docs/sdk/dependency-injection" description="Factories, global modules, and testing with mocks." />
+</Cards>

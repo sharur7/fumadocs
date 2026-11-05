@@ -1,0 +1,34 @@
+---
+title: "Dependency Injection"
+description: "@injectable(deps=[...]) constructor injection"
+---
+
+<Callout type="info" title="Agent skill">
+
+`nitrostack-python-mcp-app-architecture`
+
+</Callout>
+
+Dependency injection means a class declares what it needs and NitroStack supplies it. In Python, you list a class's dependencies in `@injectable(deps=[...])`, and the container passes them to its constructor in that order.
+
+There are **no TypeScript-style parameter decorators**. Declare constructor deps explicitly:
+
+```python
+from nitrostack import injectable, module
+
+@injectable(deps=[])
+class PizzazService:
+    def list_shops(self):
+        return []
+
+@injectable(deps=[PizzazService])
+class PizzazTools:
+    def __init__(self, service: PizzazService):
+        self.service = service
+```
+
+Constructor args **must match** `deps`. The container instantiates controllers and providers; do not call `PizzazService()` inside a tool class.
+
+`DIContainer` methods: `register`, `register_value`, `resolve`, `reset`, `get_instance`.
+
+Feature modules list tools on `controllers` and services on `providers` (and `exports` if other modules inject them).

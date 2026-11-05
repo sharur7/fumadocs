@@ -1,0 +1,62 @@
+---
+title: "Set up your coding agent"
+description: "Agent skills and rules for Cursor, Claude Code, and Copilot"
+---
+
+import { Plug, Rocket, Terminal } from 'lucide-react';
+
+Equip your AI coding assistants—including Cursor, Claude Code, GitHub Copilot, Codex, and Gemini CLI—with native NitroStack knowledge and skills.
+
+## Install NitroStack Agent Skills
+
+NitroStack publishes pre-configured coding skills that teach agents framework conventions, decorator syntax, and verification workflows:
+
+```bash
+npx skills add nitrocloudofficial/skills
+```
+
+<Callout type="idea" title="Tip">
+
+Projects scaffolded using `npx @nitrostack/cli init` automatically include these skill registries in your project repository under `.cursor/skills`, `.claude/skills`, `.codex/skills`, and `.agents/skills`.
+
+</Callout>
+
+## Configure Agent Rules
+
+Rules files tell your coding agent how NitroStack projects are structured, so the code it writes follows your conventions.
+
+### Cursor (`.cursor/rules` or `.cursorrules`)
+
+Add the following directive to your project's `.cursorrules` or `.cursor/rules/nitrostack.mdc`:
+
+```markdown
+# NitroStack Guidelines
+- Always use `@nitrostack/core` for decorators (`@Tool`, `@Resource`, `@Prompt`, `@UseGuards`).
+- Never import from obsolete monolithic package `nitrostack`.
+- Ensure all tool handlers accept typed input schemas backed by Zod.
+- Use fail-closed security for guards (`return false` if credentials or environment tokens are missing).
+- Dev server runs on port 3000 (MCP Server) and port 3001 (Widget Dev Server).
+```
+
+### Claude Code
+
+Provide project instructions in `CLAUDE.md`:
+
+```markdown
+# Claude Code Project Guidelines: NitroStack Server
+- Package dependencies: `@nitrostack/core` and `@nitrostack/cli`.
+- Run tests and linting: `npm run build` and `npm run dev`.
+- Refer to framework reference docs at `https://docs.nitrostack.ai/llms.txt`.
+```
+
+## Documentation Endpoints for LLMs
+
+The documentation is also published in forms a language model can read directly. [`https://docs.nitrostack.ai/llms.txt`](https://docs.nitrostack.ai/llms.txt) is an index of every page with a short summary of each. Add `.md` to any documentation URL, such as `https://docs.nitrostack.ai/getting-started/quickstart.md`, to get that page as raw Markdown. On any page, **Copy page** copies its content, ready to paste into your agent's prompt.
+
+## See also
+
+<Cards>
+  <Card icon={<Rocket />} title="Quickstart" href="/docs/getting-started/quickstart" description="Start scaffolding your server." />
+  <Card icon={<Plug />} title="Connect to Clients" href="/docs/guides/connect-to-clients" description="Connect desktop MCP clients." />
+  <Card icon={<Terminal />} title="CLI Reference" href="/docs/cli/overview" description="Explore all NitroStack commands." />
+</Cards>

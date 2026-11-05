@@ -1,0 +1,359 @@
+---
+title: "WidgetSDK Class"
+description: "Call tools, manage state, and control the display and navigation"
+---
+
+import { AppWindow, Wrench } from 'lucide-react';
+
+`useWidgetSDK()` returns a `WidgetSDK` instance. Its methods do everything a widget can ask of its host.
+
+## WidgetSDK Class
+
+Singleton class providing direct access to all widget functionality.
+
+### getInstance()
+
+Get the global SDK instance.
+
+**Returns:** `WidgetSDK`
+
+**Example:**
+```typescript
+import { getWidgetSDK } from '@nitrostack/widgets';
+
+const sdk = getWidgetSDK();
+```
+
+### isReady()
+
+Check if the SDK is initialized and ready to use. Works with both OpenAI Apps SDK and MCP Apps.
+
+**Returns:** `boolean`
+
+**Example:**
+```typescript
+const sdk = getWidgetSDK();
+if (sdk.isReady()) {
+  const theme = sdk.getTheme();
+}
+```
+
+### isOpenAI()
+
+Check if running in OpenAI Apps SDK context (`window.openai`).
+
+**Returns:** `boolean`
+
+**Example:**
+```typescript
+const sdk = getWidgetSDK();
+if (sdk.isOpenAI()) {
+  // OpenAI-specific features available
+}
+```
+
+### isMcpApps()
+
+Check if running in MCP Apps context (`window.__MCP_APP_CONTEXT__`).
+
+**Returns:** `boolean`
+
+**Example:**
+```typescript
+const sdk = getWidgetSDK();
+if (sdk.isMcpApps()) {
+  // MCP Apps-specific features available
+}
+```
+
+### waitForReady()
+
+Wait for the SDK to be ready with optional timeout.
+
+**Parameters:**
+- `timeout?: number` - Timeout in milliseconds (default: 5000)
+
+**Returns:** `Promise<void>`
+
+**Example:**
+```typescript
+const sdk = getWidgetSDK();
+try {
+  await sdk.waitForReady(3000);
+  console.log('SDK ready');
+} catch (error) {
+  console.error('SDK initialization timeout');
+}
+```
+
+## State Management
+
+Widget state persists between renders and, in hosts that support it, between sessions.
+
+### setState()
+
+Set widget state with persistence.
+
+**Parameters:**
+- `state: any` - State object to persist
+
+**Returns:** `Promise<void>`
+
+**Example:**
+```typescript
+const { setState } = useWidgetSDK();
+
+await setState({ 
+  selectedItems: [1, 2, 3],
+  filters: { category: 'electronics' }
+});
+```
+
+### getState()
+
+Get current widget state.
+
+**Returns:** `any | null`
+
+**Example:**
+```typescript
+const { getState } = useWidgetSDK();
+const currentState = getState();
+```
+
+## Tool Calling
+
+Call any tool on your server from the widget.
+
+### callTool()
+
+Call an MCP tool from within the widget.
+
+**Parameters:**
+- `name: string` - Tool name
+- `args?: Record<string, unknown>` - Tool arguments
+
+**Returns:** `Promise<CallToolResponse>`
+
+**Example:**
+```typescript
+const { callTool } = useWidgetSDK();
+
+const result = await callTool('search_products', {
+  query: 'laptop',
+  limit: 10
+});
+
+console.log('Products:', result.content);
+```
+
+## Display Controls
+
+Ask the host to change how the widget is displayed.
+
+### requestFullscreen()
+
+Request fullscreen display mode.
+
+**Returns:** `Promise<void>`
+
+**Example:**
+```typescript
+const { requestFullscreen } = useWidgetSDK();
+
+<button onClick={requestFullscreen}>
+  Expand to Fullscreen
+</button>
+```
+
+### requestInline()
+
+Request inline display mode.
+
+**Returns:** `Promise<void>`
+
+### requestPip()
+
+Request picture-in-picture display mode.
+
+**Returns:** `Promise<void>`
+
+### requestDisplayMode()
+
+Request specific display mode.
+
+**Parameters:**
+- `mode: DisplayMode` - 'inline' | 'fullscreen' | 'pip'
+
+**Returns:** `Promise<{ mode: DisplayMode }>`
+
+**Example:**
+```typescript
+const { requestDisplayMode } = useWidgetSDK();
+
+await requestDisplayMode('fullscreen');
+```
+
+### requestClose()
+
+Close the widget.
+
+**Returns:** `void`
+
+**Example:**
+```typescript
+const { requestClose } = useWidgetSDK();
+
+<button onClick={requestClose}>Close</button>
+```
+
+## Navigation
+
+Open links and move between views.
+
+### openExternal()
+
+Open a URL in an external browser.
+
+**Parameters:**
+- `url: string` - URL to open
+
+**Returns:** `void`
+
+**Example:**
+```typescript
+const { openExternal } = useWidgetSDK();
+
+<a onClick={() => openExternal('https://example.com')}>
+  Visit Website
+</a>
+```
+
+### sendFollowUpMessage()
+
+Send a follow-up message to the chat.
+
+**Parameters:**
+- `prompt: string` - Message to send
+
+**Returns:** `Promise<void>`
+
+**Example:**
+```typescript
+const { sendFollowUpMessage } = useWidgetSDK();
+
+const askForMore = async () => {
+  await sendFollowUpMessage('Show me more products like this');
+};
+```
+
+## Data Access
+
+Read what the tool was called with and what it returned.
+
+### getToolInput()
+
+Get the input parameters passed to the tool.
+
+**Type Parameter:** `T` - Type of input data
+
+**Returns:** `T | null`
+
+**Example:**
+```typescript
+interface SearchInput {
+  query: string;
+  filters: string[];
+}
+
+const { getToolInput } = useWidgetSDK();
+const input = getToolInput<SearchInput>();
+
+console.log('Search query:', input?.query);
+```
+
+### getToolOutput()
+
+Get the output data from the tool.
+
+**Type Parameter:** `T` - Type of output data
+
+**Returns:** `T | null`
+
+**Example:**
+```typescript
+interface ProductData {
+  id: string;
+  name: string;
+  price: number;
+}
+
+const { getToolOutput } = useWidgetSDK();
+const product = getToolOutput<ProductData>();
+```
+
+### getToolResponseMetadata()
+
+Get metadata about the tool response.
+
+**Type Parameter:** `T` - Type of metadata
+
+**Returns:** `T | null`
+
+### getTheme()
+
+Get current theme.
+
+**Returns:** `'light' | 'dark'`
+
+### getMaxHeight()
+
+Get maximum height constraint.
+
+**Returns:** `number`
+
+### getDisplayMode()
+
+Get current display mode.
+
+**Returns:** `DisplayMode`
+
+### getUserAgent()
+
+Get user agent information.
+
+**Returns:** `UserAgent | null`
+
+**Example:**
+```typescript
+const { getUserAgent } = useWidgetSDK();
+const ua = getUserAgent();
+
+if (ua?.deviceType === 'mobile') {
+  // Show mobile-optimized UI
+}
+```
+
+### getLocale()
+
+Get user's locale.
+
+**Returns:** `string`
+
+**Example:**
+```typescript
+const { getLocale } = useWidgetSDK();
+const locale = getLocale(); // e.g., 'en-US'
+```
+
+### getSafeArea()
+
+Get safe area insets for the widget.
+
+**Returns:** `SafeArea | null`
+
+## Next steps
+
+<Cards>
+  <Card icon={<Wrench />} title="Utilities and types" href="/docs/sdk/ui/widget-sdk/utilities" description="Helpers, types, and components." />
+</Cards>

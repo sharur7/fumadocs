@@ -1,0 +1,108 @@
+---
+title: "Dependency Injection"
+description: "Make classes injectable and mark pipeline classes"
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+`@Injectable` makes a class available to the dependency injection container. The other decorators here mark classes as pipeline components, so NitroStack can create them with their dependencies.
+
+## @Injectable
+
+Marks a class for dependency injection.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+import { Injectable } from '@nitrostack/core';
+
+@Injectable()
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@injectable(deps=[ServiceA, ServiceB])
+```
+
+</Tab>
+</Tabs>
+
+**Example:**
+
+```typescript
+@Injectable()
+export class UserService {
+  constructor(
+    private db: DatabaseService,
+    private cache: CacheService
+  ) {}
+
+  async findById(id: string): Promise<User | null> {
+    return this.db.query('SELECT * FROM users WHERE id = $1', [id]);
+  }
+}
+```
+
+## @Middleware
+
+Marks a class as middleware.
+
+```typescript
+import { Middleware, MiddlewareInterface } from '@nitrostack/core';
+
+@Middleware()
+export class LoggingMiddleware implements MiddlewareInterface {
+  async use(context: ExecutionContext, next: () => Promise<any>): Promise<any> {
+    // Implementation
+  }
+}
+```
+
+## @Interceptor
+
+Marks a class as an interceptor.
+
+```typescript
+import { Interceptor, InterceptorInterface } from '@nitrostack/core';
+
+@Interceptor()
+export class TransformInterceptor implements InterceptorInterface {
+  async intercept(context: ExecutionContext, next: () => Promise<any>): Promise<any> {
+    // Implementation
+  }
+}
+```
+
+## @Pipe
+
+Marks a class as a pipe for argument transformation and validation.
+
+```typescript
+import { Pipe, PipeInterface, ArgumentMetadata } from '@nitrostack/core';
+
+@Pipe()
+export class ValidationPipe implements PipeInterface {
+  transform(value: unknown, metadata: ArgumentMetadata): unknown {
+    // Validation or transformation logic
+    return value;
+  }
+}
+```
+
+## @ExceptionFilter
+
+Marks a class as an exception filter.
+
+```typescript
+import { ExceptionFilter, ExceptionFilterInterface } from '@nitrostack/core';
+
+@ExceptionFilter()
+export class HttpExceptionFilter implements ExceptionFilterInterface {
+  catch(exception: unknown, context: ExecutionContext): any {
+    // Implementation
+  }
+}
+```

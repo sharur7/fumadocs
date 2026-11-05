@@ -1,0 +1,168 @@
+---
+title: "Guards"
+description: "Guard interface and usage for TypeScript and Python"
+icon: ShieldCheck
+---
+
+import { Clock, FileText, Key, KeyRound, Route, ShieldCheck, Wrench } from 'lucide-react';
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+Guards control access to tools, resources, and prompts by determining whether a request should proceed. They implement authorization logic, verify authentication tokens, check permissions, and enforce access policies.
+
+Guards execute before the handler and can deny access by returning `false` or throwing an exception.
+
+## Guard Interface
+
+A guard has one method. Return `true` to let the call continue; return `false` or throw to stop it.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+interface Guard {
+  canActivate(context: ExecutionContext): Promise<boolean> | boolean;
+}
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+async def can_activate(self, context: ExecutionContext) -> bool
+```
+
+Stack with `@use_guards`. Built-ins: `ApiKeyGuard`, `JwtGuard`, `OAuthGuard`.
+
+```python
+from nitrostack import use_guards, OAuthGuard, ApiKeyGuard, JwtGuard
+
+@use_guards(OAuthGuard)
+async def search_flights(...):
+    ...
+```
+
+Scaffold: `nitrostack-py generate guard MyGuard`.
+
+Read tokens from `context.metadata` (`authorization`, `headers`, `_oauth`). `OAuthGuard` allows no-token when `OAUTH_REQUIRED` is unset.
+
+</Tab>
+</Tabs>
+
+**Parameters:**
+- `context`: The execution context containing auth data, logger, and metadata
+
+**Returns:**
+- `true`: Allow the request to proceed
+- `false`: Deny access (throws ForbiddenException)
+- `throw Error`: Deny access with custom error
+
+## Using Guards
+
+Attach guards with `@UseGuards`. When you list several, they run in order and all of them must pass.
+
+### On Individual Methods
+
+Put `@UseGuards` on the handler it protects.
+
+```typescript
+import { ToolDecorator as Tool, UseGuards, ExecutionContext } from '@nitrostack/core';
+import { AuthGuard } from './guards/auth.guard.js';
+
+export class UserTools {
+  @Tool({ name: 'get_profile' })
+  @UseGuards(AuthGuard)
+  async getProfile(input: {}, ctx: ExecutionContext) {
+    return this.userService.findById(ctx.auth!.subject);
+  }
+}
+```
+
+### Multiple Guards
+
+Guards execute in order. All must pass for the request to proceed:
+
+```typescript
+@Tool({ name: 'delete_user' })
+@UseGuards(AuthGuard, AdminGuard, RateLimitGuard)
+async deleteUser(input: { userId: string }, ctx: ExecutionContext) {
+  // Only authenticated admins within rate limit can access
+  return this.userService.delete(input.userId);
+}
+```
+
+### On Resources and Prompts
+
+Guards work on all MCP primitives:
+
+```typescript
+@Resource({
+  uri: 'admin://dashboard',
+  name: 'Admin Dashboard'
+})
+@UseGuards(AdminGuard)
+async getAdminDashboard(uri: string, ctx: ExecutionContext) {
+  // Admin-only resource
+}
+
+@Prompt({
+  name: 'confidential_analysis',
+  title: 'Confidential Analysis',
+  description: 'Analyze confidential data'
+})
+@UseGuards(OfficerClearanceGuard)
+async getConfidentialPrompt(args: any, ctx: ExecutionContext) {
+  // Officer-level prompt
+}
+```
+
+## Dependency Injection
+
+Guards can inject services:
+
+```typescript
+@Injectable({ deps: [UserService, ConfigService] })
+export class SubscriptionGuard implements Guard {
+  constructor(
+    private userService: UserService,
+    private configService: ConfigService
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const userId = context.auth?.subject;
+    if (!userId) return false;
+
+    const user = await this.userService.findById(userId);
+    if (!user) return false;
+
+    const requiredPlan = this.configService.get('REQUIRED_PLAN', 'pro');
+    
+    if (user.subscriptionPlan !== requiredPlan && user.subscriptionPlan !== 'enterprise') {
+      context.logger.info('Subscription check failed', {
+        userId,
+        userPlan: user.subscriptionPlan,
+        requiredPlan
+      });
+      return false;
+    }
+
+    return true;
+  }
+}
+```
+
+## Guard patterns
+
+Worked examples are split by what the guard checks.
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Custom Guards" href="/docs/api-reference/guards/custom-guards" description="Role, permission, and clearance checks." />
+  <Card icon={<KeyRound />} title="Authentication Guards" href="/docs/api-reference/guards/authentication-guards" description="Validate JWTs and API keys." />
+  <Card icon={<Clock />} title="Access Rules" href="/docs/api-reference/guards/access-rules" description="Rate limits, time windows, and conditions." />
+  <Card icon={<Wrench />} title="Tools Guide" href="/docs/sdk/tools" description="Using guards with tools." />
+  <Card icon={<FileText />} title="Resources Guide" href="/docs/sdk/resources" description="Protected resources." />
+  <Card icon={<Route />} title="Middleware Guide" href="/docs/sdk/middleware" description="Middleware pipeline." />
+  <Card icon={<ShieldCheck />} title="Authentication Overview" href="/docs/sdk/auth/overview" description="Auth patterns." />
+  <Card icon={<Key />} title="API Key Authentication" href="/docs/sdk/auth/api-key" description="API key guards." />
+  <Card icon={<KeyRound />} title="OAuth Authentication" href="/docs/sdk/auth/oauth" description="OAuth guards." />
+</Cards>

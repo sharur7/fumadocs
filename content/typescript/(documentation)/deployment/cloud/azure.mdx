@@ -1,0 +1,143 @@
+---
+title: "Microsoft Azure"
+description: "Run your MCP server on Azure Container Instances or Azure Kubernetes Service"
+---
+
+import { Cloud, Server, Container } from 'lucide-react';
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+Azure runs your container image in two common ways. [Azure Container Instances](https://azure.microsoft.com/products/container-instances) (ACI) starts a single container with a public address in one command, which suits a small server or a staging copy. [Azure Kubernetes Service](https://azure.microsoft.com/products/kubernetes-service) (AKS) runs it on a managed cluster, for several replicas behind a load balancer.
+
+Both pull the image from Azure Container Registry (ACR). Clients connect to `http://<address>:3000/mcp` on ACI, or to your load balancer's address on AKS.
+
+<Callout title="Before you start">
+  Build the image from [Deploy with Docker](/docs/deployment/docker) and test it locally. You also need the Azure CLI, signed in with `az login`.
+</Callout>
+
+## Push the image to Azure Container Registry
+
+Create a resource group and a registry, then build the image in the registry itself. `az acr build` uploads your project and runs the Dockerfile in Azure, so you don't need Docker locally.
+
+```bash
+az group create --name mcp-server-rg --location eastus
+
+az acr create --resource-group mcp-server-rg --name myregistry --sku Basic --admin-enabled true
+
+az acr build --registry myregistry --image mcp-server:latest .
+```
+
+## Deploy
+
+Choose Container Instances for a single container, or AKS for a cluster.
+
+<Tabs items={['Container Instances', 'AKS (Kubernetes)']}>
+<Tab value="Container Instances">
+
+<Steps>
+<Step>
+
+### Create the container
+
+Create the container from your registry image, with the environment variables it needs:
+
+```bash
+az container create \
+  --resource-group mcp-server-rg \
+  --name mcp-server \
+  --image myregistry.azurecr.io/mcp-server:latest \
+  --registry-login-server myregistry.azurecr.io \
+  --registry-username myregistry \
+  --registry-password "$(az acr credential show --name myregistry --query 'passwords[0].value' -o tsv)" \
+  --cpu 1 --memory 1 \
+  --ports 3000 \
+  --dns-name-label my-mcp-server \
+  --environment-variables NODE_ENV=production HOST=0.0.0.0 MCP_TRANSPORT_TYPE=http \
+  --secure-environment-variables JWT_SECRET=your-secret-value \
+  --restart-policy Always
+```
+
+</Step>
+<Step>
+
+### Find the address
+
+Ask Azure for the container's public address:
+
+```bash
+az container show --resource-group mcp-server-rg --name mcp-server --query ipAddress.fqdn -o tsv
+```
+
+The server is reachable at `http://<fqdn>:3000/mcp`. ACI doesn't terminate HTTPS; for a public server, put Azure Application Gateway or Azure Front Door in front of it.
+
+</Step>
+</Steps>
+
+</Tab>
+<Tab value="AKS (Kubernetes)">
+
+<Steps>
+<Step>
+
+### Create the cluster
+
+`--attach-acr` lets the cluster pull from your registry without extra credentials. The `monitoring` add-on sends cluster metrics and container logs to Azure Monitor.
+
+```bash
+az aks create \
+  --resource-group mcp-server-rg \
+  --name mcp-cluster \
+  --node-count 2 \
+  --attach-acr myregistry \
+  --enable-addons monitoring \
+  --generate-ssh-keys
+
+az aks get-credentials --resource-group mcp-server-rg --name mcp-cluster
+```
+
+</Step>
+<Step>
+
+### Apply the manifest
+
+Use the Deployment and Service manifest from the [GKE guide](/docs/deployment/cloud/google-cloud), with `image` set to `myregistry.azurecr.io/mcp-server:latest`, then apply it:
+
+```bash
+kubectl apply -f deployment.yaml
+kubectl get service mcp-server
+```
+
+The `EXTERNAL-IP` column shows the load balancer's address once it's ready.
+
+</Step>
+</Steps>
+
+</Tab>
+</Tabs>
+
+## Secrets
+
+On ACI, pass sensitive values with `--secure-environment-variables`; they're hidden from the container's properties in the portal and the CLI. On AKS, store them in a Kubernetes Secret, or in Azure Key Vault with the Key Vault provider for the Secrets Store CSI driver, and expose them to the pod as environment variables.
+
+## Health checks and logs
+
+On AKS, the manifest's readiness and liveness probes call the built-in `/mcp/health` endpoint. On ACI, `--restart-policy Always` restarts the container if the process exits.
+
+Read the server's output from the terminal:
+
+```bash
+# Container Instances
+az container logs --resource-group mcp-server-rg --name mcp-server
+
+# AKS
+kubectl logs deployment/mcp-server
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Container />} title="Deploy with Docker" href="/docs/deployment/docker" description="The image and environment variables this guide uses." />
+  <Card icon={<Server />} title="DigitalOcean" href="/docs/deployment/cloud/digitalocean" description="Deploy with App Platform." />
+  <Card icon={<Cloud />} title="Cloud Platforms" href="/docs/deployment/cloud" description="Compare platforms." />
+</Cards>

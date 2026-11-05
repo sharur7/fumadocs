@@ -1,0 +1,33 @@
+---
+title: Test Cases
+description: Generate conversation tests with AI, run them against a model, and track results.
+---
+
+import { MessageSquare, Wrench, ScrollText, Sparkles } from 'lucide-react';
+
+A test case is a conversation with an expected outcome. It gives the model a request and checks that it calls the right tool with the right arguments. Because tools are chosen by a model, not by code, these tests catch problems unit tests can't, such as a description so vague that the model picks the wrong tool.
+
+<Screenshot src="/images/studio/test-cases.webp" alt="The Test Cases page in NitroStudio for a project with no test cases yet, with an AI Generate button and a Run All button" caption="A project with no test cases yet. Generate them with AI, or add one by hand." />
+
+## Generate tests with AI
+
+You don't have to write tests by hand. Studio's test generator reads your tools' schemas and descriptions and writes a suite that covers three kinds of case:
+
+**Positive** tests are ordinary requests that should succeed, such as a hotel search with a location and dates. **Edge** tests sit at the limits of what a tool accepts, such as a one-day itinerary or a search with only a location. **Negative** tests, marked **NEG**, are requests the server should refuse or question, such as a booking with no hotel or a date range that ends before it starts.
+
+Read the generated tests before you rely on them, and edit any that don't match how the tool should behave. Use **+** to add your own.
+
+## Run them
+
+Choose a model in the selector at the top, then **Run All**. Each test shows **PASS** or **FAIL** when it finishes. Select a test to see the conversation, the tool calls the model made, and why it passed or failed. **Results & Runs** keeps the history, so you can see whether a change to a description made things better or worse.
+
+The **All**, **Free**, and **Pro** switch filters the model list by tier. Running the same suite on a small model and a large one shows how forgiving your tool descriptions are: a server that only passes on the largest model is relying on the model to guess.
+
+## Related
+
+<Cards>
+  <Card icon={<Wrench />} title="Tools" href="/docs/studio/tools" description="Check a single tool by hand." />
+  <Card icon={<MessageSquare />} title="AI Chat" href="/docs/studio/chat" description="Explore before you write tests." />
+  <Card icon={<Sparkles />} title="Compose" href="/docs/studio/compose" description="Uses these tests to unlock the app's chat." />
+  <Card icon={<ScrollText />} title="Logs" href="/docs/studio/logs" description="See the messages behind a failing test." />
+</Cards>

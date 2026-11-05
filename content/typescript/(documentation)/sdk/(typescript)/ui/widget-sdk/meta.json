@@ -1,0 +1,10 @@
+{
+  "title": "Widget SDK",
+  "pages": [
+    "index",
+    "hooks",
+    "class",
+    "utilities",
+    "legacy"
+  ]
+}

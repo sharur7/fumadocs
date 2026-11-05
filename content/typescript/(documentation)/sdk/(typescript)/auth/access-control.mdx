@@ -1,0 +1,204 @@
+---
+title: "Access Control"
+description: "Roles, scopes, and combined authentication methods"
+---
+
+import { ShieldCheck, KeyRound, Key } from 'lucide-react';
+
+Authentication tells you who is calling. Access control decides what they may do. In NitroStack both are [guards](/docs/sdk/guards): an authentication guard identifies the caller, and further guards check roles, scopes, or anything else before the tool runs.
+
+## Combine methods
+
+Some tools should accept more than one way of signing in; others should require two.
+
+### Either a JWT or an API key
+
+A single guard can try each method in turn and accept the first that succeeds.
+
+```typescript
+export class MultiAuthGuard implements Guard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Try JWT first
+    const jwt = context.metadata?._jwt || context.metadata?.authorization;
+    if (jwt) {
+      // Validate JWT...
+      return true;
+    }
+    
+    // Try API key
+    const apiKey = context.metadata?.apiKey;
+    if (apiKey) {
+      return await ApiKeyModule.validate(apiKey);
+    }
+    
+    throw new Error('Either JWT or API key required');
+  }
+}
+
+// Use on tool
+@Tool({ name: 'flexible_tool' })
+@UseGuards(MultiAuthGuard)  // Accepts JWT OR API key
+async flexibleTool() {
+  // Accessible with either auth method
+}
+```
+
+### Both a JWT and an API key
+
+List several guards and a call must pass all of them, in order.
+
+```typescript
+@Tool({ name: 'critical_operation' })
+@UseGuards(JWTGuard, ApiKeyGuard)  // Both required!
+async criticalOperation() {
+  // Requires BOTH JWT token AND API key
+}
+```
+
+### Keys stored in a database
+
+For many keys, look them up in a database instead of environment variables. A service can validate a key and return its owner and permissions.
+
+```typescript
+@Injectable()
+export class ApiKeyService {
+  constructor(private db: DatabaseService) {}
+  
+  async validate(key: string): Promise<any | null> {
+    const result = await this.db.queryOne(
+      'SELECT * FROM api_keys WHERE key_hash = ?',
+      [this.hashKey(key)]
+    );
+    
+    return result;
+  }
+  
+  async create(userId: string, name: string, scopes: string[]): Promise<string> {
+    const key = this.generateKey();
+    const keyHash = this.hashKey(key);
+    
+    await this.db.execute(
+      'INSERT INTO api_keys (user_id, name, key_hash, scopes) VALUES (?, ?, ?, ?)',
+      [userId, name, keyHash, JSON.stringify(scopes)]
+    );
+    
+    return key;  // Return once, never shown again
+  }
+  
+  private generateKey(): string {
+    // Generate secure random key
+    return `sk_${randomBytes(32).toString('hex')}`;
+  }
+  
+  private hashKey(key: string): string {
+    return createHash('sha256').update(key).digest('hex');
+  }
+}
+```
+
+## Roles
+
+A role guard runs after an authentication guard and checks what the identified user is allowed to do.
+
+### Admin-only tools
+
+This guard lets a call through only when the authenticated user has the `admin` role.
+
+```typescript
+@Injectable()
+export class AdminGuard implements Guard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Assumes JWTGuard has already run
+    const role = context.auth?.role;
+    
+    if (role !== 'admin') {
+      context.logger.warn(`Access denied: User role is ${role}, requires admin`);
+      return false;
+    }
+    
+    return true;
+  }
+}
+```
+
+### Apply it
+
+Put the authentication guard first so `context.auth` is set when the role guard runs.
+
+```typescript
+@Tool({ name: 'delete_all_users' })
+@UseGuards(JWTGuard, AdminGuard)  // ← JWT + Admin role
+async deleteAllUsers(input: any, ctx: ExecutionContext) {
+  // Only admins can call this
+}
+```
+
+### Any role
+
+A small factory returns a guard for whichever roles a tool needs.
+
+```typescript
+export function RoleGuard(...roles: string[]) {
+  class DynamicRoleGuard implements Guard {
+    async canActivate(context: ExecutionContext): Promise<boolean> {
+      const userRole = context.auth?.role;
+      return roles.includes(userRole);
+    }
+  }
+  return DynamicRoleGuard;
+}
+
+// Usage
+@Tool({ name: 'moderator_action' })
+@UseGuards(JWTGuard, RoleGuard('admin', 'moderator'))
+async moderatorAction(input: any, ctx: ExecutionContext) {
+  // Admins OR moderators can call this
+}
+```
+
+## Scopes
+
+Scopes are finer-grained than roles: each one grants a single permission, such as `orders:write`.
+
+### A scope guard
+
+This guard checks that the caller's token carries every scope the tool requires. For OAuth tokens, the built-in `createScopeGuard()` does the same.
+
+```typescript
+@Injectable()
+export class ScopeGuard implements Guard {
+  constructor(private requiredScopes: string[]) {}
+  
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const userScopes = context.auth?.scopes || [];
+    
+    const hasAllScopes = this.requiredScopes.every(
+      scope => userScopes.includes(scope)
+    );
+    
+    if (!hasAllScopes) {
+      context.logger.warn(
+        `Missing scopes. Required: ${this.requiredScopes}, Has: ${userScopes}`
+      );
+      return false;
+    }
+    
+    return true;
+  }
+}
+
+// Usage
+@Tool({ name: 'write_data' })
+@UseGuards(ApiKeyGuard, ScopeGuard(['read', 'write']))
+async writeData(input: any, ctx: ExecutionContext) {
+  // Requires API key with read AND write scopes
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Guards" href="/docs/sdk/guards" description="How guards work." />
+  <Card icon={<KeyRound />} title="OAuth scopes" href="/docs/sdk/auth/oauth/protecting-tools" description="Scope checks for OAuth tokens." />
+  <Card icon={<Key />} title="API keys" href="/docs/sdk/auth/api-key" description="Authenticate integrations with keys." />
+</Cards>

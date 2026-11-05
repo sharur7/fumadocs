@@ -1,0 +1,59 @@
+---
+title: "Dynamic Registration"
+description: "Add resources at runtime"
+---
+
+import { Wrench } from 'lucide-react';
+
+When resources are only known at runtime, such as one per file in a folder, register them programmatically instead of with `@Resource`.
+
+NitroStack supports dynamic resource registration at runtime, with automatic client notifications.
+
+## Adding Resources Dynamically
+
+Create the resource with `createResource()`, then register it on the running server.
+
+```typescript
+import { McpApplicationFactory, createResource } from '@nitrostack/core';
+
+const app = await McpApplicationFactory.create(AppModule);
+const server = app.getServer();
+
+// Create a new resource
+const newResource = createResource({
+  uri: 'dynamic://new-data',
+  name: 'Dynamic Data',
+  title: 'Dynamically Added Data',
+  description: 'A resource added at runtime',
+  mimeType: 'application/json',
+  annotations: {
+    audience: ['assistant'],
+    priority: 0.5
+  }
+}, async (uri, context) => {
+  return {
+    contents: [{
+      uri,
+      mimeType: 'application/json',
+      text: JSON.stringify({ data: 'dynamic content' })
+    }]
+  };
+});
+
+// Register and notify clients
+server.resource(newResource);
+server.notifyResourcesListChanged();
+```
+
+## Use Cases
+
+1. **Plugin systems**: Load resources from external modules
+2. **User-generated content**: Create resources based on user data
+3. **Feature flags**: Enable/disable resources dynamically
+4. **Multi-tenancy**: Provide tenant-specific resources
+
+## Next steps
+
+<Cards>
+  <Card icon={<Wrench />} title="Dynamic tools" href="/docs/sdk/tools/dynamic" description="The same for tools." />
+</Cards>

@@ -1,0 +1,111 @@
+---
+title: "Tools"
+description: "@tool with Pydantic input_schema and ExecutionContext"
+---
+
+import { AppWindow, FileText, ListTodo } from 'lucide-react';
+
+<Callout type="info" title="Agent skill">
+
+`nitrostack-python-tools-resources-prompts`
+
+</Callout>
+
+Tools are the actions an AI model can take through your server. A tool is an async method on an injectable class, marked with `@tool`. The model sees its name, description, and input schema, decides when to call it, and receives whatever the method returns. Inputs are Pydantic models, validated before your method runs.
+
+Decorate **async methods on an `@injectable` class** listed in the module’s `controllers`. Signature is `(self, input: Model, context: ExecutionContext)`. Use Pydantic, not Zod.
+
+```python
+from nitrostack import injectable, tool, widget, ExecutionContext
+from pydantic import BaseModel, Field
+from typing import Literal
+
+class CalculateInput(BaseModel):
+    operation: Literal["add", "subtract", "multiply", "divide"] = Field(description="The operation to perform")
+    a: float = Field(description="First number")
+    b: float = Field(description="Second number")
+
+class CalculateOutput(BaseModel):
+    result: float
+
+@injectable()
+class CalculatorTools:
+    @tool(
+        name="calculate",
+        description="Perform basic arithmetic calculations",
+        input_schema=CalculateInput,
+        output_schema=CalculateOutput,
+    )
+    @widget("calculator-result")
+    async def calculate(self, input: CalculateInput, context: ExecutionContext) -> dict:
+        context.logger.info(f"{input.operation} {input.a} {input.b}")
+        return {"result": input.a + input.b}
+```
+
+## `@tool` options
+
+`name`, `description`, and `input_schema` are required. Everything else is optional.
+
+| Option | Default | Description |
+|---|---|---|
+| `name` | required | The name clients call the tool by |
+| `description` | required | What the tool does; the model reads this to decide when to call it |
+| `input_schema` | required | A Pydantic model class (or a dict schema) describing the arguments |
+| `title` | none | A human-readable name for clients that show one |
+| `output_schema` | none | A Pydantic model describing the result, so clients know its shape |
+| `annotations` | `ToolAnnotations()` | Hints about what the tool does, below |
+| `task_support` | `"forbidden"` | Whether the tool may run as a [background task](/python/sdk/tasks): `"forbidden"`, `"optional"`, or `"required"` |
+| `visibility` | `"visible"` | `"hidden"` keeps the tool out of the tool list |
+| `examples` | none | A `ToolExamples(input=..., output=..., description=...)` showing a sample call |
+| `invocation` | none | A `ToolInvocation(invoking=..., invoked=...)` with the status messages a client can show while the tool runs and when it finishes |
+| `metadata` | `{}` | Extra metadata passed through to clients |
+
+Stack `@initial_tool` (before or after `@tool`) to call the tool automatically when a client connects.
+
+## Annotations
+
+`ToolAnnotations` tells clients how cautious to be with a tool. Set the ones that apply.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `read_only_hint` | `False` | The tool doesn't change anything |
+| `destructive_hint` | `True` | The tool may delete or overwrite data |
+| `idempotent_hint` | `False` | Calling it twice with the same arguments has the same effect as once |
+| `open_world_hint` | `True` | The tool reaches outside your server, for example an external API |
+
+```python
+from nitrostack import tool, ToolAnnotations
+
+@tool(
+    name="get_order",
+    description="Look up an order by ID",
+    input_schema=GetOrderInput,
+    annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=False),
+)
+async def get_order(self, input: GetOrderInput, context) -> dict:
+    ...
+```
+
+Because the defaults assume the worst, a read-only tool should say so.
+
+## Protect and shape a tool
+
+Stack the pipeline decorators under `@tool` to add behavior without changing the handler: [`@use_guards`](/python/sdk/guards) to authorize, [`@use_pipes`](/python/sdk/pipes) to transform input, [`@use_middleware`](/python/sdk/middleware) and [`@use_interceptors`](/python/sdk/interceptors) to wrap the call, and [`@use_filters`](/python/sdk/error-handling) to handle errors. [`@cache`](/python/sdk/caching) and [`@rate_limit`](/python/sdk/rate-limiting) work the same way.
+
+## Inspector empty strings
+
+Inspector often sends `""` for unused optionals. Coerce with a Pydantic `field_validator(..., mode="before")` when needed.
+
+## Do not
+
+- Use TypeScript `@Tool({ inputSchema: z.object(...) })`
+- Call `server.tool()` manually
+- Instantiate services with `SomeService()` inside the controller — inject via `deps`
+
+## Next steps
+
+<Cards>
+  <Card icon={<FileText />} title="Resources" href="/python/sdk/resources" description="Data clients can read." />
+  <Card icon={<AppWindow />} title="Widgets" href="/python/sdk/widgets" description="Static HTML UI for tool results." />
+  <Card icon={<ListTodo />} title="MCP Tasks" href="/python/sdk/tasks" description="Run long tools in the background." />
+</Cards>

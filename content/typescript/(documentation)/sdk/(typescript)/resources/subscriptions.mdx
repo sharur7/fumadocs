@@ -1,0 +1,73 @@
+---
+title: "Subscriptions"
+description: "Notify clients when a resource changes"
+---
+
+import { FileText } from 'lucide-react';
+
+A client can subscribe to a resource and be told when it changes, so it reads the new version instead of polling.
+
+Clients can subscribe to resources to receive notifications when they change. This enables real-time updates without polling.
+
+## Server Capabilities
+
+NitroStack declares subscription support in server capabilities:
+
+```typescript
+{
+  capabilities: {
+    resources: {
+      subscribe: true,
+      listChanged: true
+    }
+  }
+}
+```
+
+## Handling Subscriptions
+
+When a client subscribes to a resource, your application can track subscriptions and notify clients of changes:
+
+```typescript
+import { McpApplicationFactory } from '@nitrostack/core';
+
+const app = await McpApplicationFactory.create(AppModule);
+const server = app.getServer();
+
+// When a resource changes, notify subscribers
+function onResourceUpdated(uri: string) {
+  server.notifyResourceUpdated(uri);
+}
+
+// Example: Update product and notify
+async function updateProduct(productId: string, data: ProductData) {
+  await this.productRepo.update(productId, data);
+  onResourceUpdated(`product://${productId}`);
+}
+```
+
+## Subscription Flow
+
+1. **Client subscribes**: `resources/subscribe` with resource URI
+2. **Server tracks**: Maintains list of subscribed URIs
+3. **Resource changes**: Your code detects the change
+4. **Server notifies**: Sends `notifications/resources/updated` with URI
+5. **Client refreshes**: Fetches updated resource content
+
+## List Changed Notifications
+
+When resources are added or removed, notify clients:
+
+```typescript
+// After adding a new resource
+server.notifyResourcesListChanged();
+
+// After removing a resource
+server.notifyResourcesListChanged();
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<FileText />} title="Responses" href="/docs/sdk/resources/responses" description="Return text or binary content." />
+</Cards>

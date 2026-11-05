@@ -1,0 +1,128 @@
+---
+title: "OAuth 2.1"
+description: "Flight booking with OAuth-protected tools and interactive widgets"
+icon: Lock
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { ShieldCheck, Plane, AppWindow, Database, KeyRound, BookOpen, Calculator } from 'lucide-react';
+
+The OAuth 2.1 template is a flight booking server that shows authentication end to end: every tool is protected by an OAuth guard, and widgets guide the user from search to booking.
+
+## What's included
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="OAuth 2.1" description="Token validation against your provider, such as Auth0, with PKCE and scopes." />
+  <Card icon={<Plane />} title="Seven protected tools" description="Search flights and airports, view details and seat maps, and create, view, or cancel orders." />
+  <Card icon={<AppWindow />} title="Seven widgets" description="Search results, flight details, airport search, seat selection, order summary, payment, and cancellation." />
+  <Card icon={<Database />} title="Duffel API" description="Real flight data when you add a Duffel API key." />
+</Cards>
+
+## Create the project
+
+Scaffold the template in your language:
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```bash
+npx @nitrostack/cli init my-flights --template typescript-oauth
+cd my-flights
+cp .env.example .env
+```
+
+Create an application with your OAuth provider, then set its values in `.env`:
+
+```bash
+RESOURCE_URI=https://mcplocal
+AUTH_SERVER_URL=https://your-tenant.auth0.com
+TOKEN_AUDIENCE=https://mcplocal
+TOKEN_ISSUER=https://your-tenant.auth0.com
+JWKS_URI=https://your-tenant.auth0.com/.well-known/jwks.json
+OAUTH_REQUIRED=true
+
+# Optional: real flight data
+DUFFEL_API_KEY=your_duffel_api_key
+```
+
+Then start it with `npm run dev`.
+
+</Tab>
+<Tab value="Python">
+
+```bash
+nitrostack-py init flights --template python-oauth
+```
+
+Flight-booking server (Duffel-style) with OAuth 2.1, prompts, resources, widgets, and `OAUTH_SETUP.md` plus `guards/oauth_guard.py`.
+
+Follow `OAUTH_SETUP.md` for JWKS vs introspection, `OAUTH_REQUIRED`, and scopes. Use `@use_guards(OAuthGuard, create_scope_guard([...]))`.
+
+</Tab>
+</Tabs>
+
+## How tools are protected
+
+Each tool carries the OAuth guard, so it only runs for a caller with a valid token:
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript title="src/modules/flights/flights.tools.ts"
+@UseGuards(OAuthGuard)
+@Tool({
+  name: 'search_flights',
+  description: 'Search for flights between airports',
+})
+async searchFlights(input: any, ctx: ExecutionContext) {
+  // Only accessible with a valid token
+}
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+@use_guards(OAuthGuard, create_scope_guard([...]))
+```
+
+</Tab>
+</Tabs>
+
+The flow: the user calls a protected tool, the server answers with an authorization challenge, the user signs in with the provider, and the client retries with the access token. Tokens are refreshed automatically when they expire.
+
+## Project structure
+
+The files that matter:
+
+```text
+src/
+├── modules/flights/
+│   ├── flights.tools.ts       # Flight search and details
+│   ├── booking.tools.ts       # Orders
+│   ├── flights.resources.ts
+│   └── flights.prompts.ts
+├── services/duffel.service.ts # Duffel API client
+├── guards/oauth.guard.ts      # OAuth guard
+├── widgets/app/               # Seven widgets
+└── app.module.ts              # Root module with OAuth
+```
+
+## Try it
+
+Ask your AI client things like these:
+
+| Ask | What happens |
+| :-- | :-- |
+| "Find flights from NYC to LAX next week" | `search_flights` runs after sign-in and the results widget lists flights. |
+| "Show me details for the first flight" | `get_flight_details` opens the flight details widget. |
+| "Book this flight for 2 passengers" | `create_order` returns a booking confirmation. |
+
+## Next steps
+
+<Cards>
+  <Card icon={<KeyRound />} title="OAuth 2.1 guide" href="/docs/sdk/auth/oauth" description="Configure OAuth for your own server." />
+  <Card icon={<ShieldCheck />} title="Guards reference" href="/docs/api-reference/guards" description="The guard interface and built-in guards." />
+  <Card icon={<BookOpen />} title="Authentication overview" href="/docs/sdk/auth/overview" description="API keys, JWT, and OAuth compared." />
+  <Card icon={<Calculator />} title="Starter template" href="/docs/templates/starter" description="The basics without authentication." />
+</Cards>

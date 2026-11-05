@@ -1,0 +1,118 @@
+---
+title: "Streamable HTTP and SSE endpoints"
+description: "Streamable HTTP and legacy SSE endpoints"
+---
+
+import { ArrowLeftRight, Server } from 'lucide-react';
+
+When you run your NitroStack MCP server over HTTP (for example with `npm start`), the same HTTP port exposes two complementary ways for clients to speak MCP over the network:
+
+1. **Streamable HTTP**: the current default path, aligned with the MCP streamable HTTP [transport](/docs/getting-started/core-concepts/transports) (JSON-RPC over HTTP with optional SSE on the same logical endpoint).
+2. **Legacy SDK SSE**: compatibility routes for clients built against the older `SSEServerTransport` pattern from `@modelcontextprotocol/sdk`.
+
+The CLI's startup summary lists both: Streamable HTTP at `http://localhost:<PORT>/mcp` and legacy SSE at `http://localhost:<PORT>/sse`. The exact host, port, and `/mcp` path come from your `server.start({ transport, host, port, endpoint, enableCors })` options (default endpoint is `/mcp`).
+
+## Streamable HTTP (`/mcp`)
+
+NitroStack uses `StreamableHttpTransport`, which mounts MCP on a single configurable path (default `/mcp`).
+
+Clients send JSON-RPC requests for tools, resources, and prompts with `POST /mcp`. `GET /mcp` opens an SSE stream for server-initiated events when the client already has a session. Without an `mcp-session-id`, the same `GET` starts a legacy SSE session instead, which is what Cursor and similar clients rely on.
+
+Use `/mcp` for new Streamable HTTP integrations. Older `/mcp/sse` and `/mcp/message` aliases on this transport were removed when NitroStack delegated protocol handling to the official SDK transport; use root `/sse` for legacy SSE clients instead (see below).
+
+**Communication model:**
+
+1. Client sends JSON-RPC 2.0 messages (e.g. `initialize`, `tools/list`, `tools/call`) via **POST** to the MCP endpoint.
+2. Client may hold a **GET** connection to the same endpoint (or the transport's SSE channel) to receive streamed events and follow the MCP streamable HTTP session rules.
+
+This is the path used by modern MCP inspectors, AI gateways, and HTTP clients that target streamable HTTP.
+
+## HTTP Accept Header Handling & Content Negotiation
+
+The MCP SDKs reject requests that don't send the expected `Accept` header. NitroStack is more forgiving, so simple clients like `curl` still work.
+
+### The HTTP 406 Not Acceptable Challenge
+
+Both the 2025-era and 2026-era official MCP SDK transports strictly enforce that incoming `POST` requests include an `Accept` header containing both MIME types:
+
+```http
+Accept: application/json, text/event-stream
+```
+
+If a client sends a standard web request with `Accept: application/json`, a wildcard `*/*`, or omits the header altogether, the upstream SDK transport rejects the request immediately with an `HTTP 406 Not Acceptable` status error. This frequently causes connection failures when testing servers with standard tools such as `curl`, Postman, custom HTTP client libraries, or API reverse proxies.
+
+### Transparent Header Rewriting
+
+NitroStack solves this incompatibility at the transport layer. When an incoming `POST` arrives without `text/event-stream` in its `Accept` header:
+
+1. NitroStack transparently rewrites the request header internally to `application/json, text/event-stream` to satisfy SDK transport validation.
+2. The server processes the request and responds in standard JSON response mode, returning clean JSON bodies without forcing SSE envelopes.
+
+### Diagnostic Logging (`NITRO_DEBUG_ACCEPT`)
+
+To troubleshoot clients with unusual header combinations or debug unexpected 406 errors, NitroStack provides an environment variable flag: `NITRO_DEBUG_ACCEPT`.
+
+When set to `1` or `true`, NitroStack logs every request that omits event-stream headers or receives a 406 status directly to `stderr`:
+
+```bash
+export NITRO_DEBUG_ACCEPT=1
+npm run dev
+```
+
+Sample diagnostic entry written to stderr:
+
+```json
+[NITRO_DEBUG_ACCEPT] {"engine":"modern","httpMethod":"POST","accept":"application/json","contentType":"application/json","protocolVersion":"2026-07-28","rpcMethod":"tools/call","status":200,"servedAsJson":true}
+```
+
+| Field | Meaning |
+| :-- | :-- |
+| `engine` | Protocol engine: `modern` for 2026-07-28, `legacy` for the earlier sessionful protocol |
+| `httpMethod` | Incoming HTTP method, `POST` or `GET` |
+| `accept` | The `Accept` header the client sent |
+| `contentType` | The request's `Content-Type` header |
+| `protocolVersion` | The negotiated protocol version |
+| `rpcMethod` | The JSON-RPC method, such as `tools/list` or `tools/call` |
+| `status` | The HTTP status code returned |
+| `servedAsJson` | Whether the response was returned as plain JSON |
+
+## Legacy SDK SSE (`/sse` + `POST /mcp/messages`)
+
+Some clients still use the original TypeScript SDK's split between an SSE stream and a message endpoint. For them, `GET /sse` opens a Server-Sent Events connection, and the server creates an MCP server instance for that session. The client then sends JSON-RPC messages with `POST /mcp/messages?sessionId=<id>`, using the session ID issued when the stream opened.
+
+**Communication model:**
+
+1. Client connects to `GET /sse` and reads the event stream.
+2. Client obtains a `sessionId` from the SSE transport.
+3. Client posts JSON-RPC envelopes to `/mcp/messages` with `sessionId` as a query parameter.
+
+Each active legacy session runs through the same tool, resource, and prompt surface as the main server; NitroStack registers handlers on the session `McpServer` identically to the primary instance.
+
+## STDIO in Dual Mode
+
+In `dual` mode, **STDIO** remains available on the same process: one client can attach via stdin/stdout while other clients connect over HTTP. Legacy SSE and streamable HTTP share the same Express app and port as the streamable transport.
+
+## Which URL Should I Use?
+
+Point each client at the endpoint it supports:
+
+| Client / Scenario | Suggested Entry | Details |
+|:---|:---|:---|
+| **Cursor IDE** | `http://<host>:<port>/mcp` or `http://<host>:<port>/sse` | Both use SSE under the hood. |
+| **MCP Inspector & Streamable HTTP** | `http://<host>:<port>/mcp` | Standard Streamable HTTP endpoint. |
+| **Legacy Examples (SSEServerTransport)** | `http://<host>:<port>/sse` | Connect to `/sse` and POST to `/mcp/messages`. |
+| **Local NitroStudio / CLI STDIO** | `STDIO` | Direct process piping (no HTTP URL required). |
+
+Run `nitrostack-cli cursor` to generate `.cursor/mcp.json`. Legacy SSE (`/sse`) is the default; `/mcp` also works for Cursor because the server falls back to legacy SSE on `GET /mcp` when no session ID is present.
+
+## Configuration
+
+The port comes from the `PORT` environment variable or `server.start({ port })`, and defaults to 3000. In development, the [widget](/docs/getting-started/core-concepts/widgets) dev server uses 3001, so pick another port if you run both. The endpoint defaults to `/mcp`; if you change it, for example to `/api/mcp`, all the Streamable HTTP routes move with it. In production, terminate TLS at your platform or reverse proxy and have clients connect over `https://`.
+
+## See also
+
+<Cards>
+  <Card icon={<ArrowLeftRight />} title="Dual Transport (STDIO + HTTP)" href="/docs/guides/dual-transport" description="High-level dual-mode overview." />
+  <Card icon={<ArrowLeftRight />} title="Verify Transport" href="/docs/guides/verify-transport" description="Testing and validating transport health." />
+  <Card icon={<Server />} title="Server Concepts" href="/docs/getting-started/core-concepts/server-concepts" description="Server lifecycle and bootstrapping." />
+</Cards>

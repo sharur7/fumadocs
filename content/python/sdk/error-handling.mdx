@@ -1,0 +1,23 @@
+---
+title: "Error Handling"
+description: "SDK errors and use_filters"
+---
+
+When something goes wrong, raise an exception. NitroStack turns it into an MCP error result. The SDK defines error types for common failures, and exception filters let you control what clients receive.
+
+Public error types from `nitrostack`:
+
+| Error | When |
+|-------|------|
+| `ToolExecutionError` | Tool failed |
+| `ValidationError` | Pydantic / input parse failed |
+| `ResourceNotFoundError` | Unknown resource URI |
+| `PromptNotFoundError` | Unknown prompt |
+| `ConfigurationError` | Bad config |
+| `DependencyResolutionError` | DI miss |
+| `OAuthError` / `TokenInactiveError` / `AudienceMismatchError` | OAuth |
+| `TaskCancelledError` / `TaskNotFoundError` / `TaskAlreadyTerminalError` / `InvalidTaskTransitionError` / `TaskExpiredError` | MCP tasks |
+
+Exception filters: `async def catch(self, error, context)` stacked with `@use_filters`. Scaffold: `nitrostack-py generate filter HttpException`.
+
+JSON-RPC codes: `JsonRpcErrorCode`.

@@ -1,0 +1,67 @@
+---
+title: "Middleware"
+description: "Middleware interface for TypeScript and Python"
+icon: Layers
+---
+
+import { Route } from 'lucide-react';
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+## Middleware Interface
+
+Middleware has one method, `use()`. Call `next()` to run the rest of the pipeline and get its result.
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```typescript
+interface MiddlewareInterface {
+  use(
+    context: ExecutionContext,
+    next: () => Promise<any>
+  ): Promise<any>;
+}
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+async def use(self, context: ExecutionContext, next_fn)
+```
+
+```python
+from nitrostack import use_middleware
+
+@use_middleware(AuditMiddleware)
+async def handler(...):
+    ...
+```
+
+Call `await next_fn()` to continue the pipeline.
+
+</Tab>
+</Tabs>
+
+## Example
+
+A middleware that runs code before and after the handler:
+
+```typescript
+@Middleware()
+export class MyMiddleware implements MiddlewareInterface {
+  async use(context: ExecutionContext, next: () => Promise<any>): Promise<any> {
+    // Before
+    const result = await next();
+    // After
+    return result;
+  }
+}
+```
+
+## Related
+
+<Cards>
+  <Card icon={<Route />} title="Middleware Guide" href="/docs/sdk/middleware" />
+</Cards>

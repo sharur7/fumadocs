@@ -1,0 +1,80 @@
+---
+title: "Code Mode"
+description: "Models write scripts that run tools inside a QuickJS WebAssembly sandbox"
+icon: Code
+---
+
+import { Search, FileCode, Play, BookOpen } from 'lucide-react';
+
+The Code Mode template (TypeScript only) uses `CodeModeTransform` to let a model run a multi-step pipeline in a single call. Instead of calling tools one at a time, the model sends a JavaScript script; NitroStack runs it in an isolated QuickJS WebAssembly sandbox where the script calls tools locally and returns only the final result.
+
+## The three meta-tools
+
+<Cards className="nx-cards-3">
+  <Card icon={<Search />} title="search" description="Find tools by keywords or a task description." />
+  <Card icon={<FileCode />} title="get_schema" description="Get full parameter schemas for a list of tools." />
+  <Card icon={<Play />} title="execute" description="Run a script in the sandbox, with callTool(name, args) available." />
+</Cards>
+
+## Create the project
+
+Scaffold the template and start it:
+
+```bash
+npx @nitrostack/cli init code-orchestrator --template typescript-code-mode
+cd code-orchestrator
+npm run dev
+```
+
+The project has four controllers (data, finance, inventory, support), widgets, and a sample script in `src/scripts/sample-batch.js`.
+
+## How it works
+
+The root module configures the sandbox:
+
+```typescript title="src/app.module.ts"
+transforms: [
+  new CodeModeTransform({
+    workerPoolSize: 4,
+    memoryLimitMb: 128,
+    timeoutMs: 15000,
+    searchToolDescription: DEFAULT_CODE_MODE_SEARCH_DESCRIPTION,
+    alwaysVisible: [
+      'finance_get_financial_summary',
+      'finance_audit_ledger',
+      'inventory_check_stock',
+      'inventory_report',
+      'support_get_system_status',
+      'data_aggregate_sum',
+    ],
+  }),
+],
+```
+
+A script chains tool calls and returns one object. This is the core of the sample script:
+
+```javascript title="src/scripts/sample-batch.js"
+const filterRes = await callTool('data_filter_records', { values: rawValues, min: 50 });
+const sumRes = await callTool('data_aggregate_sum', { values: filterRes.filtered });
+const formatRes = await callTool('data_transform_format', { prefix: 'METRIC', values: filterRes.filtered });
+
+return { totalSum: sumRes.sum, average: sumRes.avg, records: formatRes.formatted };
+```
+
+## Sandbox limits
+
+The guest script has no access to Node.js globals such as `process`, `require`, or `fs`. Each run is also bounded:
+
+| Option | Default | What happens at the limit |
+| :-- | :-- | :-- |
+| `memoryLimitMb` | 100 (this template: 128) | The worker stops and returns an out-of-memory error. |
+| `timeoutMs` | 30000 (this template: 15000) | The worker is terminated, for example on an infinite loop. |
+| `maxToolCalls` | 50 | Further tool calls are refused. |
+| `allowDestructive` | `false` | When `false`, calling a tool marked `destructiveHint: true` throws an error. |
+
+## Next steps
+
+<Cards>
+  <Card icon={<Search />} title="Enterprise Search template" href="/docs/templates/enterprise-search" description="Progressive discovery without scripting." />
+  <Card icon={<BookOpen />} title="Transforms" href="/docs/sdk/transforms" description="How catalog transforms work." />
+</Cards>

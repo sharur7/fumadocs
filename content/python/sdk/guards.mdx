@@ -1,0 +1,62 @@
+---
+title: "Guards"
+description: "Allow or reject a call before it runs, with use_guards and the built-in guards"
+---
+
+import { ShieldCheck, KeyRound, Layers } from 'lucide-react';
+
+A guard decides whether a call may go ahead. It runs before anything else in the pipeline, so a rejected call never reaches your pipes, middleware, or handler. Use guards for authentication and authorization: who is calling, and are they allowed to do this.
+
+## The guard protocol
+
+A guard is any class with an async `can_activate` method. It receives the [execution context](/python/api-reference/execution-context) and returns `True` to allow the call or `False` to reject it.
+
+```python
+from nitrostack import ExecutionContext
+
+class BusinessHoursGuard:
+    async def can_activate(self, context: ExecutionContext) -> bool:
+        from datetime import datetime
+        return 9 <= datetime.now().hour < 18
+```
+
+A guard that returns `False` stops the call with `PermissionError("Access denied by guard")`. A guard can also raise its own error to give the caller a specific message.
+
+Guards are created by the dependency injection container, so a guard class doesn't need to be registered. It can take constructor dependencies the same way other services do. To scaffold one, run `nitrostack-py generate guard MyGuard`.
+
+## Apply a guard
+
+Put `@use_guards` on a tool, resource, or prompt handler. Pass several guards to run them in order; the first one that rejects stops the call.
+
+```python
+from nitrostack import tool, use_guards, ApiKeyGuard, ExecutionContext
+
+@tool(name="delete_order", description="Delete an order", input_schema=DeleteOrderInput)
+@use_guards(ApiKeyGuard, BusinessHoursGuard)
+async def delete_order(self, input: DeleteOrderInput, context: ExecutionContext) -> dict:
+    ...
+```
+
+## Built-in guards
+
+NitroStack ships three guards. Each reads what it needs from `context.metadata`, so none of them depends on a particular web framework.
+
+| Guard | Looks for | On success |
+|---|---|---|
+| `ApiKeyGuard` | The `x-api-key` header | Allows the call |
+| `JwtGuard` | `Authorization: Bearer <token>` | Fills `context.auth` from the token's claims |
+| `OAuthGuard` | A bearer token, or the token Studio sends | Fills `context.auth` from token introspection |
+
+`ApiKeyGuard` checks the key with `ApiKeyModule` when it's registered, and otherwise compares it with the `API_KEY` environment variable. If neither is set up, it lets the request through, so configure one before you rely on it.
+
+`OAuthGuard` allows a call with no token unless `OAUTH_REQUIRED` is set to `true`. That lets you try an OAuth-protected server locally; set the variable in production.
+
+Each guard goes with a module that configures it. See [Authentication](/python/sdk/auth/overview) for `ApiKeyModule`, `JWTModule`, and `OAuthModule`, and [Access Control](/python/sdk/auth/access-control) for checking scopes after a guard has run.
+
+## Next steps
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Middleware" href="/python/sdk/middleware" description="Run code before and after a call." />
+  <Card icon={<KeyRound />} title="Authentication" href="/python/sdk/auth/overview" description="The modules that configure each guard." />
+  <Card icon={<Layers />} title="Request pipeline" href="/docs/getting-started/core-concepts/request-lifecycle" description="Where guards sit in the order of a call." />
+</Cards>

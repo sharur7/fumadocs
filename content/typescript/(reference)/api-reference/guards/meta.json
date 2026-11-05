@@ -1,0 +1,9 @@
+{
+  "title": "Guards",
+  "pages": [
+    "custom-guards",
+    "authentication-guards",
+    "access-rules"
+  ],
+  "icon": "ShieldCheck"
+}

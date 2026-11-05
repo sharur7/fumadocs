@@ -1,0 +1,20 @@
+---
+title: "Decorators"
+description: "Decorator API reference for TypeScript and Python"
+icon: AtSign
+---
+
+import { AppWindow, Boxes, Gauge, Route, Syringe, Wrench } from 'lucide-react';
+
+Every NitroStack capability is declared with a decorator. This section lists each one with its options and an example, grouped by what it does.
+
+TypeScript uses PascalCase decorators from `@nitrostack/core` (`@Tool`, `@Module`, `@Injectable`). Python uses snake_case decorators from `nitrostack` (`@tool`, `@module`, `@injectable`). Where both exist, the signature is shown in TypeScript and Python tabs.
+
+<Cards>
+  <Card icon={<Wrench />} title="MCP Primitives" href="/docs/api-reference/decorators/mcp-primitives" description="Expose tools, resources, and prompts to clients." />
+  <Card icon={<Boxes />} title="Controllers and Modules" href="/docs/api-reference/decorators/controllers-and-modules" description="Group features and configure the server." />
+  <Card icon={<Route />} title="Pipeline" href="/docs/api-reference/decorators/pipeline" description="Attach guards, middleware, interceptors, pipes, and filters." />
+  <Card icon={<Gauge />} title="Caching and Rate Limiting" href="/docs/api-reference/decorators/caching-and-rate-limiting" description="Cache results and limit how often a tool runs." />
+  <Card icon={<Syringe />} title="Dependency Injection" href="/docs/api-reference/decorators/dependency-injection" description="Make classes injectable and mark pipeline classes." />
+  <Card icon={<AppWindow />} title="Widgets and Observability" href="/docs/api-reference/decorators/widgets-health-events" description="Attach UI to tools, report health, and react to events." />
+</Cards>

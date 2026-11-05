@@ -1,0 +1,16 @@
+---
+title: "Middleware API"
+description: "use_middleware protocol"
+---
+
+Protocol: `async def use(self, context: ExecutionContext, next_fn)`.
+
+```python
+from nitrostack import use_middleware
+
+@use_middleware(AuditMiddleware)
+async def handler(...):
+    ...
+```
+
+Call `await next_fn()` to continue the pipeline. See [Middleware](/python/sdk/middleware).

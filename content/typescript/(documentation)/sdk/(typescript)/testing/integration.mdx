@@ -1,0 +1,165 @@
+---
+title: "Integration Tests"
+description: "Test tools through the full pipeline, and a complete example suite"
+---
+
+import { FlaskConical } from 'lucide-react';
+
+Integration tests run a tool the way a client would, through guards, middleware, interceptors, and pipes, so they catch problems in how the pieces fit together.
+
+## Integration Tests
+
+Compile a real module with only its outside dependencies, such as the database, replaced.
+
+### Testing Full Module
+
+This test compiles `ProductsModule`, swaps in a mock database, and calls the tools as a client would.
+
+```typescript
+describe('ProductsModule Integration', () => {
+  let compiled: CompiledTestingModule;
+  let tools: ProductsTools;
+  let db: DatabaseService;
+  
+  beforeEach(async () => {
+    // Use real database or in-memory service
+    const testDb = new DatabaseService(':memory:');
+    await testDb.migrate();
+    
+    compiled = TestingModule.create()
+      .addProvider(ProductsTools)
+      .addMock(DatabaseService, testDb)
+      .compile();
+    
+    tools = compiled.get(ProductsTools);
+    db = compiled.get(DatabaseService);
+    
+    // Seed test data
+    await db.execute(
+      'INSERT INTO products (id, name, price) VALUES (?, ?, ?)',
+      ['prod-1', 'Test Product', 99.99]
+    );
+  });
+  
+  afterEach(() => {
+    compiled.cleanup();
+  });
+  
+  it('should fetch product from database', async () => {
+    const ctx = createMockContext();
+    const result = await tools.getProduct({ product_id: 'prod-1' }, ctx);
+    
+    expect(result).toMatchObject({
+      id: 'prod-1',
+      name: 'Test Product',
+      price: 99.99
+    });
+  });
+  
+  it('should search products', async () => {
+    const ctx = createMockContext();
+    const result = await tools.searchProducts({ query: 'Test' }, ctx);
+    
+    expect(result.products).toHaveLength(1);
+    expect(result.products[0].name).toBe('Test Product');
+  });
+});
+```
+
+## Example Test Suite
+
+A complete test file for a service, covering success, missing data, and errors.
+
+```typescript
+// products.service.spec.ts
+import { ProductService } from './products.service';
+import { DatabaseService } from '../database/database.service';
+
+describe('ProductService', () => {
+  let service: ProductService;
+  let mockDb: jest.Mocked<DatabaseService>;
+  
+  beforeEach(() => {
+    mockDb = {
+      query: jest.fn(),
+      queryOne: jest.fn(),
+      execute: jest.fn()
+    } as any;
+    
+    service = new ProductService(mockDb);
+  });
+  
+  describe('findById', () => {
+    it('should return product when found', async () => {
+      const mockProduct = { id: 'prod-1', name: 'Test', price: 99.99 };
+      mockDb.queryOne.mockResolvedValue(mockProduct);
+      
+      const result = await service.findById('prod-1');
+      
+      expect(result).toEqual(mockProduct);
+    });
+    
+    it('should return null when not found', async () => {
+      mockDb.queryOne.mockResolvedValue(null);
+      
+      const result = await service.findById('invalid');
+      
+      expect(result).toBeNull();
+    });
+    
+    it('should throw on database error', async () => {
+      mockDb.queryOne.mockRejectedValue(new Error('DB Error'));
+      
+      await expect(service.findById('prod-1')).rejects.toThrow('DB Error');
+    });
+  });
+  
+  describe('search', () => {
+    it('should return matching products', async () => {
+      const mockProducts = [
+        { id: 'prod-1', name: 'Test 1' },
+        { id: 'prod-2', name: 'Test 2' }
+      ];
+      mockDb.query.mockResolvedValue(mockProducts);
+      
+      const result = await service.search('test');
+      
+      expect(result).toHaveLength(2);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.any(String),
+        ['%test%']
+      );
+    });
+    
+    it('should return empty array when no matches', async () => {
+      mockDb.query.mockResolvedValue([]);
+      
+      const result = await service.search('nonexistent');
+      
+      expect(result).toEqual([]);
+    });
+  });
+  
+  describe('create', () => {
+    it('should create new product', async () => {
+      mockDb.execute.mockResolvedValue({ lastInsertRowid: 1 });
+      
+      const input = { name: 'New Product', price: 49.99 };
+      const result = await service.create(input);
+      
+      expect(result.id).toBeDefined();
+      expect(result.name).toBe('New Product');
+      expect(mockDb.execute).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT'),
+        expect.arrayContaining([input.name, input.price])
+      );
+    });
+  });
+});
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<FlaskConical />} title="Mocks and coverage" href="/docs/sdk/testing/utilities" description="Mock helpers and coverage reports." />
+</Cards>

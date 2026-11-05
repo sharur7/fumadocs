@@ -1,0 +1,15 @@
+---
+title: "Testing Tools"
+description: "Inspector HTTP and widgets preview"
+---
+
+Call tools from MCP Inspector (HTTP, stateless) or `NitroTestingModule` in pytest.
+
+```python
+harness = await NitroTestingModule.create(AppModule)
+await harness.call_tool("add", {"a": 1, "b": 2})
+```
+
+Widget HTML is filled on `tools/call`. Do not treat `widgets/preview.html` as the live result.
+
+See [Testing](/python/sdk/testing) and [Studio Overview](/python/studio/overview).

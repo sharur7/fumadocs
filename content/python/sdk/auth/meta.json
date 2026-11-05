@@ -1,0 +1,10 @@
+{
+  "title": "Auth",
+  "pages": [
+    "overview",
+    "api-key",
+    "jwt",
+    "oauth",
+    "access-control"
+  ]
+}

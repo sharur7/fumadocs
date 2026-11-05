@@ -1,0 +1,103 @@
+---
+title: "Heroku"
+description: "Deploy your MCP server with git push"
+---
+
+import { Cloud, Container, ArrowLeftRight } from 'lucide-react';
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+[Heroku](https://www.heroku.com/) builds and runs your app from a git push. Its Node.js buildpack installs your dependencies and runs `npm run build`, which compiles the server and bundles the widgets. Heroku then starts the process named `web` in your Procfile. You don't need a Dockerfile, and the app gets HTTPS on a `*.herokuapp.com` address.
+
+Clients connect to `https://<your-app>.herokuapp.com/mcp`.
+
+<Callout title="Before you start">
+  You need a Heroku account, the Heroku CLI signed in with `heroku login`, and your project committed to a git repository.
+</Callout>
+
+## Deploy
+
+<Steps>
+<Step>
+
+### Add a Procfile
+
+The Procfile tells Heroku how to start the server. Start the compiled server directly with `node`, not with `npm start`. The `start` script rebuilds the project on every start and runs the server on port 3000, while Heroku assigns a different port through the `PORT` variable, which the server reads automatically.
+
+```text title="Procfile"
+web: node dist/index.js
+```
+
+</Step>
+<Step>
+
+### Create the app and set its configuration
+
+Create the app, then set the variables the server reads:
+
+```bash
+heroku create my-mcp-server
+
+heroku config:set NODE_ENV=production HOST=0.0.0.0 MCP_TRANSPORT_TYPE=http
+```
+
+Don't set `PORT` yourself; Heroku sets it on every start.
+
+</Step>
+<Step>
+
+### Push to deploy
+
+Push your code to Heroku's git remote:
+
+```bash
+git push heroku main
+```
+
+Heroku builds the app and starts one `web` dyno. Every later push to `main` deploys again.
+
+</Step>
+<Step>
+
+### Check that it's running
+
+Call the health endpoint:
+
+```bash
+curl https://my-mcp-server.herokuapp.com/mcp/health
+```
+
+</Step>
+</Steps>
+
+## Secrets
+
+Heroku config vars are encrypted at rest and exposed to your server as environment variables. Set secrets the same way as other configuration, and never commit them:
+
+```bash
+heroku config:set JWT_SECRET=your-secret-value
+```
+
+Changing a config var restarts the app, so the server picks up the new value immediately.
+
+## Scaling and logs
+
+Run more dynos to handle more traffic, or a larger dyno type for more memory:
+
+```bash
+heroku ps:scale web=2
+```
+
+Stream the server's output, including startup errors, from the terminal:
+
+```bash
+heroku logs --tail
+```
+
+## Next steps
+
+<Cards>
+  <Card icon={<Container />} title="Deploy with Docker" href="/docs/deployment/docker" description="The same environment variables, in a container." />
+  <Card icon={<ArrowLeftRight />} title="Connect to clients" href="/docs/guides/connect-to-clients" description="Point an MCP client at your deployed server." />
+  <Card icon={<Cloud />} title="NitroStack Cloud" href="/docs/cloud/overview" description="Deploy from the dashboard instead." />
+</Cards>

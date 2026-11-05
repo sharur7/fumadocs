@@ -1,0 +1,68 @@
+---
+title: "Resources"
+description: "@resource URIs and mime types"
+---
+
+import { AppWindow, MessageSquare } from 'lucide-react';
+
+<Callout type="info" title="Agent skill">
+
+`nitrostack-python-tools-resources-prompts`
+
+</Callout>
+
+Resources are data your server makes available to read, such as configuration, records, or reference information. A resource is addressed by a URI, and reading it never changes anything. Mark an async method with `@resource` and return the data.
+
+```python
+from nitrostack import injectable, resource, ExecutionContext
+
+@injectable(deps=[DuffelService])
+class FlightResources:
+    def __init__(self, service: DuffelService):
+        self.service = service
+
+    @resource(
+        uri="flight://popular-routes",
+        name="Popular Flight Routes",
+        description="Information about popular routes and pricing",
+        mime_type="application/json",
+    )
+    async def popular_routes(self, context: ExecutionContext) -> dict:
+        return {"routes": [...]}
+```
+
+List the class on the feature module's `controllers`.
+
+## `@resource` options
+
+`uri`, `name`, and `description` are required.
+
+| Option | Default | Description |
+|---|---|---|
+| `uri` | required | The address clients read the resource from, such as `flight://popular-routes` |
+| `name` | required | A short name for the resource |
+| `description` | required | What the resource contains |
+| `title` | none | A human-readable name for clients that show one |
+| `mime_type` | none | The type of the content, such as `application/json` or `text/markdown` |
+| `size` | none | The content's size in bytes, if you know it |
+| `annotations` | `ResourceAnnotations()` | Hints for clients, below |
+| `metadata` | `{}` | Extra metadata passed through to clients |
+
+## Annotations
+
+`ResourceAnnotations` describes who a resource is for and how much it matters.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `audience` | `[]` | Who the content is meant for: `"user"`, `"assistant"`, or both |
+| `priority` | `1.0` | How important the resource is, as a number |
+| `last_modified` | none | When the content last changed, as a timestamp string |
+
+Widget HTML is also registered as a resource at `ui://widget/{route}.html` when you use `@widget`. See [UI Widgets](/python/sdk/widgets).
+
+## Next steps
+
+<Cards>
+  <Card icon={<MessageSquare />} title="Prompts" href="/python/sdk/prompts" description="Reusable instructions for users." />
+  <Card icon={<AppWindow />} title="Widgets" href="/python/sdk/widgets" description="Static HTML UI for tool results." />
+</Cards>

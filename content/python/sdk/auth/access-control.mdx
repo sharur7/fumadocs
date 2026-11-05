@@ -1,0 +1,54 @@
+---
+title: "Access Control"
+description: "Check what a signed-in caller may do with scopes and require_scopes"
+---
+
+import { ShieldCheck, KeyRound } from 'lucide-react';
+
+Authentication tells you who is calling. Access control decides what they may do. In NitroStack that is done with **scopes**: short strings, such as `orders:read`, that a token carries to say what its holder is allowed to do.
+
+After `JwtGuard` or `OAuthGuard` runs, `context.auth` holds the caller's scopes. The helpers on this page check them.
+
+## Require scopes on a handler
+
+`@require_scopes` rejects the call unless the caller has every scope you list. Put it under `@tool`, next to the guard that authenticates the caller.
+
+```python
+from nitrostack import tool, use_guards, require_scopes, JwtGuard, ExecutionContext
+
+@tool(name="delete_order", description="Delete an order", input_schema=DeleteOrderInput)
+@use_guards(JwtGuard)
+@require_scopes("orders:write")
+async def delete_order(self, input: DeleteOrderInput, context: ExecutionContext) -> dict:
+    ...
+```
+
+If there is no authenticated caller, it raises `PermissionError("Not authenticated")`. If a scope is missing, it raises `PermissionError("Missing required scopes: ...")`.
+
+## Check scopes in code
+
+When a rule depends on the data, check the scopes yourself with the helper functions. Each takes `context.auth` and returns a boolean.
+
+| Function | Returns `True` when |
+|---|---|
+| `has_scope(auth, scope)` | The caller has that scope |
+| `has_any_scope(auth, scopes)` | The caller has at least one of the scopes |
+| `has_all_scopes(auth, scopes)` | The caller has every one of the scopes |
+
+```python
+from nitrostack import has_scope
+
+async def get_order(self, input, context):
+    if input.include_private and not has_scope(context.auth, "orders:private"):
+        raise PermissionError("orders:private is required to see private fields")
+    ...
+```
+
+Scopes can be a list or a space-separated string in the token; both work.
+
+## Next steps
+
+<Cards>
+  <Card icon={<ShieldCheck />} title="Guards" href="/python/sdk/guards" description="Authenticate the caller first." />
+  <Card icon={<KeyRound />} title="OAuth 2.1" href="/python/sdk/auth/oauth" description="Scopes issued by an identity provider." />
+</Cards>
