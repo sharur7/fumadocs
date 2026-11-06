@@ -2,6 +2,11 @@
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
 
+/* Keep Tailwind's scanner out of huge/non-source folders */
+@source not "../_to_delete";
+@source not "../.next";
+@source not "../.source";
+
 /* ==========================================================================
    NitroStack theme
    One palette drives both Fumadocs (--color-fd-*) and the brand tokens used
@@ -450,7 +455,7 @@ a[data-card].rounded-xl:focus-visible {
 
 /* The first heading follows hidden mobile-only links, so :first-child never matches. */
 #nd-sidebar p.inline-flex:first-of-type {
-  margin-top: 0;
+  margin-top: 0.6rem; /* breathing room under the top bar */
 }
 
 /* Title and description */
@@ -2323,21 +2328,25 @@ a[data-card].rounded-xl:hover,
 }
 
 /* ==========================================================================
-   Round 19: sidebar toggle on the left, next to the panel it controls
+   Sidebar toggle: in the first sidebar heading (components/sidebar-separator.tsx),
+   at the right edge of the left panel. It scrolls with the list.
    ========================================================================== */
 
 .nx-sb-toggle {
-  order: -1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  margin-inline-end: 0.75rem;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-block: -0.3rem; /* never makes the heading row taller */
+  margin-inline-end: 0.15rem;
+  padding: 0;
   border: 1px solid var(--color-fd-border);
-  border-radius: 9px;
+  border-radius: 8px;
   background: var(--color-fd-background);
   color: var(--color-fd-muted-foreground);
+  font-weight: 400;
   cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
 }
@@ -2349,8 +2358,8 @@ a[data-card].rounded-xl:hover,
 }
 
 .nx-sb-toggle svg {
-  width: 1rem;
-  height: 1rem;
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
 .nx-sb-toggle[data-collapsed='true'] {
@@ -2361,8 +2370,10 @@ a[data-card].rounded-xl:hover,
   .nx-sb-toggle { display: none; }
 }
 
-/* The built-in toggle on the far right is replaced by the one above */
-#nd-subnav button[data-collapsed]:not(.nx-sb-toggle) {
+/* The built-in button (top right) is hidden while the sidebar is open AND ours
+   is present. It stays when the sidebar is collapsed (to reopen it) and on
+   tabs whose list has no heading, where ours isn't shown. */
+#nd-notebook-layout:has(.nx-sb-toggle) #nd-subnav button[data-collapsed='false']:not(.nx-sb-toggle) {
   display: none;
 }
 
@@ -2723,4 +2734,13 @@ a[data-card].rounded-xl:hover,
     radial-gradient(60% 80% at 20% 10%, rgba(61, 162, 255, 0.55), transparent 70%),
     radial-gradient(60% 80% at 90% 100%, rgba(91, 124, 247, 0.5), transparent 70%),
     #0b1424;
+}
+
+/* Changelog cards: a much lighter shadow than the shared card shadow */
+.nx-release-body {
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+.dark .nx-release-body {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }

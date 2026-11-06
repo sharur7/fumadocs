@@ -6,6 +6,11 @@ const withMDX = createMDX();
 const config = {
   reactStrictMode: true,
   output: 'standalone',
+  // Pin the workspace root to this project. A stray package-lock.json higher up
+  // (e.g. in the home folder) otherwise makes Turbopack use that as the root.
+  turbopack: {
+    root: import.meta.dirname,
+  },
   async redirects() {
     return [
       { source: '/docs/api-reference/cli-commands', destination: '/docs/cli/cli-commands', permanent: true },

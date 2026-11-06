@@ -8,7 +8,7 @@ import { FileUp, MessagesSquare } from 'lucide-react';
 
 **Database**, in the Chat menu, stores the chat's history in a MongoDB database that you run, so conversations live in infrastructure you own. Leave it empty and the chat keeps using the default store. Only owners and admins can change it.
 
-<Screenshot src="/images/cloud/chat-database.png" alt="The chat Database page: a MongoDB configuration card with MongoDB URI and Database Name fields, a Test connection button, and a disabled Save changes button" />
+<Screenshot src="/images/cloud/chat-database.png" alt="The chat Database page after a successful test: the masked MongoDB URI, the Database Name, a Connection Verified badge, and a Connection succeeded notice" />
 
 ## Connect MongoDB
 
@@ -31,7 +31,7 @@ Set **Database Name**; the placeholder is `nitrochat`. A database used only by t
 
 ### Test the connection
 
-Click **Test connection**. **Save changes** stays disabled until a test succeeds, so a mistyped connection string can't be saved. If the test fails, the previous configuration stays in place.
+Click **Test connection**. NitroCloud connects to your database with the URI and name you entered. When it works, a **Connection succeeded** notice appears and the card shows **Connection Verified**. **Save changes** stays disabled until a test succeeds, so a mistyped connection string can't be saved. If the test fails, the previous configuration stays in place.
 
 </Step>
 <Step>

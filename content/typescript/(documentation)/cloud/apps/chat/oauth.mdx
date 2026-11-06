@@ -5,28 +5,28 @@ description: "Require people to sign in with your OAuth provider before they use
 
 import { Database, LayoutDashboard } from 'lucide-react';
 
-**Auth**, in the Chat menu, turns on OAuth 2.0 sign-in for the chat. By default anyone with the chat's address can use it, and their conversations appear on [Threads](/docs/cloud/apps/chat/threads) as **Anonymous**. With authentication on, the chat sends visitors to your identity provider to sign in first.
+**Auth**, in the Chat menu, opens the **Authentication** page. It turns on OAuth 2.0 sign-in for the chat. By default anyone with the chat's address can use it, and their conversations appear on [Threads](/docs/cloud/apps/chat/threads) as **Anonymous**. With authentication on, the chat sends visitors to your identity provider to sign in first.
 
-This protects who can use the chat. Your MCP server's own authentication is separate; see [Authentication](/docs/sdk/auth/overview) in the SDK docs. Only owners and admins can change these settings.
+This protects who can use the chat. Your MCP server's own authentication is separate; see [Authentication](/docs/sdk/auth/overview) in the SDK docs. Only owners and admins can change these settings, and **Save changes** restarts a deployed chat.
 
-<Screenshot src="/images/cloud/chat-auth.png" alt="The chat Authentication page with an OAuth configuration card and an Enable authentication switch, turned off" />
+<Screenshot src="/images/cloud/chat-auth.png" alt="The chat Authentication page with Enable authentication turned on, and the Client ID, Client Secret, Authorization Endpoint, Token Endpoint, Redirect URI and Audience fields" />
 
-## Turn on sign-in
+## OAuth configuration
 
-Under **OAuth configuration**, turn on **Enable authentication**. The OAuth fields appear:
+**Enable authentication** is off by default. Off means the chat URL is public. On means the chat requires login, and the fields below appear.
 
-| Field | What to enter |
-|-------|---------------|
-| **Client ID** | The ID of the OAuth application you created at your provider. |
-| **Client Secret** | The matching secret. The field is masked. |
-| **Authorization endpoint** | Your provider's authorize URL. |
-| **Token endpoint** | Your provider's token URL. |
-| **Redirect URI** | Read-only. NitroCloud builds it from the chat's URL. Copy it into your provider's allowed callback URLs. |
-| **Audience** | The API audience, if your provider needs one. Auth0 does; enter it as the provider documents it. |
+| Field | What to enter | What NitroCloud does with it |
+|-------|---------------|------------------------------|
+| **Client ID** | The client ID of the OAuth application at your provider. | Sent to the chat as `OAUTH_CLIENT_ID`. |
+| **Client Secret** | The matching secret. The field is masked. | Stored as a secret and sent as `OAUTH_CLIENT_SECRET`. It isn't kept in the form: after you leave the page the field is empty, so paste it again if you change it. |
+| **Authorization Endpoint** | The provider's authorize URL. For Auth0 it looks like `https://your-tenant.auth0.com/authorize`. | Must be a URL. Sent as `OAUTH_AUTHORIZATION_ENDPOINT`. |
+| **Token Endpoint** | The provider's token URL. For Auth0 it looks like `https://your-tenant.auth0.com/oauth/token`. | Must be a URL. Sent as `OAUTH_TOKEN_ENDPOINT`. |
+| **Redirect URI (Callback URL)** | Read-only. You don't type it. | Built from the chat's URL: `https://<chat-host>/api/auth/callback`. Copy it into your provider. |
+| **Audience** | Optional. The API identifier the provider expects on the token. Auth0 uses its API identifier. Leave it empty if your provider doesn't use an audience. | Sent as `OAUTH_AUDIENCE` only when it has a value. |
 
 ### Quick import
 
-If you already have the values in a `.env` file, click **Show import** and paste them:
+**Show import** appears while authentication is on. Paste `.env` lines, then click **Import configuration**. That fills the form; it doesn't save, so click **Save changes** afterwards.
 
 ```bash title=".env"
 OAUTH_CLIENT_ID=
@@ -36,19 +36,20 @@ OAUTH_TOKEN_ENDPOINT=
 OAUTH_AUDIENCE=
 ```
 
-Lines that start with `#` are ignored, and the import doesn't change the redirect URI.
+Lines that start with `#` are ignored, and quoted values are accepted. The same keys without the `OAUTH_` prefix also work: `CLIENT_ID`, `CLIENT_SECRET`, `AUTHORIZATION_ENDPOINT`, `TOKEN_ENDPOINT` and `AUDIENCE`. `REDIRECT_URI` and `CALLBACK_URL` are ignored, because the redirect URI can't be changed by import.
 
-## Register the chat with your provider
+## OAuth provider configuration
 
-The page lists the exact URLs your provider needs. Add every one of them to your OAuth application:
+When authentication is on and the chat has a URL, the page shows an **OAuth provider configuration** block. Copy every value into your provider (Auth0, Okta, or similar). `<chat-host>` is the chat's public host.
 
-| Provider setting | What to add |
-|------------------|-------------|
-| **Allowed callback URLs** | Two values: the chat's own URL, and the URL ending in `/oauth/callback`, which is used when the chat is embedded on a website. |
-| **Allowed web origins** | The chat's origin, so the browser can complete the sign-in. |
-| **Allowed logout URLs** | Where the provider sends people after they sign out. |
+| Provider setting | Value |
+|------------------|-------|
+| **Allowed callback URLs** | `https://<chat-host>/api/auth/callback` for the chat itself |
+| **Allowed callback URLs** | `https://<chat-host>/oauth/callback` for an embedded chat |
+| **Allowed web origins** | `https://<chat-host>` |
+| **Allowed logout URLs** | `https://<chat-host>/api/auth/logout` |
 
-Then click **Save changes** in NitroCloud. To check it, open the chat's URL in a private browser window: you should be sent to your provider's sign-in page.
+Register those URLs at the provider, then save in NitroCloud. To check it, open the chat's URL in a private browser window: you should be sent to your provider's sign-in page.
 
 To make the chat public again, turn **Enable authentication** off and save.
 
