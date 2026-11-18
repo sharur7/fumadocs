@@ -13,6 +13,7 @@ const config = {
   },
   async redirects() {
     return [
+      { source: '/', destination: '/docs/getting-started/overview', permanent: true },
       { source: '/docs/api-reference/cli-commands', destination: '/docs/cli/cli-commands', permanent: true },
       // Studio pages replaced by the per-feature pages
       { source: '/docs/studio/testing', destination: '/docs/studio/tools', permanent: true },
