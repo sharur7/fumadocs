@@ -1,0 +1,47 @@
+---
+title: Clients and widgets
+description: Fix problems connecting clients, rendering widgets, and handling file uploads.
+icon: Plug
+---
+
+Problems once your server is running: clients that can't connect, widgets that don't render, and file uploads that fail. Find the symptom, then follow the fix; the links go to the full explanation on the page that covers the topic.
+
+## Connecting clients
+
+### HTTP clients get connection refused
+
+**Fix.** The server is running over STDIO only. Check that `NODE_ENV=production` or `MCP_TRANSPORT_TYPE` is set, then confirm the HTTP transport is up:
+
+```bash
+curl http://localhost:3000/mcp/health
+```
+
+### It works on your machine but not from another one
+
+**Fix.** The server is listening on `localhost`. Set `HOST=0.0.0.0`.
+
+More: [Dual transport](/docs/guides/dual-transport#troubleshooting), [Verify and debug transports](/docs/guides/verify-transport#troubleshooting).
+
+## Widgets
+
+### A widget shows "Loading..." forever, or its data is null
+
+**Fix.** See [Migrate to useWidgetSDK](/docs/guides/widget-sdk-migration#troubleshooting).
+
+### A widget doesn't appear in Studio, or shows the wrong data
+
+**Fix.** See [Widget manifest](/docs/sdk/ui/widget-manifest#troubleshooting).
+
+### The widget isn't in `widget://examples`
+
+**Fix.** Check that `src/widgets/widget-manifest.json` exists and is valid JSON. The manifest is read when the server starts, so restart it after editing. More: [Widget examples](/docs/guides/widget-examples#troubleshooting).
+
+## File uploads
+
+### A file doesn't decode, a large file runs out of memory, or the extension doesn't match
+
+**Fix.** See [File uploads](/docs/sdk/file-uploads#troubleshooting).
+
+## Still stuck?
+
+See [Support](/docs/support) for where to ask and what to include.

@@ -1,0 +1,158 @@
+---
+title: Deployments
+description: Fix deployments to NitroCloud that fail, stall, or are blocked.
+icon: Rocket
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Activity, CreditCard, Rocket } from 'lucide-react';
+
+Problems getting an MCP server live on NitroCloud, whether you deploy from GitHub, a `.zip` upload, or [NitroStudio](/docs/studio/deployments), and running it yourself with Docker. Find the symptom, then follow the fix. For how deployments work, see [Deployments](/docs/cloud/apps/mcp/deployments).
+
+A failed or cancelled deployment never replaces the live one. Whatever was **Live** keeps serving traffic until a new deployment succeeds, so you can fix and retry without taking your server down.
+
+## The deployment fails
+
+### The build fails
+
+The deployment ends as failed in **Deployment history** and never becomes **Live**.
+
+**Fix.** Open the failed entry and read its build log. The usual causes are:
+
+| Cause | Fix |
+|-------|-----|
+| No `package.json` (TypeScript) or `main.py` (Python) in the archive | Zip the project root, not a folder above it. The project may be at most one folder down. |
+| The archive is over 100 MB | It almost always includes `node_modules`. Create the archive with `nitrostack-cli pack`, which leaves out `node_modules`, build output, and `.env` files. |
+| The server doesn't listen on port 3000 | Make the start command serve on port 3000. For Python, `HOST`, `PORT`, and `MCP_TRANSPORT_TYPE` are set for you. |
+| The code doesn't compile | Run `npm run build` locally and fix every error it reports. |
+
+Before you retry, check that the project runs the way NitroCloud runs it:
+
+<Tabs groupId="language" persist items={['TypeScript', 'Python']}>
+<Tab value="TypeScript">
+
+```bash
+npm start   # serves http://localhost:3000/mcp, as in production
+```
+
+</Tab>
+<Tab value="Python">
+
+```bash
+nitrostack-py validate
+MCP_TRANSPORT_TYPE=http nitrostack-py start
+```
+
+</Tab>
+</Tabs>
+
+See [Prepare your project](/docs/cloud/dashboard#prepare-your-project) for the full checklist.
+
+### NitroCloud can't work out how to start the app
+
+The start command shows nothing, or the build succeeds but the server never comes up.
+
+**Fix.** On the app's **Deployments** page, click **Add Start Command** and enter the command that starts your server, then deploy again. NitroCloud shows **Auto-detected** when it found the command itself.
+
+### A new environment variable has no effect
+
+You added or changed a variable, but the server still behaves the old way.
+
+**Fix.** Variables apply to the next deployment, not the running one. Deploy again after you change them. A deployment's details page lists the variables it was built with, masked, so you can confirm which values a version used.
+
+## The deployment doesn't finish
+
+### It has been building for a long time
+
+The deployment stays in a building, deploying, or pending state, and the log stops moving.
+
+**Fix.** If a deployment hasn't moved for more than 30 minutes:
+
+1. Open the deployment and read the end of its log for the step it stopped at.
+2. Cancel it, then deploy again.
+3. If it stalls again at the same step, contact [Support](/docs/support#nitrocloud-account-and-billing) with the app name and the deployment's version, such as `v6`.
+
+Closing the browser tab or Studio doesn't stop a deployment. It keeps running, and its result appears in **Deployment history** when it ends.
+
+### A new deployment is refused because others are still waiting
+
+You start a deployment while earlier ones are still queued, and NitroCloud won't accept another.
+
+**Fix.** Cancel a deployment that is still pending, or wait for one to finish, then deploy again. With auto-deploy on, every push to the linked branch starts a deployment, so pushing several commits in a row can fill the queue.
+
+### It was cancelled
+
+The entry is marked **Cancelled** and never became **Live**.
+
+**Fix.** Nothing was lost; the previous version is still live. Deploy again when you're ready.
+
+## The deployment is blocked
+
+### Your organization doesn't have access yet
+
+Deploying, or creating a NitroChat, is refused because the feature isn't enabled for your organization yet.
+
+**Fix.** Some NitroCloud features are released to organizations in stages. Contact the NitroStack team through **Support** in the [NitroCloud dashboard](/docs/cloud/dashboard) to ask for access.
+
+### An invoice is unpaid
+
+The app shows **Past due**, and deployments are refused.
+
+**Fix.** A failed charge starts a grace period, during which the app is limited to the Free plan's quota of 500,000 requests a month. Pay the invoice to lift the block:
+
+1. Add or update a card on the organization's [Billing](/docs/cloud/billing) page if the old one is the problem.
+2. On the app's [Billing](/docs/cloud/apps/billing#when-a-payment-fails) page, click **Retry payment**.
+
+If the invoice is still unpaid when the grace period ends, the app moves to the Free plan.
+
+### You've reached your plan's limits
+
+You can't create another app, or the app's plan doesn't allow what you're trying to do.
+
+**Fix.** An organization can create up to 10 apps by default. When you reach the limit, **Create App** opens **Request more Apps**, where you ask for a higher cap; see [Request more apps](/docs/cloud/apps#request-more-apps). For an app that needs more than the Free plan includes, upgrade it to Pro on its [Billing](/docs/cloud/apps/billing) page.
+
+## Deploying from NitroStudio
+
+### There's no Deploy button, or it does nothing
+
+**Fix.** The project isn't linked to a NitroCloud app. Open **Deployments** in Studio, choose **Link to app**, and pick the app. You need to be signed in to NitroCloud. See [Studio deployments](/docs/studio/deployments#link-the-project-to-an-app).
+
+### Studio says Failed
+
+**Fix.** Studio's history marks a deployment **Deployed** or **Failed**. To see why it failed, open the app's **Deployments** page in NitroCloud and read the build log of the entry whose source is NitroStudio. The causes and fixes are the same as in [The build fails](#the-build-fails).
+
+### The live app isn't running your latest build
+
+**Fix.** Compare the two hashes on Studio's **Deployments** page. When the **cached live hash** differs from the **last bundle hash**, the latest build hasn't been deployed. Choose **Deploy** again.
+
+## After it's live
+
+### Clients can't reach the server
+
+**Fix.** Your MCP endpoint is the app's URL followed by `/mcp`. Check that clients use the full path, then check the app's [Monitoring](/docs/cloud/apps/mcp/monitoring) and [Logs](/docs/cloud/apps/mcp/logs) for errors from the running server.
+
+## Self-hosting with Docker
+
+### The port is published but connections are refused
+
+**Fix.** The server is listening on `localhost` inside the container. Set `HOST=0.0.0.0`.
+
+### Widgets don't render
+
+**Fix.** The image is missing `src/widgets/out`. Confirm that `npm run build` ran in the build stage and that the Dockerfile copies the folder.
+
+### The container exits right away
+
+**Fix.** Read its output with `docker logs mcp-server`.
+
+More: [Deploy with Docker](/docs/deployment/docker#troubleshooting), [Python on Docker](/python/deployment/docker#troubleshooting).
+
+## Still stuck?
+
+See [Support](/docs/support) for where to ask and what to include. For an account, plan, or invoice problem, use **Support** in the NitroCloud dashboard; the team can see your organization's setup.
+
+<Cards>
+  <Card icon={<Rocket />} title="Deployments" href="/docs/cloud/apps/mcp/deployments" description="How deployments work on NitroCloud." />
+  <Card icon={<Activity />} title="Monitoring" href="/docs/cloud/apps/mcp/monitoring" description="Check that a new version is healthy." />
+  <Card icon={<CreditCard />} title="App billing" href="/docs/cloud/apps/billing" description="Plans, failed payments, and the grace period." />
+</Cards>

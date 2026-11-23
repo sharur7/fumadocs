@@ -2,6 +2,7 @@ import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 import { appName } from './shared';
 import { CopyDocsForLlm } from '@/components/copy-docs-for-llm';
 import { GithubDropdown } from '@/components/github-dropdown';
+import { SearchWithAssistant, SearchWithAssistantSm } from '@/components/assistant/search';
 import { Cloud } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -15,9 +16,9 @@ function DiscordIcon({ className }: { className?: string }) {
 
 function NavLabel({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="nx-nav-link inline-flex items-center gap-1.5" title={label}>
       {icon}
-      {label}
+      <span className="nx-nav-label">{label}</span>
     </span>
   );
 }
@@ -66,6 +67,13 @@ export function baseOptions(
     ],
     themeSwitch: {
       enabled: true,
+    },
+    // Search box with the ✦ assistant button beside it.
+    slots: {
+      searchTrigger: {
+        full: SearchWithAssistant,
+        sm: SearchWithAssistantSm,
+      },
     },
   };
 }

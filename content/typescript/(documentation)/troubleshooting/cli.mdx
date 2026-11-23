@@ -1,0 +1,50 @@
+---
+title: CLI and local server
+description: Fix problems installing the CLI and running your server on your machine.
+icon: Terminal
+---
+
+Problems installing `nitrostack-cli` and running your MCP server locally. Find the symptom, then follow the fix; the links go to the full explanation on the page that covers the topic.
+
+## Install and the CLI
+
+### The CLI command isn't found
+
+Your terminal prints `nitrostack-cli: command not found`.
+
+**Fix.** The CLI isn't on your path. Install it globally, or run it without installing:
+
+```bash
+npm install -g @nitrostack/cli
+npx @nitrostack/cli --version
+```
+
+### Permission errors when installing globally
+
+**Fix.** Point npm at a directory in your home folder, or use a Node version manager such as `nvm`:
+
+```bash
+mkdir -p ~/.npm-global
+npm config set prefix '~/.npm-global'
+export PATH=~/.npm-global/bin:$PATH
+```
+
+### Dependencies or `generate` fail
+
+**Fix.** See [dependency install problems](/docs/cli/manage-dependencies#troubleshooting-install) and [`generate` problems](/docs/cli/generate#troubleshooting).
+
+## Running the server
+
+### The port is already in use
+
+**Fix.** Another process holds the port, often a second copy of the server. Find it with `lsof -i :3001` (or the port in the error) and stop it.
+
+The [Dev Command](/docs/cli/dev#troubleshooting) page also covers TypeScript errors, widgets not loading, and hot reload not working.
+
+### The server fails at startup
+
+**Fix.** Run `npm run build` and fix any TypeScript errors it reports. If you're running the project in NitroStudio, the reason the server stopped is in **Logs**, under **Server Logs**; see [Studio troubleshooting](/docs/troubleshooting/studio#connecting-a-project).
+
+## Still stuck?
+
+See [Support](/docs/support) for where to ask and what to include.

@@ -1,0 +1,111 @@
+---
+title: Studio
+description: Fix NitroStudio problems with installing, connecting projects, access, credits, and Compose.
+icon: Monitor
+---
+
+import { FolderPlus, ScrollText, SlidersHorizontal } from 'lucide-react';
+
+Problems using [NitroStudio](/docs/studio/overview): getting it running, connecting to your server, getting access, and building with AI Chat and Compose. Find the symptom, then follow the fix. For deploying from Studio, see [Deployments troubleshooting](/docs/troubleshooting/deployments#deploying-from-nitrostudio).
+
+## Install and first run
+
+### Studio won't install or start
+
+**Fix.** Check that your computer meets Studio's requirements:
+
+| Platform | Package | Requires |
+| :-- | :-- | :-- |
+| macOS | Universal `.dmg` (Apple Silicon and Intel) | macOS 12 or later |
+| Windows | 64-bit installer (`.exe`) | Windows 10 or later |
+| Linux | `.deb` package, x64 | Debian 10+ or Ubuntu 20.04+ |
+
+All platforms need at least 4 GB of RAM. Download the latest version from [nitrostack.ai/studio](https://nitrostack.ai/studio).
+
+### The system check during setup fails
+
+Studio checks your computer when you first set it up and stops if something it needs is missing.
+
+**Fix.** Install what the check reports as missing, then run it again. To run NitroStack projects locally, you also need Node.js 20 or later and npm 9 or later; check with `node -v` and `npm -v`.
+
+## Connecting a project
+
+### The project never shows Connected
+
+The project card's **Status** doesn't change to **Connected** after you add the project.
+
+**Fix.**
+
+1. Check that you selected the folder that contains `package.json`, not a folder above it.
+2. Run `npm run build` in that folder and fix every error it reports.
+3. Open [Logs](/docs/studio/logs) and read **Server Logs** for what the server printed while it started.
+4. Try connecting again from **Add / Manage Projects**.
+
+### The connection drops while you work
+
+The project shows as disconnected after you edit code.
+
+**Fix.** With **Watch** on, Studio reloads the server every time you save, so a save that breaks the build also breaks the reload. Read the error in **Server Logs**, fix it, and save again. The [Health](/docs/studio/health) page also reports when the server is degraded, for example because of high memory use.
+
+### A prebuilt or protected server won't connect
+
+A marketplace server, or your own server with authentication, refuses the connection.
+
+**Fix.** The server needs credentials. Add them on [Authentication](/docs/studio/authentication): a JWT, an API key, or an OAuth 2.1 sign-in. For OAuth, register this redirect URI with your identity provider:
+
+```text
+nitrostudio://oauth/callback
+```
+
+## Sign-in and access
+
+### Studio says you don't have access
+
+You can sign in, but Studio's features are unavailable to you.
+
+**Fix.** Studio access is set per person by your organization. Ask an organization admin to turn on **Studio access** for you in [Studio management](/docs/cloud/studio-management#member-list). If you asked for access and the request was rejected, talk to the admin who manages your organization's [Requests](/docs/cloud/team#requests).
+
+### A feature isn't available to your organization yet
+
+Studio blocks an action, such as deploying, because the feature isn't enabled for your organization.
+
+**Fix.** Some features are released to organizations in stages. Contact the NitroStack team through **Support** in the [NitroCloud dashboard](/docs/cloud/dashboard) to ask for access.
+
+## AI Chat and Compose
+
+### Model replies fail, or a model is unavailable
+
+**Fix.** Work through these in order:
+
+1. **Credits.** Check the balance on [Studio usage](/docs/cloud/usage#studio-usage), and top up if it's low.
+2. **Your limit.** Once your organization pays for credits, each member has a **Credit limit**. When you reach yours, an admin can raise it or allow **Additional usage** in [Studio management](/docs/cloud/studio-management#member-list). The organization's **Usage limit** caps the whole team.
+3. **The model.** Models marked **Pro** need paid credits. Pick a free model, or ask an admin to change the **Model pool**; see [Model pool](/docs/cloud/studio-management#model-pool).
+4. **The model service.** All model calls go through a NitroStack proxy. If its **Status** in [Studio management](/docs/cloud/studio-management#service-status) isn't online, model calls fail even when you have credits left. Wait and try again.
+
+### Credits are running low or have run out
+
+**Fix.** Top up on [Studio usage](/docs/cloud/usage#studio-usage), charged to a card saved on [Billing](/docs/cloud/billing). To avoid running out mid-session, turn on automatic top-up, which adds credit whenever the balance falls below an amount you choose.
+
+### Compose stops making progress
+
+Compose stalls on a step, or you closed Studio before it finished.
+
+**Fix.** Compose builds in steps. Open Compose again: it offers **Continue building** from the last completed step, or **Start fresh**. If it stalls at the same step again:
+
+- check the model and credits, as in [Model replies fail](#model-replies-fail-or-a-model-is-unavailable)
+- read **Server Logs** in [Logs](/docs/studio/logs) for an error from the server Compose is running
+- describe the problem to Compose in the chat, with the error text
+
+### The app in Compose doesn't use a tool you expect
+
+**Fix.** The model chooses tools from their names, descriptions, and input schemas. Try the same request in [AI Chat](/docs/studio/chat) and open **Operation Flow** to see which tools it called and with what arguments, then make the tool's description clearer.
+
+## Still stuck?
+
+See [Support](/docs/support) for where to ask and what to include. For problems with the CLI or your server itself, see [CLI and local server](/docs/troubleshooting/cli) and [Clients and widgets](/docs/troubleshooting/clients).
+
+<Cards>
+  <Card icon={<FolderPlus />} title="Add an MCP server" href="/docs/studio/add-mcp-server" description="Open a project folder or connect a prebuilt server." />
+  <Card icon={<ScrollText />} title="Logs" href="/docs/studio/logs" description="See what the server printed and every request." />
+  <Card icon={<SlidersHorizontal />} title="Studio management" href="/docs/cloud/studio-management" description="Access, models, and spending limits." />
+</Cards>
