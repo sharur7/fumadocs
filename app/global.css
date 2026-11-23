@@ -2744,3 +2744,1060 @@ a[data-card].rounded-xl:hover,
 .dark .nx-release-body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
+
+/* ==========================================================================
+   Docs assistant: navbar button, ⌘K "Ask Assistant", bottom ask bar, and the
+   Assistant panel. Frosted glass surfaces with soft, rounded edges; brand
+   blue is kept for the send button and focus rings only.
+   ========================================================================== */
+
+:root {
+  --nx-ai-w: 424px;
+  --nx-ai-gap: 12px;
+  --nx-ai-radius: 22px;
+  --nx-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Glass */
+  --nx-glass: rgba(255, 255, 255, 0.72);
+  --nx-glass-strong: rgba(255, 255, 255, 0.86);
+  --nx-glass-soft: rgba(255, 255, 255, 0.55);
+  --nx-glass-tint: rgba(15, 23, 42, 0.04);
+  --nx-glass-tint-hover: rgba(15, 23, 42, 0.07);
+  --nx-glass-edge: rgba(255, 255, 255, 0.9);
+  --nx-glass-line: rgba(15, 23, 42, 0.08);
+  --nx-glass-blur: blur(28px) saturate(1.8);
+  --nx-glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 0 0 1px rgba(15, 23, 42, 0.06),
+    0 24px 60px -24px rgba(15, 30, 70, 0.3), 0 8px 20px -12px rgba(15, 30, 70, 0.12);
+  --nx-pill-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 0 0 1px rgba(15, 23, 42, 0.07),
+    0 18px 44px -18px rgba(15, 30, 70, 0.35), 0 4px 12px -6px rgba(15, 30, 70, 0.12);
+  --nx-ai-text: #0b0d17;
+  --nx-ai-muted: #5d6475;
+  --nx-ai-panel-bg: #ffffff;
+}
+
+.dark {
+  --nx-glass: rgba(24, 25, 33, 0.62);
+  --nx-glass-strong: rgba(28, 29, 38, 0.82);
+  --nx-glass-soft: rgba(255, 255, 255, 0.04);
+  --nx-glass-tint: rgba(255, 255, 255, 0.05);
+  --nx-glass-tint-hover: rgba(255, 255, 255, 0.09);
+  --nx-glass-edge: rgba(255, 255, 255, 0.1);
+  --nx-glass-line: rgba(255, 255, 255, 0.07);
+  --nx-glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.07) inset, 0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 30px 70px -24px rgba(0, 0, 0, 0.75), 0 10px 24px -12px rgba(0, 0, 0, 0.5);
+  --nx-pill-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 20px 48px -18px rgba(0, 0, 0, 0.8), 0 4px 12px -6px rgba(0, 0, 0, 0.5);
+  --nx-ai-text: #ececf3;
+  --nx-ai-muted: #9a9cad;
+  --nx-ai-panel-bg: #15161c;
+}
+
+.nx-glass {
+  background: var(--nx-glass);
+  backdrop-filter: var(--nx-glass-blur);
+  -webkit-backdrop-filter: var(--nx-glass-blur);
+}
+
+/* ---- Navbar: search + assistant ----------------------------------------- */
+
+.nx-search-ai-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: 0.75rem;
+  padding-inline-start: 0.625rem;
+}
+
+.nx-ai-trigger {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  height: 2.25rem;
+  padding: 0 0.75rem 0 0.625rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-fd-border);
+  background: color-mix(in oklab, var(--color-fd-secondary) 50%, transparent);
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: color 0.2s var(--nx-ease), background 0.2s var(--nx-ease), border-color 0.2s var(--nx-ease);
+}
+
+.nx-ai-trigger svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  color: var(--nx-brand);
+}
+
+.nx-ai-trigger:hover,
+html[data-assistant-open] .nx-ai-trigger {
+  color: var(--color-fd-foreground);
+  background: var(--color-fd-accent);
+}
+
+.nx-ai-trigger-sm {
+  width: 2.25rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.nx-ai-trigger-sm .nx-ai-trigger-label {
+  display: none;
+}
+
+/* ---- ⌘K search dialog ---------------------------------------------------- */
+
+.nx-search-ask-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.4rem;
+  height: 1.875rem;
+  padding: 0 0.4rem 0 0.7rem;
+  border-radius: 999px;
+  background: var(--nx-glass-tint);
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color 0.2s var(--nx-ease), background 0.2s var(--nx-ease);
+}
+
+.nx-search-ask-btn svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--nx-brand);
+}
+
+.nx-search-ask-btn:hover {
+  color: var(--color-fd-foreground);
+  background: var(--nx-glass-tint-hover);
+}
+
+.nx-search-ask-btn kbd,
+.nx-search-footer kbd,
+.nx-askbar-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--nx-glass-tint);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  line-height: 1;
+  color: var(--color-fd-muted-foreground);
+}
+
+.nx-search-ask {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-fd-foreground);
+}
+
+.nx-search-ask svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  color: var(--nx-brand);
+}
+
+.nx-search-ask strong {
+  font-weight: 600;
+}
+
+.nx-search-footer {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--color-fd-muted-foreground);
+}
+
+.nx-search-footer > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+@media (max-width: 639px) {
+  .nx-search-ask-btn kbd,
+  .nx-search-footer {
+    display: none;
+  }
+}
+
+/* ---- Bottom "Ask a question…" box ---------------------------------------- */
+
+:root {
+  --nx-askbar-bg: #ffffff;
+  --nx-askbar-border: #e3e6ee;
+  --nx-askbar-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 12px 32px -14px rgba(16, 32, 80, 0.18);
+}
+
+.dark {
+  --nx-askbar-bg: #16171d;
+  --nx-askbar-border: #2a2b33;
+  --nx-askbar-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 16px 40px -16px rgba(0, 0, 0, 0.7);
+}
+
+/* Pinned to the bottom of the screen for as long as the page is in view. */
+.nx-askbar-wrap {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 30;
+  margin-top: 3rem;
+  pointer-events: none;
+  transition: opacity 0.3s var(--nx-ease), transform 0.3s var(--nx-ease);
+}
+
+.nx-askbar-wrap[data-hidden] {
+  opacity: 0;
+  transform: translateY(0.75rem);
+}
+
+.nx-askbar-wrap[data-hidden] .nx-askbar {
+  pointer-events: none;
+}
+
+.nx-askbar {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  width: 100%;
+  padding: 0.75rem 0.625rem 0.625rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--nx-askbar-border);
+  background: var(--nx-askbar-bg);
+  box-shadow: var(--nx-askbar-shadow);
+  transition: border-color 0.2s var(--nx-ease), box-shadow 0.2s var(--nx-ease);
+}
+
+.nx-askbar:hover {
+  border-color: color-mix(in oklab, var(--nx-askbar-border), var(--nx-brand) 25%);
+}
+
+.nx-askbar:focus-within {
+  border-color: var(--nx-brand-ring);
+  box-shadow: var(--nx-askbar-shadow), 0 0 0 4px var(--nx-brand-soft);
+}
+
+.nx-askbar input {
+  width: 100%;
+  height: 1.5rem;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 0.9375rem;
+  color: var(--nx-ai-text);
+}
+
+.nx-askbar input::placeholder {
+  color: var(--nx-ai-muted);
+}
+
+.nx-askbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.nx-askbar-top {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.nx-askbar-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  color: var(--nx-brand);
+}
+
+.nx-askbar .nx-ai-send {
+  width: 1.875rem;
+  height: 1.875rem;
+}
+
+.nx-askbar-kbd {
+  flex: none;
+}
+
+@media (max-width: 767px) {
+  .nx-askbar-kbd {
+    visibility: hidden;
+  }
+  .nx-askbar-wrap {
+    bottom: 0.75rem;
+  }
+}
+
+/* ---- Navbar while the panel is docked -------------------------------------
+   The panel takes ~440px, so the search box narrows and, on medium-wide
+   screens, Discord and Cloud show as icons. */
+
+.nx-nav-link .nx-nav-label {
+  white-space: nowrap;
+}
+
+@media (min-width: 1280px) and (max-width: 1535px) {
+  html[data-assistant-open]:not([data-assistant-expanded]) .nx-nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  html[data-assistant-open]:not([data-assistant-expanded]) .nx-nav-link svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  html[data-assistant-open]:not([data-assistant-expanded]) #nd-subnav .gap-6 {
+    gap: 1.125rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  html[data-assistant-open]:not([data-assistant-expanded]) .nx-search-ai {
+    max-width: 17rem;
+  }
+}
+
+/* While the panel is open, Ask AI steps aside; the panel's × closes it. */
+html[data-assistant-open] .nx-ai-trigger {
+  display: none;
+}
+
+/* Round send / stop button, shared by the pill and the composer. */
+.nx-ai-send {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  background: var(--nx-brand);
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 6px 16px -6px var(--nx-brand-ring);
+  transition: opacity 0.2s var(--nx-ease), transform 0.2s var(--nx-ease), background 0.2s var(--nx-ease),
+    box-shadow 0.2s var(--nx-ease);
+}
+
+.nx-ai-send svg {
+  width: 1rem;
+  height: 1rem;
+  stroke-width: 2.25;
+}
+
+.nx-ai-send:hover:not(:disabled) {
+  background: var(--nx-brand-strong);
+}
+
+.nx-ai-send:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.nx-ai-send:disabled {
+  background: var(--nx-glass-tint-hover);
+  color: var(--nx-ai-muted);
+  box-shadow: none;
+  cursor: default;
+}
+
+.nx-ai-send .nx-ai-stop {
+  width: 0.7rem;
+  height: 0.7rem;
+  fill: currentColor;
+  stroke-width: 0;
+}
+
+/* ---- Panel --------------------------------------------------------------- */
+
+.nx-ai-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  background: rgba(8, 10, 20, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s var(--nx-ease);
+}
+
+.nx-ai-backdrop[data-open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.nx-ai-panel {
+  position: fixed;
+  top: var(--nx-ai-gap);
+  right: var(--nx-ai-gap);
+  bottom: var(--nx-ai-gap);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: var(--nx-ai-w);
+  max-width: calc(100vw - 2 * var(--nx-ai-gap));
+  border-radius: var(--nx-ai-radius);
+  /* Solid, so the page never shows through the conversation. */
+  background: var(--nx-ai-panel-bg);
+  box-shadow: var(--nx-glass-shadow);
+  color: var(--nx-ai-text);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(24px) scale(0.985);
+  transform-origin: right center;
+  visibility: hidden;
+  transition: opacity 0.3s var(--nx-ease), transform 0.35s var(--nx-ease), width 0.35s var(--nx-ease),
+    visibility 0s linear 0.35s;
+}
+
+.nx-ai-panel[data-open] {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition: opacity 0.3s var(--nx-ease), transform 0.35s var(--nx-ease), width 0.35s var(--nx-ease),
+    visibility 0s;
+}
+
+.nx-ai-panel[data-expanded] {
+  width: min(58rem, calc(100vw - 2 * var(--nx-ai-gap)));
+}
+
+/* Wide screens: the page makes room for the panel instead of being covered. */
+@media (min-width: 1280px) {
+  .nx-ai-backdrop[data-open] {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  html[data-assistant-expanded] .nx-ai-backdrop[data-open] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body {
+    transition: padding-right 0.35s var(--nx-ease);
+  }
+
+  html[data-assistant-open]:not([data-assistant-expanded]) body {
+    padding-right: calc(var(--nx-ai-w) + var(--nx-ai-gap));
+  }
+
+  html[data-assistant-open]:not([data-assistant-expanded]) #nd-notebook-layout {
+    --fd-toc-width: 0px !important;
+  }
+
+  html[data-assistant-open]:not([data-assistant-expanded]) #nd-toc {
+    display: none;
+  }
+}
+
+/* Phones: a sheet that rises from the bottom. */
+@media (max-width: 767px) {
+  .nx-ai-panel {
+    top: auto;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    width: auto;
+    max-width: none;
+    height: 86dvh;
+    transform: translateY(32px);
+  }
+
+  .nx-ai-panel[data-expanded] {
+    width: auto;
+    height: calc(100dvh - 1rem);
+  }
+
+  .nx-ai-panel .nx-ai-expand {
+    display: none;
+  }
+}
+
+.nx-ai-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  height: 3.5rem;
+  padding: 0 0.625rem 0 1.125rem;
+}
+
+.nx-ai-header::after {
+  content: '';
+  position: absolute;
+  left: 1.125rem;
+  right: 1.125rem;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--nx-glass-line) 12%, var(--nx-glass-line) 88%, transparent);
+}
+
+.nx-ai-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.nx-ai-title svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--nx-brand);
+}
+
+.nx-ai-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.nx-ai-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  color: var(--nx-ai-muted);
+  transition: background 0.2s var(--nx-ease), color 0.2s var(--nx-ease);
+}
+
+.nx-ai-icon-btn svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.nx-ai-icon-btn:hover:not(:disabled) {
+  background: var(--nx-glass-tint-hover);
+  color: var(--nx-ai-text);
+}
+
+.nx-ai-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.nx-ai-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--nx-glass-line) transparent;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+
+.nx-ai-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.25rem 1.125rem 1.5rem;
+}
+
+.nx-ai-panel[data-expanded] .nx-ai-thread,
+.nx-ai-panel[data-expanded] .nx-ai-footer {
+  width: 100%;
+  max-width: 46rem;
+  margin-inline: auto;
+}
+
+.nx-ai-msg-user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.375rem;
+}
+
+.nx-ai-msg-page {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 85%;
+  font-size: 0.6875rem;
+  color: var(--nx-ai-muted);
+}
+
+.nx-ai-msg-page svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+}
+
+.nx-ai-bubble {
+  max-width: 85%;
+  padding: 0.6rem 0.95rem;
+  border-radius: 1.25rem 1.25rem 0.375rem 1.25rem;
+  background: var(--nx-glass-tint-hover);
+  box-shadow: 0 1px 0 var(--nx-glass-edge) inset;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.nx-ai-msg-assistant {
+  min-width: 0;
+  animation: nx-ai-in 0.35s var(--nx-ease);
+}
+
+@keyframes nx-ai-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.nx-ai-msg-actions {
+  display: flex;
+  gap: 0.125rem;
+  margin-top: 0.5rem;
+  margin-left: -0.375rem;
+}
+
+.nx-ai-msg-actions .nx-ai-icon-btn {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.nx-ai-msg-actions .nx-ai-icon-btn svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.nx-ai-thinking {
+  display: inline-flex;
+  gap: 0.3rem;
+  padding: 0.5rem 0;
+}
+
+.nx-ai-thinking span {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--nx-ai-muted);
+  animation: nx-ai-dot 1.2s ease-in-out infinite;
+}
+
+.nx-ai-thinking span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.nx-ai-thinking span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes nx-ai-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* Sources */
+
+.nx-ai-sources {
+  margin-top: 1rem;
+}
+
+.nx-ai-sources-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--nx-ai-muted);
+}
+
+.nx-ai-sources-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.nx-ai-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  height: 1.875rem;
+  padding: 0 0.75rem 0 0.625rem;
+  border-radius: 999px;
+  background: var(--nx-glass-tint);
+  box-shadow: 0 1px 0 var(--nx-glass-edge) inset;
+  font-size: 0.75rem;
+  color: var(--nx-ai-text);
+  text-decoration: none;
+  transition: background 0.2s var(--nx-ease), color 0.2s var(--nx-ease);
+}
+
+.nx-ai-source svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+  color: var(--nx-ai-muted);
+}
+
+.nx-ai-source span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nx-ai-source:hover {
+  background: var(--nx-glass-tint-hover);
+}
+
+.nx-ai-source-section {
+  flex: none;
+  color: var(--nx-ai-muted);
+}
+
+.nx-ai-source-section::before {
+  content: '·';
+  margin-right: 0.3rem;
+}
+
+/* Footer: suggestions + composer */
+
+.nx-ai-footer {
+  flex: none;
+  padding: 0.5rem 0.75rem 0.75rem;
+}
+
+.nx-ai-suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  margin: 0 0 0.875rem;
+  padding: 0 0.375rem;
+}
+
+.nx-ai-suggestions p {
+  margin: 0 0 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--nx-ai-text);
+}
+
+.nx-ai-suggestions button {
+  max-width: 100%;
+  padding: 0.3rem 0;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--nx-brand-strong);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s var(--nx-ease), opacity 0.2s var(--nx-ease);
+}
+
+.nx-ai-suggestions button:hover {
+  text-decoration-color: currentColor;
+}
+
+.nx-ai-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.75rem 0.5rem 0.5rem 0.875rem;
+  border-radius: 1.125rem;
+  background: var(--nx-glass-strong);
+  box-shadow: 0 1px 0 var(--nx-glass-edge) inset, 0 0 0 1px var(--nx-glass-line), 0 8px 24px -16px rgba(0, 0, 0, 0.35);
+  transition: box-shadow 0.25s var(--nx-ease);
+}
+
+.nx-ai-composer:focus-within {
+  box-shadow: 0 1px 0 var(--nx-glass-edge) inset, 0 0 0 1px var(--nx-glass-line), 0 0 0 4px var(--nx-brand-soft),
+    0 8px 24px -16px rgba(0, 0, 0, 0.35);
+}
+
+.nx-ai-context {
+  display: flex;
+}
+
+.nx-ai-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 100%;
+  height: 1.5rem;
+  padding: 0 0.25rem 0 0.55rem;
+  border-radius: 999px;
+  background: var(--nx-glass-tint);
+  font-size: 0.75rem;
+  color: var(--nx-ai-muted);
+}
+
+.nx-ai-chip > svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+}
+
+.nx-ai-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nx-ai-text);
+}
+
+.nx-ai-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 999px;
+  color: inherit;
+  transition: background 0.2s var(--nx-ease), color 0.2s var(--nx-ease);
+}
+
+.nx-ai-chip button:hover {
+  background: var(--nx-glass-tint-hover);
+  color: var(--nx-ai-text);
+}
+
+.nx-ai-chip button svg {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.nx-ai-composer textarea {
+  width: 100%;
+  min-height: 1.5rem;
+  max-height: 10rem;
+  padding: 0.125rem 0.375rem 0.125rem 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--nx-ai-text);
+}
+
+.nx-ai-composer textarea::placeholder {
+  color: var(--nx-ai-muted);
+}
+
+.nx-ai-composer-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.nx-ai-composer .nx-ai-send {
+  width: 2rem;
+  height: 2rem;
+}
+
+.nx-ai-disclaimer {
+  max-width: 18rem;
+  margin: 1.25rem auto 0;
+  padding: 0 1rem;
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--nx-ai-muted);
+}
+
+/* ---- Answer formatting -------------------------------------------------- */
+
+.nx-ai-prose {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.nx-ai-prose > :first-child {
+  margin-top: 0;
+}
+
+.nx-ai-prose > :last-child {
+  margin-bottom: 0;
+}
+
+.nx-ai-prose p {
+  margin: 0.625rem 0;
+}
+
+.nx-ai-prose h1,
+.nx-ai-prose h2,
+.nx-ai-prose h3,
+.nx-ai-prose h4 {
+  margin: 1.25rem 0 0.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.nx-ai-prose h1 {
+  font-size: 1.0625rem;
+}
+
+.nx-ai-prose h2 {
+  font-size: 1rem;
+}
+
+.nx-ai-prose h3,
+.nx-ai-prose h4 {
+  font-size: 0.9375rem;
+}
+
+.nx-ai-prose ul,
+.nx-ai-prose ol {
+  margin: 0.625rem 0;
+  padding-left: 1.25rem;
+}
+
+.nx-ai-prose ul {
+  list-style: disc;
+}
+
+.nx-ai-prose ol {
+  list-style: decimal;
+}
+
+.nx-ai-prose li {
+  margin: 0.3rem 0;
+  padding-left: 0.15rem;
+}
+
+.nx-ai-prose li::marker {
+  color: var(--nx-ai-muted);
+}
+
+.nx-ai-prose strong {
+  font-weight: 600;
+}
+
+.nx-ai-prose a {
+  color: var(--nx-brand-strong);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--nx-brand-ring);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s var(--nx-ease);
+}
+
+.nx-ai-prose a:hover {
+  text-decoration-color: currentColor;
+}
+
+.nx-ai-prose :not(pre) > code {
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.375rem;
+  background: var(--nx-glass-tint-hover);
+  font-size: 0.8125em;
+}
+
+.nx-ai-prose > pre {
+  margin: 0.75rem 0;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.875rem;
+  background: var(--nx-glass-tint);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.nx-ai-prose .nx-ai-code {
+  margin: 0.75rem 0;
+  border: 0;
+  border-radius: 0.875rem;
+  background: var(--nx-glass-tint);
+  box-shadow: 0 0 0 1px var(--nx-glass-line), 0 1px 0 var(--nx-glass-edge) inset;
+  font-size: 0.8125rem;
+}
+
+.nx-ai-prose .nx-ai-code pre {
+  background: transparent;
+}
+
+/* Notes (e.g. "not connected yet") read as a quiet aside, not an alert. */
+.nx-ai-prose blockquote {
+  margin: 0.75rem 0;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.875rem;
+  background: var(--nx-glass-tint);
+  font-size: 0.8125rem;
+  color: var(--nx-ai-muted);
+}
+
+.nx-ai-prose blockquote p {
+  margin: 0;
+}
+
+.nx-ai-prose hr {
+  margin: 1rem 0;
+  border-color: var(--nx-glass-line);
+}
+
+.nx-ai-table {
+  margin: 0.75rem 0;
+  border-radius: 0.875rem;
+  background: var(--nx-glass-tint);
+  overflow-x: auto;
+}
+
+.nx-ai-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.nx-ai-table th,
+.nx-ai-table td {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--nx-glass-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.nx-ai-table th {
+  font-weight: 600;
+  color: var(--nx-ai-muted);
+}
+
+.nx-ai-table tr:last-child td {
+  border-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-ai-panel,
+  .nx-ai-panel[data-open],
+  .nx-askbar-wrap,
+  .nx-askbar,
+  .nx-ai-backdrop,
+  body {
+    transition: none;
+  }
+  .nx-ai-thinking span,
+  .nx-ai-msg-assistant {
+    animation: none;
+  }
+}

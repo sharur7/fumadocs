@@ -40,7 +40,7 @@ const channels: Channel[] = [
     tone: 'blue',
     title: 'Troubleshooting',
     when: 'Something fails and you want the known fix.',
-    href: '/docs/troubleshooting',
+    href: '/docs/troubleshooting/cli',
     cta: 'Find your symptom',
   },
   {

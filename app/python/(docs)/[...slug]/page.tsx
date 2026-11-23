@@ -11,6 +11,7 @@ import { getMDXComponents } from '@/components/mdx';
 import { PageActions } from '@/components/page-actions';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
+import { AskBar } from '@/components/assistant/ask-bar';
 
 export default async function Page(props: PageProps<'/python/[...slug]'>) {
   const params = await props.params;
@@ -41,6 +42,7 @@ export default async function Page(props: PageProps<'/python/[...slug]'>) {
           })}
         />
       </DocsBody>
+      <AskBar page={{ title: page.data.title, url: page.url }} />
     </DocsPage>
   );
 }

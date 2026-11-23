@@ -121,6 +121,8 @@ const config = {
       { source: '/docs/cloud/apps/logs-and-monitoring', destination: '/docs/cloud/apps/mcp/monitoring', permanent: true },
       { source: '/docs/cloud/apps/domains-and-integrations', destination: '/docs/cloud/apps/mcp/domains', permanent: true },
       { source: '/python/deployment/cloud-platforms', destination: '/python/deployment/cloud', permanent: true },
+      // The general Troubleshooting page was split into pages in the Troubleshooting section
+      { source: '/docs/troubleshooting', destination: '/docs/troubleshooting/cli', permanent: false },
     ];
   },
   async headers() {

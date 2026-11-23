@@ -1,6 +1,8 @@
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import './global.css';
 import { Inter } from 'next/font/google';
+import { AssistantPanel } from '@/components/assistant/panel';
+import { AssistantSearchDialog } from '@/components/assistant/search';
 
 import type { Metadata } from 'next';
 
@@ -29,7 +31,10 @@ export default function Layout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className={inter.className} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen bg-background-base text-text-primary antialiased">
-        <RootProvider theme={{ defaultTheme: 'dark' }}>{children}</RootProvider>
+        <RootProvider theme={{ defaultTheme: 'dark' }} search={{ SearchDialog: AssistantSearchDialog }}>
+          {children}
+          <AssistantPanel />
+        </RootProvider>
       </body>
     </html>
   );
